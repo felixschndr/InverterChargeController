@@ -1,0 +1,10 @@
+asyncio==3.4.3
+goodwe==0.4.8
+gql==3.5.0
+aiohttp==3.10.3
+black==24.8.0
+flake8==7.1.1
+isort==5.13.2
+pre-commit==3.8.0
+python-dotenv==1.0.1
+requests==2.32.3

@@ -1,0 +1,19 @@
+{
+    viewer {
+        homes {
+            currentSubscription {
+                priceInfo {
+                    tomorrow {
+                        total
+                        startsAt
+                    }
+                }
+            }
+            consumption (resolution: WEEKLY, last: 1) {
+                nodes {
+                    consumption
+                }
+            }
+        }
+    }
+}

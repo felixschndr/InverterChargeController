@@ -49,9 +49,14 @@ class SunForecast(LoggerMixin):
             estimated_output = data["result"]["watt_hours_day"][
                 self._get_date_as_string()
             ]
-            self.log.info(f"Estimated output is {estimated_output} Wh")
+            self.log.info(f"Estimated solar output is {estimated_output} Wh")
             return estimated_output
         else:
             raise ValueError(
                 f"There was a problem with getting the solar forecast: {response.content} (Code: {response.status_code})"
             )
+
+    @staticmethod
+    def _debug_solar_output() -> int:
+        # We use a sample value for debugging the code since the API offers very limited call per day
+        return 23000

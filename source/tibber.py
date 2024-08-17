@@ -1,21 +1,12 @@
-import os
-
-from dotenv import load_dotenv
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
-load_dotenv()
+from source.environment_variable_getter import EnvironmentVariableGetter
 
 
 class TibberAPI:
     def __init__(self):
-        api_token_variable_name = "TIBBER_API_TOKEN"
-        try:
-            api_token = os.environ[api_token_variable_name]
-        except KeyError:
-            raise RuntimeError(
-                f"Environment variable {api_token_variable_name} is not set!"
-            )
+        api_token = EnvironmentVariableGetter.get("TIBBER_API_TOKEN")
 
         transport = AIOHTTPTransport(
             url="https://api.tibber.com/v1-beta/gql",

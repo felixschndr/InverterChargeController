@@ -1,26 +1,16 @@
 import asyncio
-import os
 
 import goodwe
-from dotenv import load_dotenv
 from goodwe.et import OperationMode
 
-load_dotenv()
+from source.environment_variable_getter import EnvironmentVariableGetter
 
 
 class Inverter:
     def __init__(self):
         self.device = None
 
-        inverter_hostname_environment_variable_name = "INVERTER_HOSTNAME"
-        try:
-            self.inverter_hostname = os.environ[
-                inverter_hostname_environment_variable_name
-            ]
-        except KeyError:
-            raise RuntimeError(
-                f"Environment variable {inverter_hostname_environment_variable_name} is not set!"
-            )
+        self.inverter_hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
 
     async def connect(self) -> None:
         self.device = await goodwe.connect(self.inverter_hostname)

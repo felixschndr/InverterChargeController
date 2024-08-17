@@ -25,9 +25,7 @@ class Inverter:
     async def set_operation_mode(self, mode: OperationMode) -> None:
         await self.device.set_operation_mode(mode)
 
-        try:
-            assert await self.get_operation_mode() == mode
-        except AssertionError:
+        if await self.get_operation_mode() != mode:
             raise RuntimeError(
                 f"Setting the Operation mode {mode.name} was not successful"
             )

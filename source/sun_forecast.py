@@ -1,38 +1,47 @@
 import datetime
-import os
 
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()
-
-FORECAST_API_BASE_URL = "https://api.forecast.solar/estimate"
-
-LOCATION_LATITUDE = os.environ.get("LOCATION_LATITUDE")
-LOCATION_LONGITUDE = os.environ.get("LOCATION_LONGITUDE")
-LOCATION_PLANE_DECLINATION = os.environ.get("LOCATION_PLANE_DECLINATION")
-LOCATION_PLANE_AZIMUTH = os.environ.get("LOCATION_PLANE_AZIMUTH")
-LOCATION_NUMBER_OF_PANELS = os.environ.get("LOCATION_NUMBER_OF_PANELS")
-LOCATION_MAXIMUM_OUTPUT_IN_WATTS = os.environ.get("LOCATION_MAXIMUM_OUTPUT_IN_WATTS")
-
-maximum_output_of_all_panels_in_kw = (
-    int(LOCATION_NUMBER_OF_PANELS) * int(LOCATION_MAXIMUM_OUTPUT_IN_WATTS) / 1000
-)
-
-url = f"{FORECAST_API_BASE_URL}/{LOCATION_LATITUDE}/{LOCATION_LONGITUDE}/{LOCATION_PLANE_DECLINATION}/{LOCATION_PLANE_AZIMUTH}/{maximum_output_of_all_panels_in_kw}"
+from environment_variable_getter import EnvironmentVariableGetter
 
 
-def _get_date_as_string() -> str:
-    return datetime.datetime.now().strftime("%Y-%m-%d")
+class SunForecast:
+    def __init__(self):
+        self.url = self.get_url()
 
+    @staticmethod
+    def get_url() -> str:
+        api_base_url = "https://api.forecast.solar/estimate"
 
-def get_solar_output_in_watt_hours() -> int:
-    response = requests.get(url, timeout=5)
-
-    if response.status_code == 200:
-        data = response.json()
-        return data["result"]["watt_hours_day"][_get_date_as_string()]
-    else:
-        raise ValueError(
-            f"There was a problem with getting the solar forecast: {response.content} (Code: {response.status_code})"
+        latitude = EnvironmentVariableGetter.get("LOCATION_LATITUDE")
+        longitude = EnvironmentVariableGetter.get("LOCATION_LONGITUDE")
+        plane_declination = EnvironmentVariableGetter.get("LOCATION_PLANE_DECLINATION")
+        plane_azimuth = EnvironmentVariableGetter.get("LOCATION_PLANE_AZIMUTH")
+        number_of_panels = int(
+            EnvironmentVariableGetter.get("LOCATION_NUMBER_OF_PANELS")
         )
+        maximum_output_of_panel_in_watts = int(
+            EnvironmentVariableGetter.get(
+                "LOCATION_MAXIMUM_POWER_OUTPUT_PER_PANEL_IN_WATTS"
+            )
+        )
+
+        maximum_output_of_all_panels_in_kw = (
+            number_of_panels * maximum_output_of_panel_in_watts / 1000
+        )
+
+        return f"{api_base_url}/{latitude}/{longitude}/{plane_declination}/{plane_azimuth}/{maximum_output_of_all_panels_in_kw}"
+
+    @staticmethod
+    def _get_date_as_string() -> str:
+        return datetime.datetime.now().strftime("%Y-%m-%d")
+
+    def get_solar_output_in_watt_hours(self) -> int:
+        response = requests.get(self.url, timeout=5)
+
+        if response.status_code == 200:
+            data = response.json()
+            return data["result"]["watt_hours_day"][self._get_date_as_string()]
+        else:
+            raise ValueError(
+                f"There was a problem with getting the solar forecast: {response.content} (Code: {response.status_code})"
+            )

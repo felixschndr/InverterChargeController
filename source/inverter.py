@@ -1,8 +1,7 @@
 import goodwe
+from environment_variable_getter import EnvironmentVariableGetter
 from goodwe.et import OperationMode
 from logger import LoggerMixin
-
-from source.environment_variable_getter import EnvironmentVariableGetter
 
 
 class Inverter(LoggerMixin):

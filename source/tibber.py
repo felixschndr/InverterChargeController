@@ -1,8 +1,7 @@
+from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 from logger import LoggerMixin
-
-from source.environment_variable_getter import EnvironmentVariableGetter
 
 
 class TibberAPI(LoggerMixin):

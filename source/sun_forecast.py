@@ -47,9 +47,7 @@ class SunForecast(LoggerMixin):
         response.raise_for_status()
 
         data = response.json()
-        estimated_output = data["result"]["watt_hours_day"][
-            self._get_date_as_string()
-        ]
+        estimated_output = data["result"]["watt_hours_day"][self._get_date_as_string()]
         self.log.info(f"Estimated solar output is {estimated_output} Wh")
         return estimated_output
 

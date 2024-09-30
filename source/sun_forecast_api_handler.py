@@ -5,7 +5,7 @@ from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 
 
-class SunForecast(LoggerMixin):
+class SunForecastAPIHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
@@ -52,6 +52,6 @@ class SunForecast(LoggerMixin):
         return estimated_output
 
     @staticmethod
-    def _debug_solar_output() -> int:
+    def _get_debug_solar_output_in_watt_hours() -> int:
         # We use a sample value for debugging the code since the API offers very limited call per day
         return 23000

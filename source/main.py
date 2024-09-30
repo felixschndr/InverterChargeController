@@ -3,7 +3,7 @@ from goodwe import OperationMode
 from source.inverter import Inverter
 from source.logger import LoggerMixin
 from source.sems_portal_api_handler import SemsPortalApiHandler
-from source.sun_forecast import SunForecast
+from source.sun_forecast_api_handler import SunForecastAPIHandler
 
 
 class Main(LoggerMixin):
@@ -25,9 +25,9 @@ class Main(LoggerMixin):
             f"The expected power consumption for tomorrow is {average_power_consumption:.2f} Wh"
         )
 
-        sun_forecast = SunForecast()
+        sun_forecast_api_handler = SunForecastAPIHandler()
         # solar_output_tomorrow = sun_forecast.get_solar_output_in_watt_hours()
-        solar_output_tomorrow = sun_forecast._debug_solar_output()
+        solar_output_tomorrow = sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
         self.log.info(
             f"The expected solar output for tomorrow is {solar_output_tomorrow:.2f} Wh"
         )

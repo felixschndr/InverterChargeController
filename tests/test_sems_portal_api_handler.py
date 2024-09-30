@@ -27,7 +27,7 @@ def test_set_sems_token_and_api(mock_post):
     mock_post.return_value = _mock_response(status=200, json_data=response_data)
 
     sems_portal_api_handler = SemsPortalApiHandler()
-    sems_portal_api_handler.set_sems_token_and_api()
+    sems_portal_api_handler.login()
 
     assert sems_portal_api_handler.api_url == "api_url"
     assert sems_portal_api_handler.token == "token_value"

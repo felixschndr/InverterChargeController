@@ -1,3 +1,5 @@
+import json
+
 from requests.exceptions import HTTPError
 from datetime import datetime, timedelta
 
@@ -13,7 +15,7 @@ class SemsPortalApiHandler:
         self.timestamp = None
         self.user_id = None
 
-    def set_sems_token_and_api(self) -> None:
+    def login(self) -> None:
         """
         Sets the SEMS token and API URL by making a POST request to the SEMS portal cross-login API.
 
@@ -46,19 +48,18 @@ class SemsPortalApiHandler:
         url = "https://eu.semsportal.com/api/v2/Charts/GetChartByPlant"
         headers = {
             "Content-Type": "application/json",
-            # "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": {self.timestamp}, "uid": {self.uid}, "token": "{self.token}"}}',
-            "Token": "eyJ1aWQiOiI2YTdhM2YxNC1lZjU5LTRhODYtOTA1Ni03YWRjMDlmYjUxMTgiLCJ0aW1lc3RhbXAiOjE3MjQ1ODM5ODIyMTAsInRva2VuIjoiNDgwMzZiZGUxZDUxZTkyZGY2M2IzMGM2NzMxZDQ4N2IiLCJjbGllbnQiOiJ3ZWIiLCJ2ZXJzaW9uIjoiIiwibGFuZ3VhZ2UiOiJkZS1kZSJ9",
+            "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
         }
-        payload = {
+        payload = json.dumps({
             "id": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
             "range": 2,
             "chartIndexId": "8",
             "date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
-        }
-        response = requests.post(url, headers=headers, json=payload)
+        })
+        response = requests.post(url, headers=headers, data=payload)
         response.raise_for_status()
 
-        if "100002" in response.text:
+        if "100001" in response.text or "100002" in response.text:
             raise HTTPError("HTTP Unauthorized: The provided token is invalid or expired.")
 
         return self._extract_consumption_data_of_response(response.json())
@@ -83,3 +84,7 @@ class SemsPortalApiHandler:
         ]
 
         return sum(last_week_consumption_data) / len(last_week_consumption_data)
+
+sems_portal_api_handler = SemsPortalApiHandler()
+sems_portal_api_handler.login()
+print(sems_portal_api_handler.get_average_power_consumption_per_day_of_last_week())

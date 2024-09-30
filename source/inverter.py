@@ -18,12 +18,18 @@ class Inverter(LoggerMixin):
         self.log.info("Successfully connected")
 
     async def get_operation_mode(self) -> OperationMode:
+        if self.device is None:
+            await self.connect()
+
         self.log.info("Getting current operation mode")
         operation_mode = await self.device.get_operation_mode()
         self.log.info(f"Current Operation mode is {operation_mode.name}")
         return operation_mode
 
     async def set_operation_mode(self, mode: OperationMode) -> None:
+        if self.device is None:
+            await self.connect()
+
         self.log.info(f"Setting new operation mode: {mode.name}")
         await self.device.set_operation_mode(mode)
 

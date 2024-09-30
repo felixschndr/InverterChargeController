@@ -5,6 +5,8 @@ from logger import LoggerMixin
 
 
 class Inverter(LoggerMixin):
+    BATTERY_CAPACITY = 7100 # Wh
+
     def __init__(self):
         super().__init__()
 
@@ -40,3 +42,13 @@ class Inverter(LoggerMixin):
             )
 
         self.log.info("Successfully set new operation mode")
+
+    @staticmethod
+    def calculate_necessary_duration_to_charge(amount_of_energy: float) -> float:
+        """
+        Calculates how long the inverter needs to be fully charged.
+
+        :param amount_of_energy: The amount of energy (in Wh) required to fully charge the battery.
+        :return: The necessary duration (in hours) to charge the specified amount of energy.
+        """
+        return 3

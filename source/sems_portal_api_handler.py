@@ -43,18 +43,19 @@ class SemsPortalApiHandler:
         """
         Retrieves power consumption data, extracts the relevant data, and computes the average power consumption per day.
 
-        :return: The average power consumption per day as a float.
+        :return: The average power consumption in Wh per day as a float.
         """
         api_response = self._retrieve_power_consumption_data()
         consumption_data = self._extract_consumption_data_of_response(api_response)
-        average_consumption_per_day = sum(consumption_data) / len(consumption_data)
-        return average_consumption_per_day
+        average_consumption_per_day_in_kwh = sum(consumption_data) / len(
+            consumption_data
+        )
+        return average_consumption_per_day_in_kwh * 1000
 
     def _retrieve_power_consumption_data(self) -> dict:
         """
-        Retrieves the average power consumption per day in kWh of the last week from the sems API.
-
-        :return: The average power consumption per day of the last week as a float.
+        :return: A dictionary containing the power consumption data in kWh retrieved from the SEMSPORTAL API.
+        :raises HTTPError: If the provided token is invalid or expired.
         """
         url = "https://eu.semsportal.com/api/v2/Charts/GetChartByPlant"
         headers = {
@@ -101,8 +102,3 @@ class SemsPortalApiHandler:
         ]
 
         return last_week_consumption_data
-
-
-sems_portal_api_handler = SemsPortalApiHandler()
-sems_portal_api_handler.login()
-print(sems_portal_api_handler.get_average_power_consumption_per_day())

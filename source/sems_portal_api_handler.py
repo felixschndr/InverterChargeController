@@ -1,9 +1,7 @@
-import json
-
-from requests.exceptions import HTTPError
 from datetime import datetime, timedelta
 
 import requests
+from requests.exceptions import HTTPError
 
 from source.environment_variable_getter import EnvironmentVariableGetter
 
@@ -17,7 +15,9 @@ class SemsPortalApiHandler:
 
     def login(self) -> None:
         """
-        Sets the SEMS token and API URL by making a POST request to the SEMS portal cross-login API.
+        Authenticates a user by sending a POST request to the SEMS Portal API and retrieves
+        necessary tokens and API URL for subsequent requests. The user's credentials are
+        fetched from the environment variables.
 
         :return: None
         """
@@ -31,7 +31,7 @@ class SemsPortalApiHandler:
             "pwd": EnvironmentVariableGetter.get("SEMSPORTAL_PASSWORD"),
         }
 
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
         response.raise_for_status()
 
         self.api_url = response.json()["api"]
@@ -39,7 +39,18 @@ class SemsPortalApiHandler:
         self.timestamp = response.json()["data"]["timestamp"]
         self.user_id = response.json()["data"]["uid"]
 
-    def get_average_power_consumption_per_day_of_last_week(self) -> float:
+    def get_average_power_consumption_per_day(self) -> float:
+        """
+        Retrieves power consumption data, extracts the relevant data, and computes the average power consumption per day.
+
+        :return: The average power consumption per day as a float.
+        """
+        api_response = self._retrieve_power_consumption_data()
+        consumption_data = self._extract_consumption_data_of_response(api_response)
+        average_consumption_per_day = sum(consumption_data) / len(consumption_data)
+        return average_consumption_per_day
+
+    def _retrieve_power_consumption_data(self) -> dict:
         """
         Retrieves the average power consumption per day in kWh of the last week from the sems API.
 
@@ -50,41 +61,48 @@ class SemsPortalApiHandler:
             "Content-Type": "application/json",
             "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
         }
-        payload = json.dumps({
+        payload = {
             "id": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
             "range": 2,
             "chartIndexId": "8",
             "date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
-        })
-        response = requests.post(url, headers=headers, data=payload)
+        }
+
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
         response.raise_for_status()
 
         if "100001" in response.text or "100002" in response.text:
-            raise HTTPError("HTTP Unauthorized: The provided token is invalid or expired.")
+            raise HTTPError(
+                "HTTP Unauthorized: The provided token is invalid or expired."
+            )
 
-        return self._extract_consumption_data_of_response(response.json())
+        return response.json()
 
     @staticmethod
-    def _extract_consumption_data_of_response(response_json: dict) -> float:
+    def _extract_consumption_data_of_response(response_json: dict) -> list[float]:
         """
-        :param response_json: A dictionary representing the JSON response received.
-        :return: The average consumption data of the last week.
-
-        This method extracts the consumption data from the given JSON response and calculates the average consumption per day of the last week in kWh.
+        :param response_json: Dictionary containing the JSON response with power consumption data.
+        :return: List of the most recent 7 daily power consumption values in kWh.
         """
         lines = response_json["data"]["lines"]
-        consumption_data_raw = [line for line in lines if "Verbrauch" in line["label"]][
-            0
-        ]["xy"]
 
+        # This is a list of dicts, each dict looks as follows
+        # {"x": "<date in YYYY-MM-DD>", "y": <power consumption in kWh>, "z": None}
+        consumption_data_raw = [
+            line for line in lines if "Consumption" in line["label"]
+        ][0]["xy"]
+
+        # Sort the list of dicts by date
         consumption_data_raw_sorted = sorted(consumption_data_raw, key=lambda d: d["x"])
 
+        # Create a list with the most recent 7 values
         last_week_consumption_data = [
             data_point["y"] for data_point in consumption_data_raw_sorted[-7:]
         ]
 
-        return sum(last_week_consumption_data) / len(last_week_consumption_data)
+        return last_week_consumption_data
+
 
 sems_portal_api_handler = SemsPortalApiHandler()
 sems_portal_api_handler.login()
-print(sems_portal_api_handler.get_average_power_consumption_per_day_of_last_week())
+print(sems_portal_api_handler.get_average_power_consumption_per_day())

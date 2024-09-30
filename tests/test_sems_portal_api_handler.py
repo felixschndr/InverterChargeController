@@ -30,7 +30,7 @@ def test_set_sems_token_and_api(mock_post):
     sems_portal_api_handler.login()
 
     assert sems_portal_api_handler.api_url == "api_url"
-    assert sems_portal_api_handler.token == "token_value"
+    assert sems_portal_api_handler.token == "token_value"  # nosec B105
     assert sems_portal_api_handler.timestamp == "timestamp_value"
     assert sems_portal_api_handler.user_id == "uid_value"
 

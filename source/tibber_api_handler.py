@@ -4,7 +4,7 @@ from gql.transport.aiohttp import AIOHTTPTransport
 from logger import LoggerMixin
 
 
-class TibberAPI(LoggerMixin):
+class TibberAPIHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
@@ -39,3 +39,17 @@ class TibberAPI(LoggerMixin):
         return result["viewer"]["homes"][0]["currentSubscription"]["priceInfo"][
             "tomorrow"
         ]
+
+    @staticmethod
+    def get_slices(prices_of_tomorrow: list[dict], hours: int) -> list[list[dict]]:
+        slices = []
+        for i in range(len(prices_of_tomorrow) - hours + 1):
+            slices.append(prices_of_tomorrow[i:i + hours])
+
+        return slices
+
+if __name__ == "__main__":
+    tibber_api_handler = TibberAPIHandler()
+    prices = tibber_api_handler.get_prices_of_tomorrow()
+    # print(prices)
+    tibber_api_handler.get_slices(prices, 2)

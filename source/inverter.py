@@ -20,15 +20,15 @@ class Inverter(LoggerMixin):
         self.dry_run = dry_run
 
     async def connect(self) -> None:
-        self.log.info(f"Connecting to inverter on {self.hostname}")
+        self.log.debug(f"Connecting to inverter on {self.hostname}...")
         self.device = await goodwe.connect(self.hostname)
-        self.log.info("Successfully connected")
+        self.log.info("Successfully connected to inverter")
 
     async def get_operation_mode(self) -> OperationMode:
         if self.device is None:
             await self.connect()
 
-        self.log.info("Getting current operation mode")
+        self.log.debug("Getting current operation mode...")
         operation_mode = await self.device.get_operation_mode()
         self.log.info(f"Current Operation mode is {operation_mode.name}")
         return operation_mode
@@ -43,7 +43,7 @@ class Inverter(LoggerMixin):
         if self.device is None:
             await self.connect()
 
-        self.log.info(f"Setting new operation mode: {mode.name}")
+        self.log.debug(f"Setting new operation mode: {mode.name}...")
         await self.device.set_operation_mode(mode)
 
         current_operation_mode = await self.get_operation_mode()
@@ -52,7 +52,7 @@ class Inverter(LoggerMixin):
                 f"Setting the Operation mode was not successful: Expected {mode.name}, Actual: {current_operation_mode.name}"
             )
 
-        self.log.info("Successfully set new operation mode")
+        self.log.info(f"Successfully set new operation mode {mode.name}")
 
     @staticmethod
     def calculate_necessary_duration_to_charge(amount_of_energy: float) -> int:

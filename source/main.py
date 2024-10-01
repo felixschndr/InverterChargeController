@@ -1,3 +1,6 @@
+from datetime import datetime
+
+import pause
 from goodwe import OperationMode
 
 from source.inverter import Inverter
@@ -26,22 +29,22 @@ class Main(LoggerMixin):
         self.tibber_api_handler = TibberAPIHandler()
 
     def run(self) -> None:
-        average_power_consumption = (
+        expected_power_consumption_tomorrow = (
             self.sems_portal_api_handler.get_average_power_consumption_per_day()
         )
         self.log.info(
-            f"The expected power consumption for tomorrow is {average_power_consumption:.2f} Wh"
+            f"The expected power consumption for tomorrow is {expected_power_consumption_tomorrow:.2f} Wh"
         )
 
-        # solar_output_tomorrow = sun_forecast.get_solar_output_in_watt_hours()
-        solar_output_tomorrow = (
+        # expected_power_generation_tomorrow = sun_forecast.get_solar_output_in_watt_hours()
+        expected_power_generation_tomorrow = (
             self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
         )
         self.log.info(
-            f"The expected solar output for tomorrow is {solar_output_tomorrow:.2f} Wh"
+            f"The expected solar output for tomorrow is {expected_power_generation_tomorrow:.2f} Wh"
         )
 
-        if solar_output_tomorrow > average_power_consumption:
+        if expected_power_generation_tomorrow > expected_power_consumption_tomorrow:
             self.log.info(
                 "The expected solar output is greater than the expected power consumption. Setting the inverter to normal operation mode."
             )
@@ -58,7 +61,26 @@ class Main(LoggerMixin):
             if self.dry_run:
                 self.log.info("Would charge the inverter, but dry run is enabled.")
             else:
-                pass  # TODO: Build the logic when to charge
+                duration_to_charge = (
+                    self.inverter.calculate_necessary_duration_to_charge(
+                        expected_power_consumption_tomorrow
+                    )
+                )
+                self.log.info(
+                    f"Calculated necessary duration to charge: {duration_to_charge}"
+                )
+                starting_time = self._find_start_time_to_charge(duration_to_charge)
+                self.log.info(
+                    f"Calculated starting time to charge: {starting_time}, waiting until then..."
+                )
+                pause.until(starting_time)
+                self.log.info("Starting charging...")
+                self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
+                pause.hours(duration_to_charge)
+                self.log.info(
+                    "Charging finished. Setting the inverter back to GENERAL mode"
+                )
+                self.inverter.set_operation_mode(OperationMode.GENERAL)
 
     @staticmethod
     def _calculate_price_slices(
@@ -103,19 +125,19 @@ class Main(LoggerMixin):
             key=lambda price_slice: sum(slot["total"] for slot in price_slice),
         )
 
-    def _find_start_time_to_charge(self, charging_duration: int) -> str:
+    def _find_start_time_to_charge(self, charging_duration: int) -> datetime:
         """
         :param charging_duration: The number of hours for which charging is required.
-        :return: The starting timestamp to begin charging, based on the cheapest price slice of electricity for the next day
-            in the format YYYY-MM-DDTHH:MM:SS+HH:MM
+        :return: The starting timestamp to begin charging, based on the cheapest price slice of electricity
         """
         prices_of_tomorrow = self.tibber_api_handler.get_prices_of_tomorrow()
         price_slices = self._calculate_price_slices(
             prices_of_tomorrow=prices_of_tomorrow, slice_size=charging_duration
         )
         cheapest_slice = self._determine_cheapest_price_slice(price_slices)
+        starting_time_raw = cheapest_slice[0]["startsAt"]
 
-        return cheapest_slice[0]["startsAt"]
+        return datetime.fromisoformat(starting_time_raw)
 
 
 if __name__ == "__main__":

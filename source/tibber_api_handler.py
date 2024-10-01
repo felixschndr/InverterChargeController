@@ -20,33 +20,33 @@ class TibberAPIHandler(LoggerMixin):
 
     async def get_prices_of_tomorrow(self) -> list[PriceSlice]:
         """
-        Fetches electricity prices for tomorrow from the Tibber API.
+        Fetches electricity prices for today from the Tibber API.
 
         :return: A list of PriceSlice objects containing the prices and their corresponding start times for tomorrow.
         """
         query = GraphQLRequest(
             """
             {
-            viewer {
-                homes {
-                    currentSubscription {
-                        priceInfo {
-                            tomorrow {
-                                total
-                                startsAt
+                viewer {
+                    homes {
+                        currentSubscription {
+                            priceInfo {
+                                today {
+                                    total
+                                    startsAt
+                                }
                             }
                         }
                     }
                 }
             }
-        }
         """
         )
         self.log.debug("Crawling the Tibber API for the electricity prices")
         result = await self.client.query(query)
         prices_of_tomorrow_raw = result.data["viewer"]["homes"][0][
             "currentSubscription"
-        ]["priceInfo"]["tomorrow"]
+        ]["priceInfo"]["today"]
 
         prices_of_tomorrow_parsed = []
         for price in prices_of_tomorrow_raw:
@@ -57,5 +57,5 @@ class TibberAPIHandler(LoggerMixin):
                 )
             )
 
-        self.log.debug(f"Retrieved prices of tomorrow: {prices_of_tomorrow_parsed}")
+        self.log.debug(f"Retrieved prices of today: {prices_of_tomorrow_parsed}")
         return prices_of_tomorrow_parsed

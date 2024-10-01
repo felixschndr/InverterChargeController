@@ -31,25 +31,25 @@ class Main(LoggerMixin):
     async def run(self) -> None:
         self.log.info("Starting working...")
 
-        expected_power_consumption_tomorrow = (
+        expected_power_consumption_today = (
             self.sems_portal_api_handler.get_average_power_consumption_per_day()
         )
         self.log.info(
-            f"The average power consumption - and thus expected power consumption for tomorrow - is {expected_power_consumption_tomorrow:.2f} Wh"
+            f"The average power consumption - and thus expected power consumption for today - is {expected_power_consumption_today:.2f} Wh"
         )
 
-        # expected_power_generation_tomorrow = (
+        # expected_power_generation_today = (
         #     self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
         # )
-        expected_power_generation_tomorrow = (
+        expected_power_generation_today = (
             self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
         )
         self.log.info(
-            f"The expected solar output for tomorrow is {expected_power_generation_tomorrow} Wh"
+            f"The expected solar output for today is {expected_power_generation_today} Wh"
         )
 
         excess_power = (
-            expected_power_generation_tomorrow - expected_power_consumption_tomorrow
+            expected_power_generation_today - expected_power_consumption_today
         )
         excess_power = -1000
         if excess_power > 0:
@@ -61,7 +61,7 @@ class Main(LoggerMixin):
                 f"The expected solar output is less than the expected power consumption ({abs(excess_power)} Wh) --> There is a need to charge"
             )
             duration_to_charge = self.inverter.calculate_necessary_duration_to_charge(
-                expected_power_consumption_tomorrow
+                expected_power_consumption_today
             )
             self.log.info(
                 f"Calculated estimated duration to charge: {duration_to_charge} hours"
@@ -70,13 +70,13 @@ class Main(LoggerMixin):
                 duration_to_charge
             )
             self.log.info(
-                f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.2f} €/kWh, waiting until then..."
+                f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
             )
             pause.until(starting_time)
             self.log.info("Starting charging")
             await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
             self.log.info(
-                "Set the inverter to charge, waiting until charge is complete..."
+                f"Set the inverter to charge, waiting for {duration_to_charge} hours..."
             )
             pause.hours(duration_to_charge)
             self.log.info("Charging finished. Setting the inverter back to normal mode")

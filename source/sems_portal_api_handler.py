@@ -109,9 +109,10 @@ class SemsPortalApiHandler(LoggerMixin):
         # Sort the list of dicts by date
         consumption_data_raw_sorted = sorted(consumption_data_raw, key=lambda d: d["x"])
 
-        # Create a list with the most recent 7 values
+        # Create a list with the values of the last week
+        # Since we run some minutes after midnight we want to exclude the current day
         last_week_consumption_data = [
-            data_point["y"] for data_point in consumption_data_raw_sorted[-7:]
+            data_point["y"] for data_point in consumption_data_raw_sorted[-8:-1]
         ]
 
         self.log.debug(

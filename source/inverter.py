@@ -7,12 +7,16 @@ from logger import LoggerMixin
 class Inverter(LoggerMixin):
     BATTERY_CAPACITY = 7100  # Wh
 
-    def __init__(self):
+    def __init__(self, dry_run: bool):
+        """
+        :param dry_run: If True, the operation will be simulated and no changes to the operation mode of the inverter will be made.
+        """
         super().__init__()
 
         self.device = None
 
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
+        self.dry_run = dry_run
 
     async def connect(self) -> None:
         self.log.info(f"Connecting to inverter on {self.hostname}")
@@ -31,6 +35,12 @@ class Inverter(LoggerMixin):
     async def set_operation_mode(self, mode: OperationMode) -> None:
         if self.device is None:
             await self.connect()
+
+        if self.dry_run:
+            self.log.info(
+                f"Would set the inverter to {mode.name} but dry run is enabled"
+            )
+            return
 
         self.log.info(f"Setting new operation mode: {mode.name}")
         await self.device.set_operation_mode(mode)

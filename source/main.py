@@ -17,14 +17,12 @@ class Main(LoggerMixin):
         """
         super().__init__()
 
-        self.dry_run = dry_run
-
         self.sems_portal_api_handler = SemsPortalApiHandler()
         self.sems_portal_api_handler.login()
 
         self.sun_forecast_api_handler = SunForecastAPIHandler()
 
-        self.inverter = Inverter()
+        self.inverter = Inverter(dry_run)
 
         self.tibber_api_handler = TibberAPIHandler()
 
@@ -48,39 +46,29 @@ class Main(LoggerMixin):
             self.log.info(
                 "The expected solar output is greater than the expected power consumption. Setting the inverter to normal operation mode."
             )
-            if self.dry_run:
-                self.log.info(
-                    "Would set the inverter to mode GENERAL, but dry run is enabled."
-                )
-            else:
-                self.inverter.set_operation_mode(OperationMode.GENERAL)
+            self.inverter.set_operation_mode(OperationMode.GENERAL)
         else:
             self.log.info(
                 "The expected solar output is less than the expected power consumption. We need to charge..."
             )
-            if self.dry_run:
-                self.log.info("Would charge the inverter, but dry run is enabled.")
-            else:
-                duration_to_charge = (
-                    self.inverter.calculate_necessary_duration_to_charge(
-                        expected_power_consumption_tomorrow
-                    )
-                )
-                self.log.info(
-                    f"Calculated necessary duration to charge: {duration_to_charge}"
-                )
-                starting_time = self._find_start_time_to_charge(duration_to_charge)
-                self.log.info(
-                    f"Calculated starting time to charge: {starting_time}, waiting until then..."
-                )
-                pause.until(starting_time)
-                self.log.info("Starting charging...")
-                self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
-                pause.hours(duration_to_charge)
-                self.log.info(
-                    "Charging finished. Setting the inverter back to GENERAL mode"
-                )
-                self.inverter.set_operation_mode(OperationMode.GENERAL)
+            duration_to_charge = self.inverter.calculate_necessary_duration_to_charge(
+                expected_power_consumption_tomorrow
+            )
+            self.log.info(
+                f"Calculated necessary duration to charge: {duration_to_charge}"
+            )
+            starting_time = self._find_start_time_to_charge(duration_to_charge)
+            self.log.info(
+                f"Calculated starting time to charge: {starting_time}, waiting until then..."
+            )
+            pause.until(starting_time)
+            self.log.info("Starting charging...")
+            self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
+            pause.hours(duration_to_charge)
+            self.log.info(
+                "Charging finished. Setting the inverter back to GENERAL mode"
+            )
+            self.inverter.set_operation_mode(OperationMode.GENERAL)
 
     @staticmethod
     def _calculate_price_slices(

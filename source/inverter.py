@@ -5,7 +5,7 @@ from logger import LoggerMixin
 
 
 class Inverter(LoggerMixin):
-    BATTERY_CAPACITY = 7100 # Wh
+    BATTERY_CAPACITY = 7100  # Wh
 
     def __init__(self):
         super().__init__()

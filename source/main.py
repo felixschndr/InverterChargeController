@@ -27,27 +27,32 @@ class Main(LoggerMixin):
 
         sun_forecast_api_handler = SunForecastAPIHandler()
         # solar_output_tomorrow = sun_forecast.get_solar_output_in_watt_hours()
-        solar_output_tomorrow = sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        solar_output_tomorrow = (
+            sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        )
         self.log.info(
             f"The expected solar output for tomorrow is {solar_output_tomorrow:.2f} Wh"
         )
 
         inverter = Inverter()
         if solar_output_tomorrow > average_power_consumption:
-            self.log.info("The expected solar output is greater than the expected power consumption. Setting the inverter to normal operation mode.")
+            self.log.info(
+                "The expected solar output is greater than the expected power consumption. Setting the inverter to normal operation mode."
+            )
             if self.dry_run:
-                self.log.info("Would set the inverter to mode GENERAL, but dry run is enabled.")
+                self.log.info(
+                    "Would set the inverter to mode GENERAL, but dry run is enabled."
+                )
             else:
                 inverter.set_operation_mode(OperationMode.GENERAL)
         else:
             self.log.info(
-                "The expected solar output is less than the expected power consumption. We need to charge...")
+                "The expected solar output is less than the expected power consumption. We need to charge..."
+            )
             if self.dry_run:
                 self.log.info("Would charge the inverter, but dry run is enabled.")
             else:
                 pass  # TODO: Build the logic when to charge
-
-
 
 
 if __name__ == "__main__":

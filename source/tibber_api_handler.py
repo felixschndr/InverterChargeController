@@ -1,6 +1,10 @@
+from datetime import datetime
+
 from aiographql.client import GraphQLClient, GraphQLRequest
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
+
+from source.price_slice import PriceSlice
 
 
 class TibberAPIHandler(LoggerMixin):
@@ -14,7 +18,12 @@ class TibberAPIHandler(LoggerMixin):
             },
         )
 
-    async def get_prices_of_tomorrow(self) -> list[dict]:
+    async def get_prices_of_tomorrow(self) -> list[PriceSlice]:
+        """
+        Fetches electricity prices for tomorrow from the Tibber API.
+
+        :return: A list of PriceSlice objects containing the prices and their corresponding start times for tomorrow.
+        """
         query = GraphQLRequest(
             """
             {
@@ -35,8 +44,18 @@ class TibberAPIHandler(LoggerMixin):
         )
         self.log.debug("Crawling the Tibber API for the electricity prices")
         result = await self.client.query(query)
-        prices_of_tomorrow = result.data["viewer"]["homes"][0]["currentSubscription"][
-            "priceInfo"
-        ]["tomorrow"]
-        self.log.debug(f"Retrieved prices of tomorrow: {prices_of_tomorrow}")
-        return prices_of_tomorrow
+        prices_of_tomorrow_raw = result.data["viewer"]["homes"][0][
+            "currentSubscription"
+        ]["priceInfo"]["tomorrow"]
+
+        prices_of_tomorrow_parsed = []
+        for price in prices_of_tomorrow_raw:
+            prices_of_tomorrow_parsed.append(
+                PriceSlice(
+                    rate=price["total"],
+                    timestamp=datetime.fromisoformat(price["startsAt"]),
+                )
+            )
+
+        self.log.debug(f"Retrieved prices of tomorrow: {prices_of_tomorrow_parsed}")
+        return prices_of_tomorrow_parsed

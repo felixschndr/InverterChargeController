@@ -6,6 +6,7 @@ from goodwe import OperationMode
 
 from source.inverter import Inverter
 from source.logger import LoggerMixin
+from source.price_slice import PriceSlice
 from source.sems_portal_api_handler import SemsPortalApiHandler
 from source.sun_forecast_api_handler import SunForecastAPIHandler
 from source.tibber_api_handler import TibberAPIHandler
@@ -37,12 +38,12 @@ class Main(LoggerMixin):
             f"The average power consumption - and thus expected power consumption for tomorrow - is {expected_power_consumption_tomorrow:.2f} Wh"
         )
 
-        expected_power_generation_tomorrow = (
-            self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
-        )
         # expected_power_generation_tomorrow = (
-        #     self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        #     self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
         # )
+        expected_power_generation_tomorrow = (
+            self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        )
         self.log.info(
             f"The expected solar output for tomorrow is {expected_power_generation_tomorrow} Wh"
         )
@@ -50,7 +51,7 @@ class Main(LoggerMixin):
         excess_power = (
             expected_power_generation_tomorrow - expected_power_consumption_tomorrow
         )
-        # excess_power = -1000
+        excess_power = -1000
         if excess_power > 0:
             self.log.info(
                 f"The expected solar output is greater than the expected power consumption ({excess_power} Wh) --> There is no need to charge"
@@ -69,7 +70,7 @@ class Main(LoggerMixin):
                 duration_to_charge
             )
             self.log.info(
-                f"Calculated starting time to charge: {starting_time} with an average rate {charging_price:.2f} €/kWh, waiting until then..."
+                f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.2f} €/kWh, waiting until then..."
             )
             pause.until(starting_time)
             self.log.info("Starting charging")
@@ -86,24 +87,24 @@ class Main(LoggerMixin):
 
     @staticmethod
     def _calculate_price_slices(
-        prices_of_tomorrow: list[dict], slice_size: int
-    ) -> list[list[dict]]:
+        prices_of_tomorrow: list[PriceSlice], slice_size: int
+    ) -> list[list[PriceSlice]]:
         """
         Calculates all possible slices of prices which are <hours> long.
         Example:
             Input:
                 [
-                    {'total': 0.2903, 'startsAt': '2024-10-02T00:00:00.000+02:00'},
-                    {'total': 0.2849, 'startsAt': '2024-10-02T01:00:00.000+02:00'},
-                    {'total': 0.2804, 'startsAt': '2024-10-02T02:00:00.000+02:00'},
-                    {'total': 0.2778, 'startsAt': '2024-10-02T03:00:00.000+02:00'}
+                    PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')),
+                    PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')),
+                    PriceSlice('rate': 0.2804, 'startsAt': datetime('024-10-02T02:00:00.000+02:00')),
+                    PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00')),
                 ]
                 hours = 2
             Output:
                 [
-                    [{'total': 0.2903, 'startsAt': '2024-10-02T00:00:00.000+02:00'}, {'total': 0.2849, 'startsAt': '2024-10-02T01:00:00.000+02:00'}],
-                    [{'total': 0.2849, 'startsAt': '2024-10-02T01:00:00.000+02:00'}, {'total': 0.2804, 'startsAt': '2024-10-02T02:00:00.000+02:00'}],
-                    [{'total': 0.2804, 'startsAt': '2024-10-02T02:00:00.000+02:00'}, {'total': 0.2778, 'startsAt': '2024-10-02T03:00:00.000+02:00'}]
+                    [PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')), PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00'))],
+                    [PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')), PriceSlice('rate': 0.2804, 'startsAt': datetime('024-10-02T02:00:00.000+02:00'))],
+                    [PriceSlice('rate': 0.2804, 'startsAt': datetime('024-10-02T02:00:00.000+02:00')), PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00'))]
                 ]
 
         :param prices_of_tomorrow: List of dictionaries containing prices for each hour of the next day.
@@ -117,14 +118,18 @@ class Main(LoggerMixin):
         return slices
 
     @staticmethod
-    def _determine_cheapest_price_slice(price_slices: list[list[dict]]) -> list[dict]:
+    def _determine_cheapest_price_slice(
+        price_slices_combinations: list[list[PriceSlice]],
+    ) -> list[PriceSlice]:
         """
-        :param price_slices: A list of lists, where each inner list contains dictionaries with price slot information.
-        :return: The list of dictionaries representing the price slice with the lowest total cost.
+        :param price_slices_combinations: A list of lists, where each sublist contains PriceSlice objects representing different slice combinations.
+        :return: The sublist from price_slices_combinations that has the lowest aggregate rate.
         """
         return min(
-            price_slices,
-            key=lambda price_slice: sum(slot["total"] for slot in price_slice),
+            price_slices_combinations,
+            key=lambda price_slice_combination: sum(
+                price_slice.rate for price_slice in price_slice_combination
+            ),
         )
 
     async def _find_start_time_to_charge(
@@ -140,18 +145,18 @@ class Main(LoggerMixin):
         )
         cheapest_slice = self._determine_cheapest_price_slice(price_slices)
         average_charging_price = self._calculate_average_price_of_slice(cheapest_slice)
-        starting_time = datetime.fromisoformat(cheapest_slice[0]["startsAt"])
+        starting_time = cheapest_slice[0].timestamp
 
         return starting_time, average_charging_price
 
     @staticmethod
-    def _calculate_average_price_of_slice(price_slice: list[dict]) -> float:
+    def _calculate_average_price_of_slice(price_slices: list[PriceSlice]) -> float:
         """
-        :param price_slice: The list of dictionaries representing a price slice.
-        :return: The average price calculated from the given price slice.
+        :param price_slices: A list of PriceSlice objects
+        :return: The average price computed from the given price slices
         """
-        total_price = sum(slot["total"] for slot in price_slice)
-        return total_price / len(price_slice)
+        total_price = sum(price_slice.rate for price_slice in price_slices)
+        return total_price / len(price_slices)
 
 
 if __name__ == "__main__":

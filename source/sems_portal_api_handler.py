@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
 
 import requests
+from environment_variable_getter import EnvironmentVariableGetter
+from logger import LoggerMixin
 from requests.exceptions import HTTPError
-
-from source.environment_variable_getter import EnvironmentVariableGetter
-from source.logger import LoggerMixin
 
 
 class SemsPortalApiHandler(LoggerMixin):

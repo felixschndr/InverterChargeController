@@ -1,8 +1,7 @@
 import os
 
 import pytest
-
-from source.environment_variable_getter import EnvironmentVariableGetter
+from environment_variable_getter import EnvironmentVariableGetter
 
 
 def test_get_with_existent_variable():

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from source.price_slice import PriceSlice
+from price_slice import PriceSlice
 
 
 @dataclass

@@ -3,8 +3,7 @@ from datetime import datetime
 from aiographql.client import GraphQLClient, GraphQLRequest
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
-
-from source.price_slice import PriceSlice
+from price_slice import PriceSlice
 
 
 class TibberAPIHandler(LoggerMixin):

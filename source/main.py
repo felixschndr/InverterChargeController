@@ -3,14 +3,14 @@ from datetime import datetime
 
 import pause
 from goodwe import OperationMode
+from logger import LoggerMixin
+from price_slice import PriceSlice
+from price_slice_bundle import PriceSliceBundle
+from sems_portal_api_handler import SemsPortalApiHandler
+from sun_forecast_api_handler import SunForecastAPIHandler
+from tibber_api_handler import TibberAPIHandler
 
-from source.inverter import Inverter
-from source.logger import LoggerMixin
-from source.price_slice import PriceSlice
-from source.price_slice_bundle import PriceSliceBundle
-from source.sems_portal_api_handler import SemsPortalApiHandler
-from source.sun_forecast_api_handler import SunForecastAPIHandler
-from source.tibber_api_handler import TibberAPIHandler
+from inverter import Inverter
 
 
 class Main(LoggerMixin):

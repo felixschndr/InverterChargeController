@@ -1,8 +1,7 @@
 from unittest import mock
 
 import pytest
-
-from source.sems_portal_api_handler import SemsPortalApiHandler
+from sems_portal_api_handler import SemsPortalApiHandler
 
 
 def _mock_response(status=200, json_data=None) -> mock.Mock:
@@ -14,7 +13,7 @@ def _mock_response(status=200, json_data=None) -> mock.Mock:
     return mock_resp
 
 
-@mock.patch("source.sems_portal_api_handler.requests.post")
+@mock.patch("sems_portal_api_handler.requests.post")
 def test_set_sems_token_and_api(mock_post):
     response_data = {
         "api": "api_url",

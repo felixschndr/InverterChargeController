@@ -13,4 +13,6 @@ class LoggerMixin:
             stream=sys.stdout,
         )
         logging.getLogger("gql.transport.aiohttp").setLevel(logging.WARNING)
+        logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+        logging.getLogger("asyncio").setLevel(logging.WARNING)
         self.log = logging.getLogger(self.__class__.__name__)

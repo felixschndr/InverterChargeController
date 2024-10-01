@@ -4,14 +4,19 @@ import requests
 from requests.exceptions import HTTPError
 
 from source.environment_variable_getter import EnvironmentVariableGetter
+from source.logger import LoggerMixin
 
 
-class SemsPortalApiHandler:
+class SemsPortalApiHandler(LoggerMixin):
     def __init__(self):
+        super().__init__()
+
         self.api_url = None
         self.token = None
         self.timestamp = None
         self.user_id = None
+
+        self.login()
 
     def login(self) -> None:
         """
@@ -21,6 +26,8 @@ class SemsPortalApiHandler:
 
         :return: None
         """
+
+        self.log.debug("Logging in into the SEMSPORTAL...")
         url = "https://www.semsportal.com/api/v1/Common/CrossLogin"
         headers = {
             "Content-Type": "application/json",
@@ -39,24 +46,29 @@ class SemsPortalApiHandler:
         self.timestamp = response.json()["data"]["timestamp"]
         self.user_id = response.json()["data"]["uid"]
 
-    def get_average_power_consumption_per_day(self) -> float:
+        self.log.debug("Login successful")
+
+    def get_average_power_consumption_per_day(self) -> int:
         """
         Retrieves power consumption data, extracts the relevant data, and computes the average power consumption per day.
 
-        :return: The average power consumption in Wh per day as a float.
+        :return: The average power consumption in Wh per day.
         """
+        self.log.info("Determining average power consumption per day")
         api_response = self._retrieve_power_consumption_data()
         consumption_data = self._extract_consumption_data_of_response(api_response)
         average_consumption_per_day_in_kwh = sum(consumption_data) / len(
             consumption_data
         )
-        return average_consumption_per_day_in_kwh * 1000
+        return int(average_consumption_per_day_in_kwh * 1000)
 
     def _retrieve_power_consumption_data(self) -> dict:
         """
         :return: A dictionary containing the power consumption data in kWh retrieved from the SEMSPORTAL API.
         :raises HTTPError: If the provided token is invalid or expired.
         """
+        self.log.debug("Crawling the SEMSPORTAL API for power consumption data...")
+
         url = "https://eu.semsportal.com/api/v2/Charts/GetChartByPlant"
         headers = {
             "Content-Type": "application/json",
@@ -77,10 +89,11 @@ class SemsPortalApiHandler:
                 "HTTP Unauthorized: The provided token is invalid or expired."
             )
 
+        self.log.debug(f"Retrieved data: {response.json()}")
+
         return response.json()
 
-    @staticmethod
-    def _extract_consumption_data_of_response(response_json: dict) -> list[float]:
+    def _extract_consumption_data_of_response(self, response_json: dict) -> list[float]:
         """
         :param response_json: Dictionary containing the JSON response with power consumption data.
         :return: List of the most recent 7 daily power consumption values in kWh.
@@ -100,5 +113,9 @@ class SemsPortalApiHandler:
         last_week_consumption_data = [
             data_point["y"] for data_point in consumption_data_raw_sorted[-7:]
         ]
+
+        self.log.debug(
+            f"Extracted last weeks consumption data (in kWh): {last_week_consumption_data}"
+        )
 
         return last_week_consumption_data

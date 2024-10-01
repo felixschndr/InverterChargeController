@@ -33,14 +33,14 @@ class Inverter(LoggerMixin):
         return operation_mode
 
     async def set_operation_mode(self, mode: OperationMode) -> None:
-        if self.device is None:
-            await self.connect()
-
         if self.dry_run:
             self.log.info(
                 f"Would set the inverter to {mode.name} but dry run is enabled"
             )
             return
+
+        if self.device is None:
+            await self.connect()
 
         self.log.info(f"Setting new operation mode: {mode.name}")
         await self.device.set_operation_mode(mode)

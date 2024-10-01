@@ -41,17 +41,16 @@ class SunForecastAPIHandler(LoggerMixin):
         return datetime.datetime.now().strftime("%Y-%m-%d")
 
     def get_solar_output_in_watt_hours(self) -> int:
-        self.log.info("Getting estimated solar output of today")
-        response = requests.get(self.url, timeout=5)
+        self.log.debug("Getting estimated solar output of today")
 
+        response = requests.get(self.url, timeout=5)
         response.raise_for_status()
 
         data = response.json()
-        estimated_output = data["result"]["watt_hours_day"][self._get_date_as_string()]
-        self.log.info(f"Estimated solar output is {estimated_output} Wh")
-        return estimated_output
+        self.log.debug(f"Retrieved data: {data}")
+        return data["result"]["watt_hours_day"][self._get_date_as_string()]
 
-    @staticmethod
-    def _get_debug_solar_output_in_watt_hours() -> int:
+    def _get_debug_solar_output_in_watt_hours(self) -> int:
         # We use a sample value for debugging the code since the API offers very limited call per day
+        self.log.debug("Getting debug estimated solar output of today")
         return 23000

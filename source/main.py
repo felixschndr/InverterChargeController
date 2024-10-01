@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import pause
@@ -17,58 +18,71 @@ class Main(LoggerMixin):
         """
         super().__init__()
 
+        self.log.info("Initializing...")
+
         self.sems_portal_api_handler = SemsPortalApiHandler()
-        self.sems_portal_api_handler.login()
-
         self.sun_forecast_api_handler = SunForecastAPIHandler()
-
         self.inverter = Inverter(dry_run)
-
         self.tibber_api_handler = TibberAPIHandler()
 
-    def run(self) -> None:
+        self.log.info("Finished initializing")
+
+    async def run(self) -> None:
+        self.log.info("Starting working...")
+
         expected_power_consumption_tomorrow = (
             self.sems_portal_api_handler.get_average_power_consumption_per_day()
         )
         self.log.info(
-            f"The expected power consumption for tomorrow is {expected_power_consumption_tomorrow:.2f} Wh"
+            f"The average power consumption - and thus expected power consumption for tomorrow - is {expected_power_consumption_tomorrow:.2f} Wh"
         )
 
-        # expected_power_generation_tomorrow = sun_forecast.get_solar_output_in_watt_hours()
         expected_power_generation_tomorrow = (
-            self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+            self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
         )
+        # expected_power_generation_tomorrow = (
+        #     self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        # )
         self.log.info(
-            f"The expected solar output for tomorrow is {expected_power_generation_tomorrow:.2f} Wh"
+            f"The expected solar output for tomorrow is {expected_power_generation_tomorrow} Wh"
         )
 
-        if expected_power_generation_tomorrow > expected_power_consumption_tomorrow:
+        excess_power = (
+            expected_power_generation_tomorrow - expected_power_consumption_tomorrow
+        )
+        # excess_power = -1000
+        if excess_power > 0:
             self.log.info(
-                "The expected solar output is greater than the expected power consumption. Setting the inverter to normal operation mode."
+                f"The expected solar output is greater than the expected power consumption ({excess_power} Wh) --> There is no need to charge"
             )
-            self.inverter.set_operation_mode(OperationMode.GENERAL)
         else:
             self.log.info(
-                "The expected solar output is less than the expected power consumption. We need to charge..."
+                f"The expected solar output is less than the expected power consumption ({abs(excess_power)} Wh) --> There is a need to charge"
             )
             duration_to_charge = self.inverter.calculate_necessary_duration_to_charge(
                 expected_power_consumption_tomorrow
             )
             self.log.info(
-                f"Calculated necessary duration to charge: {duration_to_charge}"
+                f"Calculated estimated duration to charge: {duration_to_charge} hours"
             )
-            starting_time = self._find_start_time_to_charge(duration_to_charge)
+            starting_time, charging_price = await self._find_start_time_to_charge(
+                duration_to_charge
+            )
             self.log.info(
-                f"Calculated starting time to charge: {starting_time}, waiting until then..."
+                f"Calculated starting time to charge: {starting_time} with an average rate {charging_price:.2f} €/kWh, waiting until then..."
             )
             pause.until(starting_time)
-            self.log.info("Starting charging...")
-            self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
-            pause.hours(duration_to_charge)
+            self.log.info("Starting charging")
+            await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
             self.log.info(
-                "Charging finished. Setting the inverter back to GENERAL mode"
+                "Set the inverter to charge, waiting until charge is complete..."
             )
-            self.inverter.set_operation_mode(OperationMode.GENERAL)
+            pause.hours(duration_to_charge)
+            self.log.info("Charging finished. Setting the inverter back to normal mode")
+            await self.inverter.set_operation_mode(OperationMode.GENERAL)
+
+        self.log.info("Finished operation for today, stopping now")
+        exit(0)
 
     @staticmethod
     def _calculate_price_slices(
@@ -113,21 +127,33 @@ class Main(LoggerMixin):
             key=lambda price_slice: sum(slot["total"] for slot in price_slice),
         )
 
-    def _find_start_time_to_charge(self, charging_duration: int) -> datetime:
+    async def _find_start_time_to_charge(
+        self, charging_duration: int
+    ) -> tuple[datetime, float]:
         """
-        :param charging_duration: The number of hours for which charging is required.
-        :return: The starting timestamp to begin charging, based on the cheapest price slice of electricity
+        :param charging_duration: The duration (in hours) for which the charging is needed.
+        :return: A tuple containing the start time (as a datetime object) when charging should begin and the average price (as a float) for the charging duration.
         """
-        prices_of_tomorrow = self.tibber_api_handler.get_prices_of_tomorrow()
+        prices_of_tomorrow = await self.tibber_api_handler.get_prices_of_tomorrow()
         price_slices = self._calculate_price_slices(
             prices_of_tomorrow=prices_of_tomorrow, slice_size=charging_duration
         )
         cheapest_slice = self._determine_cheapest_price_slice(price_slices)
-        starting_time_raw = cheapest_slice[0]["startsAt"]
+        average_charging_price = self._calculate_average_price_of_slice(cheapest_slice)
+        starting_time = datetime.fromisoformat(cheapest_slice[0]["startsAt"])
 
-        return datetime.fromisoformat(starting_time_raw)
+        return starting_time, average_charging_price
+
+    @staticmethod
+    def _calculate_average_price_of_slice(price_slice: list[dict]) -> float:
+        """
+        :param price_slice: The list of dictionaries representing a price slice.
+        :return: The average price calculated from the given price slice.
+        """
+        total_price = sum(slot["total"] for slot in price_slice)
+        return total_price / len(price_slice)
 
 
 if __name__ == "__main__":
     main = Main()
-    main.run()
+    asyncio.run(main.run())

@@ -7,6 +7,7 @@ from goodwe import OperationMode
 from source.inverter import Inverter
 from source.logger import LoggerMixin
 from source.price_slice import PriceSlice
+from source.price_slice_bundle import PriceSliceBundle
 from source.sems_portal_api_handler import SemsPortalApiHandler
 from source.sun_forecast_api_handler import SunForecastAPIHandler
 from source.tibber_api_handler import TibberAPIHandler
@@ -87,8 +88,8 @@ class Main(LoggerMixin):
 
     @staticmethod
     def _calculate_price_slices(
-        prices_of_tomorrow: list[PriceSlice], slice_size: int
-    ) -> list[list[PriceSlice]]:
+        prices_slices: list[PriceSlice], slice_size: int
+    ) -> list[PriceSliceBundle]:
         """
         Calculates all possible slices of prices which are <slice_size> long.
         Example:
@@ -102,28 +103,28 @@ class Main(LoggerMixin):
                 hours = 2
             Output:
                 [
-                    [PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')), PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00'))],
-                    [PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')), PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00'))],
-                    [PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')), PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00'))]
+                    PriceSliceBundle([PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')), PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00'))]),
+                    PriceSliceBundle([PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')), PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00'))]),
+                    PriceSliceBundle([PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')), PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00')))]
                 ]
 
-        :param prices_of_tomorrow: List of dictionaries containing prices for each hour of the next day.
-        :param slice_size: Number of hours for each price slice.
-        :return: List of lists, where each sublist contains a slice of the original prices for a given number of hours.
+        :param prices_slices: A list of PriceSlice objects representing the prices for tomorrow.
+        :param slice_size: An integer representing the size of each price slice to generate.
+        :return: A list of PriceSliceBundle objects where each bundle is a slice of the prices_slices list.
         """
         slices = []
-        for i in range(len(prices_of_tomorrow) - slice_size + 1):
-            slices.append(prices_of_tomorrow[i : i + slice_size])
+        for i in range(len(prices_slices) - slice_size + 1):
+            slices.append(PriceSliceBundle(prices_slices[i : i + slice_size]))
 
         return slices
 
     @staticmethod
-    def _determine_cheapest_price_slice(
-        price_slices_combinations: list[list[PriceSlice]],
-    ) -> list[PriceSlice]:
+    def _find_cheapest_price_slice_bundle(
+        price_slices_combinations: list[PriceSliceBundle],
+    ) -> PriceSliceBundle:
         """
-        :param price_slices_combinations: A list of lists, where each sublist contains PriceSlice objects representing different slice combinations.
-        :return: The sublist from price_slices_combinations that has the lowest aggregate rate.
+        :param price_slices_combinations: A list of PriceSliceBundle objects representing different combinations of price slices.
+        :return: The PriceSliceBundle with the lowest total rate.
         """
         return min(
             price_slices_combinations,
@@ -141,22 +142,24 @@ class Main(LoggerMixin):
         """
         prices_of_tomorrow = await self.tibber_api_handler.get_prices_of_tomorrow()
         price_slices = self._calculate_price_slices(
-            prices_of_tomorrow=prices_of_tomorrow, slice_size=charging_duration
+            prices_slices=prices_of_tomorrow, slice_size=charging_duration
         )
-        cheapest_slice = self._determine_cheapest_price_slice(price_slices)
+        cheapest_slice = self._find_cheapest_price_slice_bundle(price_slices)
         average_charging_price = self._calculate_average_price_of_slice(cheapest_slice)
         starting_time = cheapest_slice[0].timestamp
 
         return starting_time, average_charging_price
 
     @staticmethod
-    def _calculate_average_price_of_slice(price_slices: list[PriceSlice]) -> float:
+    def _calculate_average_price_of_slice(
+        price_slice_bundle: PriceSliceBundle,
+    ) -> float:
         """
-        :param price_slices: A list of PriceSlice objects
-        :return: The average price computed from the given price slices
+        :param price_slice_bundle: A bundle containing multiple price slices for calculation.
+        :return: The average price of the provided price slice bundle.
         """
-        total_price = sum(price_slice.rate for price_slice in price_slices)
-        return total_price / len(price_slices)
+        total_price = sum(price_slice.rate for price_slice in price_slice_bundle.slices)
+        return total_price / len(price_slice_bundle)
 
 
 if __name__ == "__main__":

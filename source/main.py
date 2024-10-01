@@ -36,15 +36,15 @@ class Main(LoggerMixin):
             self.sems_portal_api_handler.get_average_power_consumption_per_day()
         )
         self.log.info(
-            f"The average power consumption - and thus expected power consumption for today - is {expected_power_consumption_today:.2f} Wh"
+            f"The average power consumption - and thus expected power consumption for today - is {expected_power_consumption_today} Wh"
         )
 
-        # expected_power_generation_today = (
-        #     self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
-        # )
         expected_power_generation_today = (
-            self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+            self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
         )
+        # expected_power_generation_today = (
+        #     self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        # )
         self.log.info(
             f"The expected solar output for today is {expected_power_generation_today} Wh"
         )
@@ -52,7 +52,7 @@ class Main(LoggerMixin):
         excess_power = (
             expected_power_generation_today - expected_power_consumption_today
         )
-        excess_power = -1000
+        # excess_power = -1000
         if excess_power > 0:
             self.log.info(
                 f"The expected solar output is greater than the expected power consumption ({excess_power} Wh) --> There is no need to charge"

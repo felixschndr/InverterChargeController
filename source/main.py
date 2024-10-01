@@ -90,21 +90,21 @@ class Main(LoggerMixin):
         prices_of_tomorrow: list[PriceSlice], slice_size: int
     ) -> list[list[PriceSlice]]:
         """
-        Calculates all possible slices of prices which are <hours> long.
+        Calculates all possible slices of prices which are <slice_size> long.
         Example:
             Input:
                 [
                     PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')),
                     PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')),
-                    PriceSlice('rate': 0.2804, 'startsAt': datetime('024-10-02T02:00:00.000+02:00')),
+                    PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')),
                     PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00')),
                 ]
                 hours = 2
             Output:
                 [
                     [PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')), PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00'))],
-                    [PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')), PriceSlice('rate': 0.2804, 'startsAt': datetime('024-10-02T02:00:00.000+02:00'))],
-                    [PriceSlice('rate': 0.2804, 'startsAt': datetime('024-10-02T02:00:00.000+02:00')), PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00'))]
+                    [PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')), PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00'))],
+                    [PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')), PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00'))]
                 ]
 
         :param prices_of_tomorrow: List of dictionaries containing prices for each hour of the next day.

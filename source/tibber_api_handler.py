@@ -1,9 +1,9 @@
 from datetime import datetime
 
 from aiographql.client import GraphQLClient, GraphQLRequest
+from energy_rate import ConsecutiveEnergyRates, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
-from price_slice import PriceSlice
 
 
 class TibberAPIHandler(LoggerMixin):
@@ -17,7 +17,7 @@ class TibberAPIHandler(LoggerMixin):
             },
         )
 
-    async def get_prices_of_tomorrow(self) -> list[PriceSlice]:
+    async def get_prices_of_tomorrow(self) -> ConsecutiveEnergyRates:
         """
         Fetches electricity prices for today from the Tibber API.
 
@@ -50,11 +50,11 @@ class TibberAPIHandler(LoggerMixin):
         prices_of_tomorrow_parsed = []
         for price in prices_of_tomorrow_raw:
             prices_of_tomorrow_parsed.append(
-                PriceSlice(
+                EnergyRate(
                     rate=price["total"],
                     timestamp=datetime.fromisoformat(price["startsAt"]),
                 )
             )
 
         self.log.debug(f"Retrieved prices of today: {prices_of_tomorrow_parsed}")
-        return prices_of_tomorrow_parsed
+        return ConsecutiveEnergyRates(prices_of_tomorrow_parsed)

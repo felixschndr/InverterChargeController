@@ -1,11 +1,10 @@
 from datetime import datetime
 
 import pause
+from energy_rate import ConsecutiveEnergyRates
 from goodwe import OperationMode
 from inverter import Inverter
 from logger import LoggerMixin
-from price_slice import PriceSlice
-from price_slice_bundle import PriceSliceBundle
 from sems_portal_api_handler import SemsPortalApiHandler
 from sun_forecast_api_handler import SunForecastAPIHandler
 from tibber_api_handler import TibberAPIHandler
@@ -37,12 +36,12 @@ class InverterChargeController(LoggerMixin):
             f"The average power consumption - and thus expected power consumption for today - is {expected_power_consumption_today} Wh"
         )
 
-        expected_power_generation_today = (
-            self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
-        )
         # expected_power_generation_today = (
-        #     self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        #     self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
         # )
+        expected_power_generation_today = (
+            self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
+        )
         self.log.info(
             f"The expected solar output for today is {expected_power_generation_today} Wh"
         )
@@ -50,7 +49,7 @@ class InverterChargeController(LoggerMixin):
         excess_power = (
             expected_power_generation_today - expected_power_consumption_today
         )
-        # excess_power = -1000
+        excess_power = -1000
         if excess_power > 0:
             self.log.info(
                 f"The expected solar output is greater than the expected power consumption ({excess_power} Wh) --> There is no need to charge"
@@ -85,44 +84,48 @@ class InverterChargeController(LoggerMixin):
         exit(0)
 
     @staticmethod
-    def _calculate_price_slices(
-        prices_slices: list[PriceSlice], slice_size: int
-    ) -> list[PriceSliceBundle]:
+    def _calculate_consecutive_energy_rates(
+        consecutive_energy_rates: ConsecutiveEnergyRates, slice_size: int
+    ) -> list[ConsecutiveEnergyRates]:
         """
-        Calculates all possible slices of prices which are <slice_size> long.
+        Calculates all possible slices of EnergyRates which are <slice_size> long.
         Example:
             Input:
-                [
-                    PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')),
-                    PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')),
-                    PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')),
-                    PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00')),
-                ]
+                ConsecutiveEnergyRates(
+                    [
+                        EnergyRate('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')),
+                        EnergyRate('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')),
+                        EnergyRate('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')),
+                        EnergyRate('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00')),
+                    ]
+                )
                 hours = 2
             Output:
                 [
-                    PriceSliceBundle([PriceSlice('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')), PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00'))]),
-                    PriceSliceBundle([PriceSlice('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')), PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00'))]),
-                    PriceSliceBundle([PriceSlice('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')), PriceSlice('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00')))]
+                    ConsecutiveEnergyRates([EnergyRate('rate': 0.2903, 'startsAt': datetime('2024-10-02T00:00:00.000+02:00')), EnergyRate('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00'))]),
+                    ConsecutiveEnergyRates([EnergyRate('rate': 0.2849, 'startsAt': datetime('2024-10-02T01:00:00.000+02:00')), EnergyRate('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00'))]),
+                    ConsecutiveEnergyRates([EnergyRate('rate': 0.2804, 'startsAt': datetime('2024-10-02T02:00:00.000+02:00')), EnergyRate('rate': 0.2778, 'startsAt': datetime('2024-10-02T03:00:00.000+02:00'))]
                 ]
 
-        :param prices_slices: A list of PriceSlice objects representing the prices for tomorrow.
+        :param consecutive_energy_rates: A list of PriceSlice objects representing the prices for tomorrow.
         :param slice_size: An integer representing the size of each price slice to generate.
-        :return: A list of PriceSliceBundle objects where each bundle is a slice of the prices_slices list.
+        :return: A list of ConsecutiveEnergyRates objects where each bundle is a slice of the prices_slices list.
         """
         slices = []
-        for i in range(len(prices_slices) - slice_size + 1):
-            slices.append(PriceSliceBundle(prices_slices[i : i + slice_size]))
+        for i in range(len(consecutive_energy_rates) - slice_size + 1):
+            slices.append(
+                ConsecutiveEnergyRates(consecutive_energy_rates[i : i + slice_size])
+            )
 
         return slices
 
     @staticmethod
-    def _find_cheapest_price_slice_bundle(
-        price_slices_combinations: list[PriceSliceBundle],
-    ) -> PriceSliceBundle:
+    def _find_cheapest_consecutive_energy_rates(
+        price_slices_combinations: list[ConsecutiveEnergyRates],
+    ) -> ConsecutiveEnergyRates:
         """
-        :param price_slices_combinations: A list of PriceSliceBundle objects representing different combinations of price slices.
-        :return: The PriceSliceBundle with the lowest total rate.
+        :param price_slices_combinations: A list of PriceSliceBundle objects representing different combinations of EnergyRates.
+        :return: The ConsecutiveEnergyRates with the lowest total rate.
         """
         return min(
             price_slices_combinations,
@@ -130,6 +133,19 @@ class InverterChargeController(LoggerMixin):
                 price_slice.rate for price_slice in price_slice_combination
             ),
         )
+
+    @staticmethod
+    def _calculate_average_price_of_slice(
+        consecutive_energy_rates: ConsecutiveEnergyRates,
+    ) -> float:
+        """
+        :param consecutive_energy_rates: A ConsecutiveEnergyRates containing multiple price slices for calculation.
+        :return: The average price of the consecutive_energy_rates.
+        """
+        total_price = sum(
+            price_slice.rate for price_slice in consecutive_energy_rates.slices
+        )
+        return total_price / len(consecutive_energy_rates)
 
     async def _find_start_time_to_charge(
         self, charging_duration: int
@@ -139,22 +155,11 @@ class InverterChargeController(LoggerMixin):
         :return: A tuple containing the start time (as a datetime object) when charging should begin and the average price (as a float) for the charging duration.
         """
         prices_of_tomorrow = await self.tibber_api_handler.get_prices_of_tomorrow()
-        price_slices = self._calculate_price_slices(
-            prices_slices=prices_of_tomorrow, slice_size=charging_duration
+        price_slices = self._calculate_consecutive_energy_rates(
+            consecutive_energy_rates=prices_of_tomorrow, slice_size=charging_duration
         )
-        cheapest_slice = self._find_cheapest_price_slice_bundle(price_slices)
+        cheapest_slice = self._find_cheapest_consecutive_energy_rates(price_slices)
         average_charging_price = self._calculate_average_price_of_slice(cheapest_slice)
         starting_time = cheapest_slice[0].timestamp
 
         return starting_time, average_charging_price
-
-    @staticmethod
-    def _calculate_average_price_of_slice(
-        price_slice_bundle: PriceSliceBundle,
-    ) -> float:
-        """
-        :param price_slice_bundle: A bundle containing multiple price slices for calculation.
-        :return: The average price of the provided price slice bundle.
-        """
-        total_price = sum(price_slice.rate for price_slice in price_slice_bundle.slices)
-        return total_price / len(price_slice_bundle)

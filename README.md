@@ -26,6 +26,8 @@ and does the following:
 
 ## Usage
 
+### Setup
+
 1. Create a virtual environment
    ```bash
    python -m venv .venv
@@ -43,7 +45,18 @@ and does the following:
    cp .env.example .env
    vi .env
    ```
-5. Run the script
-   ```bash
-   python3 source/main.py
-   ```
+
+### Running
+You can run the program manually
+```bash
+python3 source/main.py
+```
+or you can install the programm as a systemd service
+```bash
+vi systemd/inverter-charge-controller.service # Change path to repository and user
+sudo ln -s <path to repository>/InverterChargeController/systemd/inverter-charge-controller.service /etc/systemd/system
+sudo ln -s <path to repository>/InverterChargeController/systemd/inverter-charge-controller.timer /etc/systemd/system
+sudo systemctl daemon-reload
+sudo systemctl enable --now inverter-charge-controller.timer
+systemctl list-timers # Ensure that timer is listed
+```

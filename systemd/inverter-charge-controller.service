@@ -1,0 +1,11 @@
+[Unit]
+Description = "Software that controls the charging of the inverter"
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/home/fschneider/InverterChargeController/.venv/bin/python3.11 /home/fschneider/InverterChargeController/source/main.py
+User=fschneider
+
+[Install]
+WantedBy=default.target

@@ -66,4 +66,4 @@ class Inverter(LoggerMixin):
         :param amount_of_energy: The amount of energy (in Wh) required to fully charge the battery.
         :return: The necessary duration (in hours) to charge the specified amount of energy.
         """
-        return 3
+        return 1

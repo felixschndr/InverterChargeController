@@ -1,11 +1,14 @@
 import logging
-import os
 import sys
+
+from environment_variable_getter import EnvironmentVariableGetter
 
 
 class LoggerMixin:
     def __init__(self):
-        loglevel = os.environ.get("LOGLEVEL", "INFO").upper()  # noqa: FKA100
+        loglevel = EnvironmentVariableGetter.get(
+            name_of_variable="LOGLEVEL", default_value="INFO"
+        ).upper()
         logging.basicConfig(
             format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
             encoding="utf-8",

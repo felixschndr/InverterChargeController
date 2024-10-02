@@ -11,17 +11,15 @@ from tibber_api_handler import TibberAPIHandler
 
 
 class InverterChargeController(LoggerMixin):
-    def __init__(self, dry_run: bool = True):
-        """
-        :param dry_run: If True, the operation will be simulated and no changes to the operation mode of the inverter will be made. Defaults to True.
-        """
+    def __init__(self):
         super().__init__()
 
         self.log.info("Initializing...")
 
         self.sems_portal_api_handler = SemsPortalApiHandler()
         self.sun_forecast_api_handler = SunForecastAPIHandler()
-        self.inverter = Inverter(dry_run)
+
+        self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
 
         self.log.info("Finished initializing")

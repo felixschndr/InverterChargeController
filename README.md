@@ -21,6 +21,8 @@ and does the following:
        estimated charging time.
   5. It then waits until that time, sets the inverter to charge, waits for the charging process to be completed and then
      sets the inverter back to normal operation.
+      - This is done in the [InverterChargeController](source/inverterchargecontroller.py).
+      - By default, the code will not actually change the operation mode of the inverter. To do this you have to set `DRY_RUN` to `False` in the environment.
 
 ## Usage
 
@@ -36,7 +38,12 @@ and does the following:
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the script
+4. Create an `.env` and fill in your values
+   ```bash
+   cp .env.example .env
+   vi .env
+   ```
+5. Run the script
    ```bash
    python3 source/main.py
    ```

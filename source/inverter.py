@@ -1,14 +1,12 @@
 import goodwe
+from dotenv import load_dotenv
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe.et import OperationMode
 from logger import LoggerMixin
 
 
 class Inverter(LoggerMixin):
-    def __init__(self, dry_run: bool):
-        """
-        :param dry_run: If True, the operation will be simulated and no changes to the operation mode of the inverter will be made.
-        """
+    def __init__(self):
         super().__init__()
 
         self.device = None
@@ -17,7 +15,13 @@ class Inverter(LoggerMixin):
         self.battery_capacity = EnvironmentVariableGetter.get(
             "INVERTER_BATTERY_CAPACITY"
         )
-        self.dry_run = dry_run
+
+        load_dotenv()
+        self.dry_run = bool(
+            EnvironmentVariableGetter.get(
+                name_of_variable="DRY_RUN", default_value=True
+            )
+        )
 
     async def connect(self) -> None:
         self.log.debug(f"Connecting to inverter on {self.hostname}...")

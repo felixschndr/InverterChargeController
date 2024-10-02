@@ -20,12 +20,10 @@ class LoggerMixin:
             f"{log_directory}/{datetime.now().strftime('%Y-%m-%dT%H-%M-%S')}.log"
         )
 
-        loglevel = os.environ.get("LOGLEVEL", "INFO").upper()  # noqa: FKA100
-
         logging.basicConfig(
             format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
             encoding="utf-8",
-            level=loglevel,
+            level=os.environ.get("LOGLEVEL", "INFO").upper(),  # noqa: FKA100
             filename=logfile_name,
         )
 

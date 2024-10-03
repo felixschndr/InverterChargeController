@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import requests
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
-from requests.exceptions import HTTPError
 
 
 class SemsPortalApiHandler(LoggerMixin):
@@ -63,8 +62,13 @@ class SemsPortalApiHandler(LoggerMixin):
 
     def _retrieve_power_consumption_data(self) -> dict:
         """
-        :return: A dictionary containing the power consumption data in kWh retrieved from the SEMSPORTAL API.
-        :raises HTTPError: If the provided token is invalid or expired.
+        Retrieves power consumption data from the SEMSPORTAL API.
+
+        This method sends a POST request to the SEMSPORTAL API to fetch the power consumption data of a specified plant station.
+        It constructs the necessary headers and payload required by the API and handles the response appropriately.
+
+        Returns:
+            dict: A dictionary containing the power consumption data retrieved from the SEMSPORTAL API.
         """
         self.log.debug("Crawling the SEMSPORTAL API for power consumption data...")
 
@@ -82,11 +86,6 @@ class SemsPortalApiHandler(LoggerMixin):
 
         response = requests.post(url, headers=headers, json=payload, timeout=20)
         response.raise_for_status()
-
-        if "100001" in response.text or "100002" in response.text:
-            raise HTTPError(
-                "HTTP Unauthorized: The provided token is invalid or expired."
-            )
 
         self.log.debug(f"Retrieved data: {response.json()}")
 
@@ -119,3 +118,34 @@ class SemsPortalApiHandler(LoggerMixin):
         )
 
         return last_week_consumption_data
+
+    def get_state_of_charge(self) -> int:
+        """
+        Fetches the current state of charge from the SEMSPORTAL API.
+
+        Returns:
+            int: The current state of charge as an integer percentage.
+        """
+        self.log.debug("Crawling the SEMSPORTAL API for current state of charge...")
+
+        url = "https://eu.semsportal.com/api/v3/PowerStation/GetPlantDetailByPowerstationId"
+        headers = {
+            "Content-Type": "application/json",
+            "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
+        }
+        payload = {
+            "powerStationId": EnvironmentVariableGetter.get(
+                "SEMSPORTAL_POWERSTATION_ID"
+            ),
+        }
+
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        response.raise_for_status()
+
+        self.log.debug(f"Retrieved data: {response.json()}")
+
+        state_of_charge = int(response.json()["data"]["soc"][0]["power"])
+
+        self.log.info(f"The current state of charge is {state_of_charge}%")
+
+        return state_of_charge

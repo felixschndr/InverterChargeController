@@ -14,17 +14,16 @@ class SemsPortalApiHandler(LoggerMixin):
         self.timestamp = None
         self.user_id = None
 
-        self.login()
-
     def login(self) -> None:
         """
         Authenticates a user by sending a POST request to the SEMS Portal API and retrieves
         necessary tokens and API URL for subsequent requests. The user's credentials are
         fetched from the environment variables.
+        This has to be done every time a request is made to the API since the authentication tokens expire after a few
+        seconds.
 
         :return: None
         """
-
         self.log.debug("Logging in into the SEMSPORTAL...")
         url = "https://www.semsportal.com/api/v1/Common/CrossLogin"
         headers = {
@@ -53,6 +52,9 @@ class SemsPortalApiHandler(LoggerMixin):
         :return: The average power consumption in Wh per day.
         """
         self.log.info("Determining average power consumption per day")
+
+        self.login()
+
         api_response = self._retrieve_power_consumption_data()
         consumption_data = self._extract_consumption_data_of_response(api_response)
         average_consumption_per_day_in_kwh = sum(consumption_data) / len(
@@ -127,6 +129,8 @@ class SemsPortalApiHandler(LoggerMixin):
             int: The current state of charge as an integer percentage.
         """
         self.log.debug("Crawling the SEMSPORTAL API for current state of charge...")
+
+        self.login()
 
         url = "https://eu.semsportal.com/api/v3/PowerStation/GetPlantDetailByPowerstationId"
         headers = {

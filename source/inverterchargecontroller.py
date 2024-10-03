@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pause
 from energy_rate import ConsecutiveEnergyRates
+from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode
 from inverter import Inverter
 from logger import LoggerMixin
@@ -68,18 +69,53 @@ class InverterChargeController(LoggerMixin):
             self.log.info(
                 f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
             )
-            pause.until(starting_time)
-            self.log.info("Starting charging")
-            await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
-            self.log.info(
-                f"Set the inverter to charge, waiting for {duration_to_charge} hour(s)..."
+            await self._charge_inverter(
+                starting_time=starting_time, duration_to_charge=duration_to_charge
             )
-            pause.hours(duration_to_charge)
-            self.log.info("Charging finished. Setting the inverter back to normal mode")
-            await self.inverter.set_operation_mode(OperationMode.GENERAL)
 
         self.log.info("Finished operation for today, stopping now")
         exit(0)
+
+    async def _charge_inverter(
+        self, starting_time: datetime, duration_to_charge: int
+    ) -> None:
+        pause.until(starting_time)
+
+        self.log.info("Starting charging")
+        await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
+        self.log.info(
+            f"Set the inverter to charge, waiting for an estimated {duration_to_charge} hour(s)..."
+        )
+
+        duration_to_charge_in_minutes = duration_to_charge * 60
+        duration_to_charge_minus_threshold = min(0, duration_to_charge_in_minutes - 30)
+        pause.minutes(duration_to_charge_minus_threshold)
+
+        target_state_of_charge = 97
+        waiting_time_in_minutes_if_not_finished_charging = 5
+        dry_run = EnvironmentVariableGetter.get(
+            name_of_variable="DRY_RUN", default_value=True
+        )
+        while True:
+            current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
+
+            if dry_run:
+                self.log.debug(
+                    f"Assuming state of charge is {target_state_of_charge}% (actually it is {current_state_of_charge}%) since dry run is enabled"
+                )
+                current_state_of_charge = target_state_of_charge
+
+            if current_state_of_charge >= target_state_of_charge:
+                self.log.info(
+                    f"Charging finished ({current_state_of_charge}%) --> Setting the inverter back to normal mode"
+                )
+                await self.inverter.set_operation_mode(OperationMode.GENERAL)
+                break
+
+            self.log.debug(
+                f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for {waiting_time_in_minutes_if_not_finished_charging} minutes..."
+            )
+            pause.minutes(waiting_time_in_minutes_if_not_finished_charging)
 
     @staticmethod
     def _calculate_consecutive_energy_rates(

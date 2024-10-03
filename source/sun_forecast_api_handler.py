@@ -22,9 +22,7 @@ class SunForecastAPIHandler(LoggerMixin):
             EnvironmentVariableGetter.get("LOCATION_NUMBER_OF_PANELS")
         )
         maximum_output_of_panel_in_watts = int(
-            EnvironmentVariableGetter.get(
-                "LOCATION_MAXIMUM_POWER_OUTPUT_PER_PANEL_IN_WATTS"
-            )
+            EnvironmentVariableGetter.get("LOCATION_MAXIMUM_POWER_OUTPUT_PER_PANEL")
         )
 
         maximum_output_of_all_panels_in_kw = (

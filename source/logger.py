@@ -1,13 +1,11 @@
 import logging
 import sys
 
-from dotenv import load_dotenv
 from environment_variable_getter import EnvironmentVariableGetter
 
 
 class LoggerMixin:
     def __init__(self):
-        load_dotenv()
         print_timestamp_in_log = EnvironmentVariableGetter.get(
             name_of_variable="PRINT_TIMESTAMP_IN_LOG", default_value=True
         )

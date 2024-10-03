@@ -1,5 +1,4 @@
 import goodwe
-from dotenv import load_dotenv
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe.et import OperationMode
 from logger import LoggerMixin
@@ -16,7 +15,6 @@ class Inverter(LoggerMixin):
             "INVERTER_BATTERY_CAPACITY"
         )
 
-        load_dotenv()
         self.dry_run = EnvironmentVariableGetter.get(
             name_of_variable="DRY_RUN", default_value=True
         )

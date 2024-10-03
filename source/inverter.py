@@ -17,10 +17,8 @@ class Inverter(LoggerMixin):
         )
 
         load_dotenv()
-        self.dry_run = bool(
-            EnvironmentVariableGetter.get(
-                name_of_variable="DRY_RUN", default_value=True
-            )
+        self.dry_run = EnvironmentVariableGetter.get(
+            name_of_variable="DRY_RUN", default_value=True
         )
 
     async def connect(self) -> None:

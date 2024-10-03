@@ -1,16 +1,17 @@
 import logging
 import sys
 
+from dotenv import load_dotenv
 from environment_variable_getter import EnvironmentVariableGetter
 
 
 class LoggerMixin:
     def __init__(self):
-        print_timestamp_in_log = bool(
-            EnvironmentVariableGetter.get(
-                name_of_variable="PRINT_TIMESTAMP_IN_LOG", default_value=True
-            )
+        load_dotenv()
+        print_timestamp_in_log = EnvironmentVariableGetter.get(
+            name_of_variable="PRINT_TIMESTAMP_IN_LOG", default_value=True
         )
+
         log_message_format = "[%(asctime)s] " if print_timestamp_in_log else ""
         log_message_format += "[%(name)s] [%(levelname)s] %(message)s"
 

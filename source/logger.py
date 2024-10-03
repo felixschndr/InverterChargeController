@@ -6,11 +6,20 @@ from environment_variable_getter import EnvironmentVariableGetter
 
 class LoggerMixin:
     def __init__(self):
+        print_timestamp_in_log = bool(
+            EnvironmentVariableGetter.get(
+                name_of_variable="PRINT_TIMESTAMP_IN_LOG", default_value=True
+            )
+        )
+        log_message_format = "[%(asctime)s] " if print_timestamp_in_log else ""
+        log_message_format += "[%(name)s] [%(levelname)s] %(message)s"
+
         loglevel = EnvironmentVariableGetter.get(
             name_of_variable="LOGLEVEL", default_value="INFO"
         ).upper()
+
         logging.basicConfig(
-            format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
+            format=log_message_format,
             encoding="utf-8",
             level=loglevel,
             stream=sys.stdout,

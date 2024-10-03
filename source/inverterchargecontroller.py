@@ -72,7 +72,7 @@ class InverterChargeController(LoggerMixin):
             self.log.info("Starting charging")
             await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
             self.log.info(
-                f"Set the inverter to charge, waiting for {duration_to_charge} hours..."
+                f"Set the inverter to charge, waiting for {duration_to_charge} hour(s)..."
             )
             pause.hours(duration_to_charge)
             self.log.info("Charging finished. Setting the inverter back to normal mode")

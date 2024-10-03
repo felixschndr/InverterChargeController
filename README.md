@@ -53,7 +53,8 @@ python3 source/main.py
 ```
 or you can install the programm as a systemd service
 ```bash
-vi systemd/inverter-charge-controller.service # Change path to repository and user
+cp systemd/inverter-charge-controller.service.example systemd/inverter-charge-controller.service
+vi systemd/inverter-charge-controller.service
 sudo ln -s <path to repository>/InverterChargeController/systemd/inverter-charge-controller.service /etc/systemd/system
 sudo ln -s <path to repository>/InverterChargeController/systemd/inverter-charge-controller.timer /etc/systemd/system
 sudo systemctl daemon-reload

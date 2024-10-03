@@ -34,9 +34,9 @@ class InverterChargeController(LoggerMixin):
             f"The average power consumption - and thus expected power consumption for today - is {expected_power_consumption_today} Wh"
         )
 
-        # expected_power_generation_today = (
-        #     self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
-        # )
+        expected_power_generation_today = (
+            self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
+        )
         expected_power_generation_today = (
             self.sun_forecast_api_handler._get_debug_solar_output_in_watt_hours()
         )
@@ -47,7 +47,7 @@ class InverterChargeController(LoggerMixin):
         excess_power = (
             expected_power_generation_today - expected_power_consumption_today
         )
-        excess_power = -1000
+        # excess_power = -1000
         if excess_power > 0:
             self.log.info(
                 f"The expected solar output is greater than the expected power consumption ({excess_power} Wh) --> There is no need to charge"
@@ -60,7 +60,7 @@ class InverterChargeController(LoggerMixin):
                 expected_power_consumption_today
             )
             self.log.info(
-                f"Calculated estimated duration to charge: {duration_to_charge} hours"
+                f"Calculated estimated duration to charge: {duration_to_charge} hour(s)"
             )
             starting_time, charging_price = await self._find_start_time_to_charge(
                 duration_to_charge

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import goodwe
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe.et import OperationMode
@@ -55,11 +57,11 @@ class Inverter(LoggerMixin):
         self.log.info(f"Successfully set new operation mode {mode.name}")
 
     @staticmethod
-    def calculate_necessary_duration_to_charge(amount_of_energy: float) -> int:
+    def calculate_necessary_duration_to_charge(amount_of_energy: float) -> timedelta:
         """
         Calculates how long the inverter needs to be fully charged.
 
         :param amount_of_energy: The amount of energy (in Wh) required to fully charge the battery.
-        :return: The necessary duration (in hours) to charge the specified amount of energy.
+        :return: The necessary duration to charge the specified amount of energy.
         """
-        return 1
+        return timedelta(hours=1)

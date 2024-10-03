@@ -1,4 +1,5 @@
-from datetime import datetime
+import math
+from datetime import datetime, timedelta
 
 import pause
 from energy_rate import ConsecutiveEnergyRates
@@ -61,38 +62,51 @@ class InverterChargeController(LoggerMixin):
                 expected_power_consumption_today
             )
             self.log.info(
-                f"Calculated estimated duration to charge: {duration_to_charge} hour(s)"
+                f"Calculated estimated duration to charge: {duration_to_charge}"
             )
             starting_time, charging_price = await self._find_start_time_to_charge(
                 duration_to_charge
             )
-            self.log.info(
-                f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
-            )
+
             await self._charge_inverter(
-                starting_time=starting_time, duration_to_charge=duration_to_charge
+                starting_time=starting_time,
+                duration_to_charge=duration_to_charge,
+                charging_price=charging_price,
             )
 
         self.log.info("Finished operation for today, stopping now")
         exit(0)
 
     async def _charge_inverter(
-        self, starting_time: datetime, duration_to_charge: int
+        self,
+        starting_time: datetime,
+        duration_to_charge: timedelta,
+        charging_price: float,
     ) -> None:
+        target_state_of_charge = 97
+        time_before_charging_end_to_start_checking_state_of_charge = timedelta(
+            minutes=30
+        )
+        waiting_time_if_not_finished_charging = timedelta(minutes=5)
+
+        self.log.info(
+            f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
+        )
         pause.until(starting_time)
 
         self.log.info("Starting charging")
         await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
-        self.log.info(
-            f"Set the inverter to charge, waiting for an estimated {duration_to_charge} hour(s)..."
+
+        duration_to_charge_minus_threshold = max(
+            timedelta(0),
+            duration_to_charge
+            - time_before_charging_end_to_start_checking_state_of_charge,
         )
+        self.log.info(
+            f"Set the inverter to charge, waiting for an estimated {duration_to_charge_minus_threshold}..."
+        )
+        pause.seconds(duration_to_charge_minus_threshold.total_seconds())
 
-        duration_to_charge_in_minutes = duration_to_charge * 60
-        duration_to_charge_minus_threshold = min(0, duration_to_charge_in_minutes - 30)
-        pause.minutes(duration_to_charge_minus_threshold)
-
-        target_state_of_charge = 97
-        waiting_time_in_minutes_if_not_finished_charging = 5
         dry_run = EnvironmentVariableGetter.get(
             name_of_variable="DRY_RUN", default_value=True
         )
@@ -113,9 +127,9 @@ class InverterChargeController(LoggerMixin):
                 break
 
             self.log.debug(
-                f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for {waiting_time_in_minutes_if_not_finished_charging} minutes..."
+                f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for {waiting_time_if_not_finished_charging}..."
             )
-            pause.minutes(waiting_time_in_minutes_if_not_finished_charging)
+            pause.seconds(waiting_time_if_not_finished_charging.total_seconds())
 
     @staticmethod
     def _calculate_consecutive_energy_rates(
@@ -182,15 +196,16 @@ class InverterChargeController(LoggerMixin):
         return total_price / len(consecutive_energy_rates)
 
     async def _find_start_time_to_charge(
-        self, charging_duration: int
+        self, charging_duration: timedelta
     ) -> tuple[datetime, float]:
         """
-        :param charging_duration: The duration (in hours) for which the charging is needed.
+        :param charging_duration: The (estimated) duration which is needed for charging.
         :return: A tuple containing the start time (as a datetime object) when charging should begin and the average price (as a float) for the charging duration.
         """
         prices_of_tomorrow = await self.tibber_api_handler.get_prices_of_tomorrow()
+        slice_size = math.ceil(charging_duration.total_seconds() / (60 * 60))
         price_slices = self._calculate_consecutive_energy_rates(
-            consecutive_energy_rates=prices_of_tomorrow, slice_size=charging_duration
+            consecutive_energy_rates=prices_of_tomorrow, slice_size=slice_size
         )
         cheapest_slice = self._find_cheapest_consecutive_energy_rates(price_slices)
         average_charging_price = self._calculate_average_price_of_slice(cheapest_slice)

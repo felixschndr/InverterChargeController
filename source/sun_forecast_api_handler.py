@@ -51,4 +51,4 @@ class SunForecastAPIHandler(LoggerMixin):
     def _get_debug_solar_output_in_watt_hours(self) -> int:
         # We use a sample value for debugging the code since the API offers very limited call per day
         self.log.debug("Getting debug estimated solar output of today")
-        return 23000
+        return 2000

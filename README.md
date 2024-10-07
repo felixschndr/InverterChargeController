@@ -47,10 +47,13 @@ and does the following:
    ```
 
 ### Running
+#### Manually
 You can run the program manually
 ```bash
 python3 source/main.py
 ```
+
+#### Systemd
 or you can install the programm as a systemd service
 ```bash
 cp systemd/inverter-charge-controller.service.example systemd/inverter-charge-controller.service
@@ -61,3 +64,14 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now inverter-charge-controller.timer
 systemctl list-timers # Ensure that timer is listed
 ```
+The programm will start every day at 00:05 AM.
+
+### Logs
+
+#### Manually
+
+The logs are printed to stdout.
+
+#### Systemd
+
+The service adds its logs to `/var/log/syslog`. Since this file can become pretty crowded with all kinds of logs you can filter for this service by using `journalctl -u inverter-charge-controller` for all logs and `journalctl -u inverter-charge-controller -b` for the current boot.

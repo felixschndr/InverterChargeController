@@ -33,7 +33,7 @@ class InverterChargeController(LoggerMixin):
             self.sems_portal_api_handler.get_average_power_consumption_per_day()
         )
         self.log.info(
-            f"The average power consumption - and thus expected power consumption for today - is {expected_power_consumption_today} Wh"
+            f"The average power consumption (and thus expected power consumption for today) is {expected_power_consumption_today} Wh"
         )
 
         use_debug_solar_output = EnvironmentVariableGetter.get(
@@ -90,7 +90,7 @@ class InverterChargeController(LoggerMixin):
         time_before_charging_end_to_start_checking_state_of_charge = timedelta(
             minutes=30
         )
-        waiting_time_if_not_finished_charging = timedelta(minutes=5)
+        waiting_time_if_not_finished_charging = timedelta(minutes=15)
 
         self.log.info(
             f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
@@ -106,7 +106,7 @@ class InverterChargeController(LoggerMixin):
             - time_before_charging_end_to_start_checking_state_of_charge,
         )
         self.log.info(
-            f"Set the inverter to charge, waiting for an estimated {duration_to_charge_minus_threshold}..."
+            f"Set the inverter to charge, waiting for an {duration_to_charge_minus_threshold} (estimated duration to charge - threshold of 30 minutes)..."
         )
         pause.seconds(duration_to_charge_minus_threshold.total_seconds())
 

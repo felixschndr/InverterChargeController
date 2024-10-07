@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "Inverter Charge Controller"
+description = "This project aims to charge the battery pack of a photovoltaic system when the energy rates are as low as possible."
+authors = ["Felix Schneider <mail@fschneider.me>"]
+version = "0.1"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+asyncio = "^3.4.3"
+goodwe = "^0.4.8"
+aiographql-client = "^1.1.0"
+black = "^24.8.0"
+flake8 = "^7.1.1"
+isort = "^5.13.2"
+pre-commit = "^4.0.0"
+python-dotenv = "^1.0.1"
+requests = "^2.32.3"
+pause = "^0.3"

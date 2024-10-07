@@ -38,7 +38,7 @@ and does the following:
    ```
 3. Install the requirements
    ```bash
-   pip install -r requirements.txt
+   poetry install
    ```
 4. Create an `.env` and fill in your values
    ```bash

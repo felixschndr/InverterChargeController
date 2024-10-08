@@ -84,7 +84,7 @@ class InverterChargeController(LoggerMixin):
         charging_price: float,
     ) -> None:
         target_state_of_charge = int(
-            EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE")
+            EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE", 98)
         )
         time_before_charging_end_to_start_checking_state_of_charge = timedelta(
             minutes=30

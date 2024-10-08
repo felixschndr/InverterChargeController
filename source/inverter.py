@@ -24,13 +24,15 @@ class Inverter(LoggerMixin):
             EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_AMPERAGE_CV_PHASE")
         )
         self.cc_phase_limit = int(
-            EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_CC_PHASE_LIMIT")
+            EnvironmentVariableGetter.get(
+                "INVERTER_BATTERY_CHARGING_CC_PHASE_LIMIT", 80
+            )
         )
         self.charging_voltage = int(
             EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_VOLTAGE")
         )
         self.charging_efficiency = float(
-            EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_EFFICIENCY")
+            EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_EFFICIENCY", 0.9),
         )
 
         self.dry_run = EnvironmentVariableGetter.get(

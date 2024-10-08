@@ -61,11 +61,9 @@ class InverterChargeController(LoggerMixin):
             self.log.info(
                 f"The expected solar output is less than the expected power consumption ({abs(excess_power)} Wh) --> There is a need to charge"
             )
+            state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
             duration_to_charge = self.inverter.calculate_necessary_duration_to_charge(
-                expected_power_consumption_today
-            )
-            self.log.info(
-                f"Calculated estimated duration to charge: {duration_to_charge}"
+                state_of_charge
             )
             starting_time, charging_price = await self._find_start_time_to_charge(
                 duration_to_charge

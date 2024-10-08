@@ -112,4 +112,14 @@ The logs are printed to stdout.
 
 #### Systemd
 
-The service adds its logs to `/var/log/syslog`. Since this file can become pretty crowded with all kinds of logs you can filter for this service by using `journalctl -u inverter-charge-controller` for all logs and `journalctl -u inverter-charge-controller -b` for the current boot.
+The service adds its logs to `/var/log/syslog`. Since this file can become pretty crowded with all kinds of logs you can filter for this service by using `journalctl -u inverter-charge-controller -q` for all logs and `journalctl -u inverter-charge-controller -b -q` for the current boot.
+
+Since this command might be hard to remember you can create an alias by running
+```bash
+# For your user
+echo "alias inverterlogs='journalctl -u inverter-charge-controller -b -q'" >> ${HOME}/.bashrc
+# For all users
+echo "alias inverterlogs='journalctl -u inverter-charge-controller -b -q'" >> /etc/bash.bashrc
+```
+(For users of other shells than bash, please add the alias to your shell's configuration file, such as `.zshrc` for zsh or
+`.config/fish/config.fish` for fish.)

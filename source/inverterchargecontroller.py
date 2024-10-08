@@ -20,7 +20,6 @@ class InverterChargeController(LoggerMixin):
 
         self.sems_portal_api_handler = SemsPortalApiHandler()
         self.sun_forecast_api_handler = SunForecastAPIHandler()
-
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
 
@@ -84,7 +83,9 @@ class InverterChargeController(LoggerMixin):
         duration_to_charge: timedelta,
         charging_price: float,
     ) -> None:
-        target_state_of_charge = 97
+        target_state_of_charge = int(
+            EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE")
+        )
         time_before_charging_end_to_start_checking_state_of_charge = timedelta(
             minutes=30
         )

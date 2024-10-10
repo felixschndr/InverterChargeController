@@ -27,6 +27,7 @@ class InverterChargeController(LoggerMixin):
 
     async def run(self) -> None:
         self.log.info("Starting working...")
+        exit(0)
 
         expected_power_consumption_today = (
             self.sems_portal_api_handler.get_average_power_consumption_per_day()

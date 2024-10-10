@@ -150,6 +150,4 @@ class SemsPortalApiHandler(LoggerMixin):
 
         state_of_charge = int(response.json()["data"]["soc"][0]["power"])
 
-        self.log.info(f"The current state of charge is {state_of_charge}%")
-
         return state_of_charge

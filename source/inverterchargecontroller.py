@@ -28,13 +28,6 @@ class InverterChargeController(LoggerMixin):
     async def run(self) -> None:
         self.log.info("Starting to work...")
 
-        expected_power_consumption_today = (
-            self.sems_portal_api_handler.get_average_power_consumption_per_day()
-        )
-        self.log.info(
-            f"The average power consumption (and thus expected power consumption for today) is {expected_power_consumption_today} Wh"
-        )
-
         use_debug_solar_output = EnvironmentVariableGetter.get(
             name_of_variable="USE_DEBUG_SOLAR_OUTPUT", default_value=False
         )
@@ -43,26 +36,43 @@ class InverterChargeController(LoggerMixin):
             if use_debug_solar_output
             else self.sun_forecast_api_handler.get_solar_output_in_watt_hours()
         )
-
         self.log.info(
             f"The expected solar output for today is {expected_power_generation_today} Wh"
         )
 
+        expected_power_consumption_today = (
+            self.sems_portal_api_handler.get_average_power_consumption_per_day()
+        )
+        self.log.info(
+            f"The average power consumption (and thus expected power consumption for today) is {expected_power_consumption_today} Wh"
+        )
+
+        current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
+        missing_energy_in_battery = (
+            self.inverter.calculate_energy_missing_from_battery_from_state_of_charge(
+                current_state_of_charge
+            )
+        )
+        self.log.info(
+            f"The battery is currently at {current_state_of_charge}%, thus {missing_energy_in_battery} Wh are missing from it"
+        )
+
         excess_power = (
-            expected_power_generation_today - expected_power_consumption_today
+            expected_power_generation_today
+            - expected_power_consumption_today
+            - missing_energy_in_battery
         )
 
         if excess_power > 0:
             self.log.info(
-                f"The expected solar output is greater than the expected power consumption ({excess_power} Wh) --> There is no need to charge"
+                f"The expected solar output is greater than the expected power consumption and missing battery charge ({excess_power} Wh) --> There is no need to charge"
             )
         else:
             self.log.info(
-                f"The expected solar output is less than the expected power consumption ({abs(excess_power)} Wh) --> There is a need to charge"
+                f"The expected solar output is less than the expected power consumption and missing battery charge ({abs(excess_power)} Wh) --> There is a need to charge"
             )
-            state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
             duration_to_charge = self.inverter.calculate_necessary_duration_to_charge(
-                state_of_charge
+                current_state_of_charge
             )
             starting_time, charging_price = await self._find_start_time_to_charge(
                 duration_to_charge
@@ -114,6 +124,7 @@ class InverterChargeController(LoggerMixin):
         )
         while True:
             current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
+            self.log.info(f"The current state of charge is {current_state_of_charge}%")
 
             if dry_run:
                 self.log.debug(

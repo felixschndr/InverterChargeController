@@ -171,6 +171,39 @@ class Inverter(LoggerMixin):
             hours=duration_to_charge_in_cv_phase * charging_efficiency_factor
         )
 
+    def calculate_energy_missing_from_battery_from_state_of_charge(
+        self, state_of_charge: int
+    ) -> int:
+        """
+        Calculates the amount of energy missing in the battery in watt-hours from the state of charge
+
+        Args:
+            state_of_charge: The current state of charge of the battery as a percentage.
+
+        Returns:
+            The energy missing in watt-hours corresponding to the given state of charge.
+        """
+        return (
+            self.battery_capacity
+            - self.calculate_energy_saved_in_battery_from_state_of_charge(
+                state_of_charge
+            )
+        )
+
+    def calculate_energy_saved_in_battery_from_state_of_charge(
+        self, state_of_charge: int
+    ) -> int:
+        """
+        Calculates the amount of energy saved in the battery in watt-hours from the state of charge
+
+        Args:
+            state_of_charge: The current state of charge of the battery as a percentage.
+
+        Returns:
+            The energy saved in watt-hours corresponding to the given state of charge.
+        """
+        return int(self.battery_capacity * state_of_charge / 100)
+
 
 if __name__ == "__main__":
     inverter = Inverter()

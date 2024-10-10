@@ -52,7 +52,6 @@ and does the following:
    |-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|-------------------------------------------------------------------------------------------------------|
    | `DRY_RUN`                                     | Per default system work normally but not actually change the operation mode on the inverter for testing purposes.                                                                                      | `True`        | [`True`, `False`]                                                                                     |
    | `USE_DEBUG_SOLAR_OUTPUT`                      | Use a debug value for the expected solar output. This can be used when running the programm multiple times since the solar forecast API offers a very limited amount of API calls per day.             | `FALSE`       | [`True`, `False`]                                                                                     |
-   | `PRINT_TIMESTAMP_IN_LOG`                      | Decide whether you want to print a timestamp in the log messages. Set this to `False` if you use the service with systemd as the log messages will be prepended with a timestamp in `/var/log/syslog`. | `True`        | [`True`, `False`]                                                                                     |
    | `LOGLEVEL`                                    | The level to log at.                                                                                                                                                                                   | `INFO`        | [`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`]                                                     |
    | `TIBBER_API_TOKEN`                            | The token to crawl the Tibber API. See https://developer.tibber.com/docs/guides/calling-api for more information.                                                                                      | -             | A string, example: `my-secret-token`                                                                  |
    | `INVERTER_HOSTNAME`                           | The hostname or IP of the inverter.                                                                                                                                                                    | -             | [`inverter.mydomain.com`, `192.168.5.10`, ...]                                                        |
@@ -106,20 +105,4 @@ The programm will start every day at 00:05 AM. This can be changed in [systemd/i
 
 ### Logs
 
-#### Manually
-
-The logs are printed to stdout.
-
-#### Systemd
-
-The service adds its logs to `/var/log/syslog`. Since this file can become pretty crowded with all kinds of logs you can filter for this service by using `journalctl -u inverter-charge-controller -q` for all logs and `journalctl -u inverter-charge-controller -b -q` for the current boot.
-
-Since this command might be hard to remember you can create an alias by running
-```bash
-# For your user
-echo "alias inverterlogs='journalctl -u inverter-charge-controller -b -q'" >> ${HOME}/.bashrc
-# For all users
-echo "alias inverterlogs='journalctl -u inverter-charge-controller -b -q'" >> /etc/bash.bashrc
-```
-(For users of other shells than bash, please add the alias to your shell's configuration file, such as `.zshrc` for zsh or
-`.config/fish/config.fish` for fish.)
+The logs of the application are stored in `<path to repository>/logs/`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved. 

@@ -91,12 +91,30 @@ python3 source/main.py
 ```
 
 #### Systemd
-or you can install the programm as a systemd service
+or you can install the programm as a systemd service. 
+
+Before installing the systemd service you can optionally choose to create a user whose sole purpose is to run this application. This is not necessary at all but best practice. If you choose to run the application as your own user just skip this step.
+
+```bash
+sudo su
+useradd -r -s /usr/sbin/nologin -m <username>
+cd /home/<username>
+git clone https://github.com/felixschndr/InverterChargeController.git app/
+cd app/
+python -m venv .venv
+source .venv/bin/activate
+poetry install
+cp .env.example .env
+vi .env
+chown -R <username>: app/
+```
+
+After that, you can create the systemd configuration:
 ```bash
 cp systemd/inverter-charge-controller.service.example systemd/inverter-charge-controller.service
 vi systemd/inverter-charge-controller.service
-sudo ln -s <path to repository>/InverterChargeController/systemd/inverter-charge-controller.service /etc/systemd/system
-sudo ln -s <path to repository>/InverterChargeController/systemd/inverter-charge-controller.timer /etc/systemd/system
+sudo ln -s <path to repository>/systemd/inverter-charge-controller.service /etc/systemd/system
+sudo ln -s <path to repository>/systemd/inverter-charge-controller.timer /etc/systemd/system
 sudo systemctl daemon-reload
 sudo systemctl enable --now inverter-charge-controller.timer
 systemctl list-timers # Ensure that timer is listed

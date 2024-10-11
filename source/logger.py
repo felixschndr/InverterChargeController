@@ -30,7 +30,12 @@ class LoggerMixin:
         and configures a rotating file handler with a specific log level and format.
         """
         directory_of_repository = pathlib.Path(__file__).parent.parent.resolve()
-        directory_of_logs = os.path.join(directory_of_repository, "logs")
+        directory_of_logs_default_value = os.path.join(directory_of_repository, "logs")
+
+        directory_of_logs = EnvironmentVariableGetter.get(
+            name_of_variable="DIRECTORY_OF_LOGS",
+            default_value=directory_of_logs_default_value,
+        )
         self._create_logging_directory_if_necessary(directory_of_logs)
 
         log_level = EnvironmentVariableGetter.get(

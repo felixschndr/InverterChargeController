@@ -96,7 +96,7 @@ class InverterChargeController(LoggerMixin):
         target_state_of_charge = int(
             EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE", 98)
         )
-        charging_progress_check_interval = timedelta(minutes=15)
+        charging_progress_check_interval = timedelta(minutes=10)
 
         self.log.info(
             f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."

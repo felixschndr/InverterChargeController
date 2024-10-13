@@ -96,10 +96,7 @@ class InverterChargeController(LoggerMixin):
         target_state_of_charge = int(
             EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE", 98)
         )
-        time_before_charging_end_to_start_checking_state_of_charge = timedelta(
-            minutes=30
-        )
-        waiting_time_if_not_finished_charging = timedelta(minutes=15)
+        charging_progress_check_interval = timedelta(minutes=15)
 
         self.log.info(
             f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
@@ -109,15 +106,10 @@ class InverterChargeController(LoggerMixin):
         self.log.info("Starting charging")
         await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
 
-        duration_to_charge_minus_threshold = max(
-            timedelta(0),
-            duration_to_charge
-            - time_before_charging_end_to_start_checking_state_of_charge,
-        )
         self.log.info(
-            f"Set the inverter to charge, waiting for an {duration_to_charge_minus_threshold} (estimated duration to charge - threshold of 30 minutes)..."
+            f"Set the inverter to charge, the estimated charging duration is {duration_to_charge}. Checking every {charging_progress_check_interval} the state of charge..."
         )
-        pause.seconds(duration_to_charge_minus_threshold.total_seconds())
+        pause.seconds(charging_progress_check_interval.total_seconds())
 
         dry_run = EnvironmentVariableGetter.get(
             name_of_variable="DRY_RUN", default_value=True
@@ -140,9 +132,9 @@ class InverterChargeController(LoggerMixin):
                 break
 
             self.log.debug(
-                f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for {waiting_time_if_not_finished_charging}..."
+                f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for another {charging_progress_check_interval}..."
             )
-            pause.seconds(waiting_time_if_not_finished_charging.total_seconds())
+            pause.seconds(charging_progress_check_interval.total_seconds())
 
     @staticmethod
     def _calculate_consecutive_energy_rates(

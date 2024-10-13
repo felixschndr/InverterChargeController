@@ -68,6 +68,8 @@ class LoggerMixin:
         logging.getLogger("gql.transport.aiohttp").setLevel(logging.WARNING)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
         logging.getLogger("asyncio").setLevel(logging.WARNING)
+        logging.getLogger("goodwe").setLevel(logging.INFO)
+        logging.getLogger("goodwe.protocol").setLevel(logging.INFO)
 
     @staticmethod
     def _create_logging_directory_if_necessary(directory_of_logs: str) -> None:

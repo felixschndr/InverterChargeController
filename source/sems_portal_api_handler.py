@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import requests
 from environment_variable_getter import EnvironmentVariableGetter
@@ -83,7 +83,7 @@ class SemsPortalApiHandler(LoggerMixin):
             "id": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
             "range": 2,
             "chartIndexId": "8",
-            "date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
+            "date": datetime.now().strftime("%Y-%m-%d"),
         }
 
         response = requests.post(url, headers=headers, json=payload, timeout=20)
@@ -112,7 +112,7 @@ class SemsPortalApiHandler(LoggerMixin):
         # Create a list with the values of the last week
         # Since we run some minutes after midnight, we want to exclude the current day
         last_week_consumption_data = [
-            data_point["y"] for data_point in consumption_data_raw_sorted[-8:-1]
+            data_point["y"] for data_point in consumption_data_raw_sorted[-9:-2]
         ]
 
         self.log.debug(
@@ -120,6 +120,23 @@ class SemsPortalApiHandler(LoggerMixin):
         )
 
         return last_week_consumption_data
+
+    def get_power_buy_of_today(self) -> int:
+        """
+        Retrieves the amount of power bought today.
+
+        :return: The amount of power bought today in Wh.
+        """
+        self.log.info("Determining amount of power bought today")
+
+        self.login()
+
+        api_response = self._retrieve_power_consumption_data()
+        lines = api_response["data"]["lines"]
+        buy_line = [line for line in lines if "buy" in line["label"].lower()][0]
+        power_buy_of_today_in_kwh = buy_line["xy"][-1]["y"]
+
+        return int(power_buy_of_today_in_kwh * 1000)
 
     def get_state_of_charge(self) -> int:
         """

@@ -97,24 +97,32 @@ class InverterChargeController(LoggerMixin):
             EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE", 98)
         )
         charging_progress_check_interval = timedelta(minutes=10)
+        dry_run = EnvironmentVariableGetter.get(
+            name_of_variable="DRY_RUN", default_value=True
+        )
 
         self.log.info(
             f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
         )
         pause.until(starting_time)
 
-        self.log.info("Starting charging")
+        power_buy_of_today_before_charging = (
+            self.sems_portal_api_handler.get_power_buy_of_today()
+        )
+        self.log.debug(
+            f"The amount of power bought before charging is {power_buy_of_today_before_charging} Wh"
+        )
+
+        self.log.info("Starting to charge")
         await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
 
         self.log.info(
             f"Set the inverter to charge, the estimated charging duration is {duration_to_charge}. Checking every {charging_progress_check_interval} the state of charge..."
         )
-        pause.seconds(charging_progress_check_interval.total_seconds())
 
-        dry_run = EnvironmentVariableGetter.get(
-            name_of_variable="DRY_RUN", default_value=True
-        )
         while True:
+            pause.seconds(charging_progress_check_interval.total_seconds())
+
             current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
             self.log.info(f"The current state of charge is {current_state_of_charge}%")
 
@@ -134,7 +142,21 @@ class InverterChargeController(LoggerMixin):
             self.log.debug(
                 f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for another {charging_progress_check_interval}..."
             )
-            pause.seconds(charging_progress_check_interval.total_seconds())
+
+        power_buy_of_today_after_charging = (
+            self.sems_portal_api_handler.get_power_buy_of_today()
+        )
+        self.log.debug(
+            f"The amount of power bought after charging is {power_buy_of_today_after_charging} Wh"
+        )
+
+        power_buy_through_charging = (
+            power_buy_of_today_after_charging - power_buy_of_today_before_charging
+        )
+        cost_to_charge = power_buy_through_charging / 1000 * charging_price
+        self.log.info(
+            f"Bought {power_buy_through_charging} Wh to charge the battery, cost about {cost_to_charge:.2f} €"
+        )
 
     @staticmethod
     def _calculate_consecutive_energy_rates(

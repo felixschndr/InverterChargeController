@@ -1,0 +1,10 @@
+[Unit]
+Description = "Timer: Software that logs the solar forecast of the day"
+
+[Timer]
+OnCalendar=Mon..Sun 23:00
+RandomizedDelaySec=0
+Persistent=true
+
+[Install]
+WantedBy=timers.target

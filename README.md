@@ -122,6 +122,15 @@ systemctl list-timers # Ensure that timer is listed
 ```
 The programm will start every day at 00:05 AM. This can be changed in [systemd/inverter-charge-controller.timer](systemd/inverter-charge-controller.timer).
 
+### Note: Just get the solar forecast
+
+If you pass in `--solar-forecast` as an argument to `main.py` the programm just logs the expected solar forecast of the day.
+
+This can also be used to log the solar prediction after the sun has set to see how far off the solar prediction
+from before the sun has risen was (--> not as a *forecast* but as a *review*) to get a sense about how good the prediction was. In order to correctly display the log message use `--solar-review` in this case.
+
+There is also a systemd configuration with a service and a timer that does the latter: daily at 11:00 PM log the solar *forecast* from the API. 
+
 ### Logs
 
 The logs of the application are stored in `<path to repository>/logs/`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved. 

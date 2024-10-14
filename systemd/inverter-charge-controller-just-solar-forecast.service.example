@@ -1,0 +1,11 @@
+[Unit]
+Description = "Software that logs the solar forecast of the day"
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=<path to repository>/InverterChargeController/.venv/bin/python3.11 <path to repository>/InverterChargeController/source/main.py --solar-review # Change here
+User=<user to run program as> # Change here
+
+[Install]
+WantedBy=default.target

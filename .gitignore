@@ -3,4 +3,5 @@
 **/__pycache__
 .env
 systemd/inverter-charge-controller.service
+systemd/inverter-charge-controller-just-solar-forecast.service
 logs/

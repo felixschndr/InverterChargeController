@@ -1,7 +1,7 @@
 import asyncio
 import sys
 
-from inverterchargecontroller import InverterChargeController
+from inverter_charge_controller import InverterChargeController
 from sun_forecast_api_handler import SunForecastAPIHandler
 
 

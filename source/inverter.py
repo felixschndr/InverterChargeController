@@ -88,7 +88,7 @@ class Inverter(LoggerMixin):
             This phase is the second phase and goes roughly from 80% - 100% state of charge. In this phase the battery
             charges slower. In the CC phase the charging speed is not linear but exponentially slower. The exponential
             factor can be approximated by dividing the charging power of this phase by 2.
-        To get the total duration necessary the duration of the individual phases are calculated and summed.
+        To get the total duration necessary, the duration of the individual phases are calculated and summed.
 
         Args:
             current_state_of_charge: Current percentage of battery charge.

@@ -14,17 +14,17 @@ and does the following:
      - The data about the photovoltaic system is used to query https://forecast.solar/ via their API for an estimate of power production during the day.
   3. If the expected power consumption of the house is less than the expected solar output, the script will exit as
      there is nothing to do.
-  4. If the expected power consumption of the house is greater than the expected solar output, the programm will use
+  4. If the expected power consumption of the house is greater than the expected solar output, the program will use
      energy prices to work out when it is cheapest to charge the battery pack.
-     1. The programm calculates the necessary duration to charge the battery.
+     1. The program calculates the necessary duration to charge the battery.
          - This is done in the [Inverter](source/inverter.py).
-     2. The programm pulls energy price data for the coming day and works out which time of day will be the cheapest over
+     2. The program pulls energy price data for the coming day and works out which time of day will be the cheapest over
         the estimated charging time
         - This is done in the [TibberAPIHandler](source/tibber_api_handler.py).
   5. It then waits until that time, sets the inverter to charge, waits for the charging process to be completed and then
      sets the inverter back to normal operation.
-      - This is done in the [InverterChargeController](source/inverterchargecontroller.py).
-      - By default, the code will not actually change the operation mode of the inverter. To do this you have to set `DRY_RUN` to `False` in the environment (see table below).
+      - This is done in the [InverterChargeController](source/inverter_charge_controller.py).
+      - By default, the code will not change the operation mode of the inverter. To do this, you have to set `DRY_RUN` to `False` in the environment (see table below).
 
 ## Usage
 
@@ -92,9 +92,9 @@ python3 source/main.py
 ```
 
 #### Systemd
-or you can install the programm as a systemd service. 
+or you can install the program as a systemd service. 
 
-Before installing the systemd service you can optionally choose to create a user whose sole purpose is to run this application. This is not necessary at all but best practice. If you choose to run the application as your own user just skip this step.
+Before installing the systemd service, you can optionally choose to create a user whose sole purpose is to run this application. This is not necessary at all but the best practice. If you choose to run the application as your own user, skip this step.
 
 ```bash
 sudo su
@@ -120,14 +120,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now inverter-charge-controller.timer
 systemctl list-timers # Ensure that timer is listed
 ```
-The programm will start every day at 00:05 AM. This can be changed in [systemd/inverter-charge-controller.timer](systemd/inverter-charge-controller.timer).
+The program will start every day at 00:05 AM. This can be changed in [systemd/inverter-charge-controller.timer](systemd/inverter-charge-controller.timer).
 
-### Note: Just get the solar forecast
+### Note: Only log the solar forecast
 
 If you pass in `--solar-forecast` as an argument to `main.py` the programm just logs the expected solar forecast of the day.
 
-This can also be used to log the solar prediction after the sun has set to see how far off the solar prediction
-from before the sun has risen was (--> not as a *forecast* but as a *review*) to get a sense about how good the prediction was. In order to correctly display the log message use `--solar-review` in this case.
+This can also be used to log the solar prediction after the sun has set to see how far off the solar prediction was and get a sense of how good the predication was (→ not as a *forecast* but as a *review*). To correctly display the log message use `--solar-review` in this case.
 
 There is also a systemd configuration with a service and a timer that does the latter: daily at 11:00 PM log the solar *forecast* from the API. 
 

@@ -17,8 +17,8 @@ class SemsPortalApiHandler(LoggerMixin):
     def login(self) -> None:
         """
         Authenticates a user by sending a POST request to the SEMS Portal API and retrieves
-        necessary tokens and API URL for subsequent requests. The user's credentials are
-        fetched from the environment variables.
+        the necessary tokens and API URL for subsequent requests. The user's credentials are fetched from the
+        environment variables.
         This has to be done every time a request is made to the API since the authentication tokens expire after a few
         seconds.
 
@@ -96,7 +96,7 @@ class SemsPortalApiHandler(LoggerMixin):
     def _extract_consumption_data_of_response(self, response_json: dict) -> list[float]:
         """
         :param response_json: Dictionary containing the JSON response with power consumption data.
-        :return: List of the most recent 7 daily power consumption values in kWh.
+        :return: List of the most recent seven daily power consumption values in kWh.
         """
         lines = response_json["data"]["lines"]
 
@@ -110,7 +110,7 @@ class SemsPortalApiHandler(LoggerMixin):
         consumption_data_raw_sorted = sorted(consumption_data_raw, key=lambda d: d["x"])
 
         # Create a list with the values of the last week
-        # Since we run some minutes after midnight we want to exclude the current day
+        # Since we run some minutes after midnight, we want to exclude the current day
         last_week_consumption_data = [
             data_point["y"] for data_point in consumption_data_raw_sorted[-8:-1]
         ]

@@ -141,7 +141,7 @@ class InverterChargeController(LoggerMixin):
         consecutive_energy_rates: ConsecutiveEnergyRates, slice_size: int
     ) -> list[ConsecutiveEnergyRates]:
         """
-        Calculates all possible slices of EnergyRates which are <slice_size> long.
+        Calculates all possible slices of EnergyRates that are <slice_size> long.
         Example:
             Input:
                 ConsecutiveEnergyRates(

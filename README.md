@@ -122,7 +122,12 @@ systemctl list-timers # Ensure that timer is listed
 ```
 The program will start every day at 00:05 AM. This can be changed in [systemd/inverter-charge-controller.timer](systemd/inverter-charge-controller.timer).
 
-### Note: Only log the solar forecast
+
+### Logs
+
+The logs of the application are stored in `<path to repository>/logs/`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved. 
+
+#### Only log the solar forecast
 
 If you pass in `--solar-forecast` as an argument to `main.py` the programm just logs the expected solar forecast of the day.
 
@@ -130,6 +135,12 @@ This can also be used to log the solar prediction after the sun has set to see h
 
 There is also a systemd configuration with a service and a timer that does the latter: daily at 11:00 PM log the solar *forecast* from the API. 
 
-### Logs
+#### Monitor solar forecast prediction and power buy
 
-The logs of the application are stored in `<path to repository>/logs/`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved. 
+You can monitor how far the prediction of the solar forecast was off and how much power was bought with the script [solar_forecast_and_power_buy_logger.sh](solar_forecast_and_power_buy_logger.sh).
+
+It saves the following data:
+- `<directory> of logs>/power_buy.log`: `<timestamp of start of charging>\t<timestamp of end of charging>\t<power bought in Wh>`
+- `<directory> of logs>/solar_forecast_difference.log`: `<date>\t<prediction at start of day in Wh>\t<prediction at end of day in Wh>`
+
+This can automatically be run after the review of the solar forecast, see [systemd/inverter-charge-controller-just-solar-forecast.service](systemd/inverter-charge-controller-just-solar-forecast.service).

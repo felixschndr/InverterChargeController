@@ -89,7 +89,7 @@ class SemsPortalApiHandler(LoggerMixin):
         response = requests.post(url, headers=headers, json=payload, timeout=20)
         response.raise_for_status()
 
-        self.log.debug(f"Retrieved data: {response.json()}")
+        self.log.trace(f"Retrieved data: {response.json()}")
 
         return response.json()
 
@@ -163,7 +163,7 @@ class SemsPortalApiHandler(LoggerMixin):
         response = requests.post(url, headers=headers, json=payload, timeout=10)
         response.raise_for_status()
 
-        self.log.debug(f"Retrieved data: {response.json()}")
+        self.log.trace(f"Retrieved data: {response.json()}")
 
         state_of_charge = int(response.json()["data"]["soc"][0]["power"])
 

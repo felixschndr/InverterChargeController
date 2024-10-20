@@ -58,7 +58,21 @@ class LoggerMixin:
         root_logger.addHandler(handler)
         root_logger.setLevel(log_level)
 
+        self._add_trace_loglevel()
         self._set_log_levels_of_libraries()
+
+    @staticmethod
+    def _add_trace_loglevel() -> None:
+        trace_level_number = logging.DEBUG - 5
+        logging.addLevelName(trace_level_number, "TRACE")
+
+        def trace(
+            self, message, *args, **kwargs  # noqa: ANN001, ANN002, ANN003
+        ):  # noqa: ANN201
+            if self.isEnabledFor(trace_level_number):
+                self._log(trace_level_number, message, args, **kwargs)
+
+        logging.Logger.trace = trace
 
     @staticmethod
     def _set_log_levels_of_libraries() -> None:

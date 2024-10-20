@@ -45,7 +45,7 @@ class SunForecastAPIHandler(LoggerMixin):
         response.raise_for_status()
 
         data = response.json()
-        self.log.debug(f"Retrieved data: {data}")
+        self.log.trace(f"Retrieved data: {data}")
         return data["result"]["watt_hours_day"][self._get_date_as_string()]
 
     def _get_debug_solar_output_in_watt_hours(self) -> int:

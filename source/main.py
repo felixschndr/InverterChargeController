@@ -1,7 +1,10 @@
 import asyncio
+import signal
 import sys
+from types import FrameType
 
 from inverter_charge_controller import InverterChargeController
+from logger import LoggerMixin
 from sun_forecast_api_handler import SunForecastAPIHandler
 
 
@@ -18,6 +21,15 @@ def log_solar_forecast(log_as_review: bool = False) -> None:
             f"The expected solar output of today is {solar_output_today} Wh"
         )
 
+
+def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
+    logger = LoggerMixin()
+    logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting...")
+    exit(0)
+
+
+for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
+    signal.signal(signal_to_catch, handle_stop_signal)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

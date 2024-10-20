@@ -8,7 +8,7 @@ class EnergyRate:
     timestamp: datetime
 
     def __repr__(self):
-        return f"{self.rate} € at {self.timestamp.strftime('%H:%M')}"
+        return f"{self.rate} € at {self.timestamp}"
 
 
 @dataclass

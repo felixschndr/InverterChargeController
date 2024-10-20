@@ -51,6 +51,9 @@ class LoggerMixin:
         )
         handler.setLevel(log_level)
 
+        # Write newlines when starting the application for better readability
+        handler.stream.write("\n\n")
+
         formatter = logging.Formatter(
             "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",

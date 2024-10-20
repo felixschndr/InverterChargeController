@@ -5,19 +5,21 @@ from types import FrameType
 
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
-from sun_forecast_api_handler import SunForecastAPIHandler
+from sun_forecast_handler import SunForecastHandler
 
 
 def log_solar_forecast(log_as_review: bool = False) -> None:
-    sun_forecast_api_handler = SunForecastAPIHandler()
+    sun_forecast_handler = SunForecastHandler()
 
-    solar_output_today = sun_forecast_api_handler.get_solar_output_in_watt_hours()
+    solar_output_today = (
+        sun_forecast_handler._get_expected_solar_output_of_today_in_watt_hours()
+    )
     if log_as_review:
-        sun_forecast_api_handler.log.info(
+        sun_forecast_handler.log.info(
             f"The actual solar output of today was {solar_output_today} Wh"
         )
     else:
-        sun_forecast_api_handler.log.info(
+        sun_forecast_handler.log.info(
             f"The expected solar output of today is {solar_output_today} Wh"
         )
 

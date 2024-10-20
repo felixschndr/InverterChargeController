@@ -13,10 +13,13 @@ class EnergyRate:
 
 @dataclass
 class ConsecutiveEnergyRates:
-    slices: list[EnergyRate]
+    energy_rates: list[EnergyRate]
 
     def __len__(self):
-        return len(self.slices)
+        return len(self.energy_rates)
 
     def __getitem__(self, index: int):
-        return self.slices[index]
+        return self.energy_rates[index]
+
+    def __str__(self):
+        return str(self.energy_rates)

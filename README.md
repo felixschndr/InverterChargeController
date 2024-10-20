@@ -9,7 +9,7 @@ and does the following:
      - This is done in the [SemsPortalApiHandler](source/sems_portal_api_handler.py).
      - The inverter used while programming this is a model from Goodwe (`GW5KN-ET`) which sends its data (state of charge, power input, power output, ...) into the SEMS portal. The values are retrieved from there via the API.
   2. An estimate of the expected solar output from the panels is made.
-     - This is done in the [SunForecastAPIHandler](source/sun_forecast_api_handler.py).
+     - This is done in the [SunForecastHandler](source/sun_forecast_handler.py).
      - In the .env file the user has to specify some parameters about his solar panels. See the [.env.example](.env.example) for more details about the configuration.
      - The data about the photovoltaic system is used to query https://forecast.solar/ via their API for an estimate of power production during the day.
   3. If the expected power consumption of the house is less than the expected solar output, the script will exit as
@@ -116,17 +116,14 @@ After that, you can create the systemd configuration:
 cp systemd/inverter-charge-controller.service.example systemd/inverter-charge-controller.service
 vi systemd/inverter-charge-controller.service
 sudo ln -s <path to repository>/systemd/inverter-charge-controller.service /etc/systemd/system
-sudo ln -s <path to repository>/systemd/inverter-charge-controller.timer /etc/systemd/system
 sudo systemctl daemon-reload
-sudo systemctl enable --now inverter-charge-controller.timer
-systemctl list-timers # Ensure that timer is listed
+sudo systemctl enable --now inverter-charge-controller.service
 ```
-The program will start every day at 00:05 AM. This can be changed in [systemd/inverter-charge-controller.timer](systemd/inverter-charge-controller.timer).
-
 
 ### Logs
 
 The logs of the application are stored in `<path to repository>/logs/`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved. 
+See also the environment variables `DIRECTORY_OF_LOGS`, `LOGLEVEL` and `ENVIRONMENT`.
 
 #### Only log the solar forecast
 

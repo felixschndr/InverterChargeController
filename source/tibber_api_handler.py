@@ -17,7 +17,7 @@ class TibberAPIHandler(LoggerMixin):
             },
         )
 
-    async def find_next_charging_time(self) -> datetime:
+    async def get_next_price_minimum_timestamp(self) -> datetime:
         """
         Find the next optimal charging time based on upcoming energy prices.
 
@@ -37,7 +37,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             datetime: The timestamp of the next optimal charging time.
         """
-        self.log.debug("Finding the next charging time...")
+        self.log.debug("Finding the price minimum...")
         api_result = await self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
         upcoming_energy_rates = self._remove_energy_rates_from_the_past(
@@ -50,12 +50,7 @@ class TibberAPIHandler(LoggerMixin):
             upcoming_energy_rates_till_maximum
         )
 
-        timestamp_of_minimum = minimum_of_energy_rates.timestamp
-        self.log.info(
-            f"Found the next optimal charging time to be at {timestamp_of_minimum}"
-        )
-
-        return timestamp_of_minimum
+        return minimum_of_energy_rates.timestamp
 
     async def _fetch_upcoming_prices_from_api(self) -> GraphQLResponse:
         """
@@ -142,7 +137,7 @@ class TibberAPIHandler(LoggerMixin):
         upcoming_energy_rates = [
             energy_rate
             for energy_rate in all_energy_rates
-            if energy_rate.timestamp >= beginning_of_current_hour
+            if energy_rate.timestamp > beginning_of_current_hour
         ]
         upcoming_energy_rates = ConsecutiveEnergyRates(upcoming_energy_rates)
         self.log.trace(

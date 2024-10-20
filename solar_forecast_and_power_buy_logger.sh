@@ -15,7 +15,7 @@ log_directory=${DIRECTORY_OF_LOGS:-logs/}
 logfile=${log_directory}/app${environment}.log
 
 ###### Find values of power buy ######
-start_string="Initializing..."
+start_string="Starting to work..."
 temp_output_power_buy=$(mktemp)
 
 tac "$logfile" | while read -r line; do

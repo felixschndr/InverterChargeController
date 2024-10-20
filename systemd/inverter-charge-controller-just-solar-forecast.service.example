@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 WorkingDirectory=<path to repository> # Change here
 ExecStart=<path to repository>/.venv/bin/python3.11 <path to repository>/source/main.py --solar-review # Change here
-ExecStartPost=<path to repository>/solar_forecast_and_power_buy_logger.sh # Change here
+ExecStopPost=<path to repository>/solar_forecast_and_power_buy_logger.sh # Change here
 User=<user to run program as> # Change here
 
 [Install]

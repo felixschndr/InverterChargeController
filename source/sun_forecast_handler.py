@@ -79,13 +79,13 @@ class SunForecastHandler(LoggerMixin):
         average_solar_output_in_watts = solar_output_today_in_watt_seconds / daylight_duration_in_seconds
         self.log.debug(f"Average solar output today is {int(average_solar_output_in_watts)} W")
 
-        power_generation_during_sunlight_and_timeframe_in_watt_seconds = (
+        energy_harvested_during_sunlight_and_timeframe_in_watt_seconds = (
             average_solar_output_in_watts * duration_of_timeframe_during_sunlight.total_seconds()
         )
-        power_generation_during_sunlight_and_timeframe_in_watt_hours = int(
-            power_generation_during_sunlight_and_timeframe_in_watt_seconds / (60 * 60)
+        energy_harvested_during_sunlight_and_timeframe_in_watt_hours = int(
+            energy_harvested_during_sunlight_and_timeframe_in_watt_seconds / (60 * 60)
         )
-        return power_generation_during_sunlight_and_timeframe_in_watt_hours
+        return energy_harvested_during_sunlight_and_timeframe_in_watt_hours
 
     def _get_sunset_and_sunrise_with_offset(self) -> tuple[datetime, datetime]:
         sun = Sun(

@@ -11,22 +11,16 @@ from sun_forecast_handler import SunForecastHandler
 def log_solar_forecast(log_as_review: bool = False) -> None:
     sun_forecast_handler = SunForecastHandler()
 
-    solar_output_today = (
-        sun_forecast_handler._get_expected_solar_output_of_today_in_watt_hours()
-    )
+    solar_output_today = sun_forecast_handler._get_expected_solar_output_of_today_in_watt_hours()
     if log_as_review:
-        sun_forecast_handler.log.info(
-            f"The actual solar output of today was {solar_output_today} Wh"
-        )
+        sun_forecast_handler.log.info(f"The actual solar output of today was {solar_output_today} Wh")
     else:
-        sun_forecast_handler.log.info(
-            f"The expected solar output of today is {solar_output_today} Wh"
-        )
+        sun_forecast_handler.log.info(f"The expected solar output of today is {solar_output_today} Wh")
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
     logger = LoggerMixin()
-    logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting...")
+    logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
     exit(0)
 
 

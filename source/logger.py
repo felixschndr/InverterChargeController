@@ -38,9 +38,7 @@ class LoggerMixin:
         )
         self._create_logging_directory_if_necessary(directory_of_logs)
 
-        log_level = EnvironmentVariableGetter.get(
-            name_of_variable="LOGLEVEL", default_value="INFO"
-        ).upper()
+        log_level = EnvironmentVariableGetter.get(name_of_variable="LOGLEVEL", default_value="INFO").upper()
         environment = EnvironmentVariableGetter.get("ENVIRONMENT", "")
         environment = f"_{environment}" if environment else ""
 
@@ -71,9 +69,7 @@ class LoggerMixin:
         trace_level_number = logging.DEBUG - 5
         logging.addLevelName(trace_level_number, "TRACE")
 
-        def trace(
-            self, message, *args, **kwargs  # noqa: ANN001, ANN002, ANN003
-        ):  # noqa: ANN201
+        def trace(self, message, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN201
             if self.isEnabledFor(trace_level_number):
                 self._log(trace_level_number, message, args, **kwargs)
 

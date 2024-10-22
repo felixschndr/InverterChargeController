@@ -12,9 +12,7 @@ class TibberAPIHandler(LoggerMixin):
 
         self.client = GraphQLClient(
             endpoint="https://api.tibber.com/v1-beta/gql",
-            headers={
-                "Authorization": (EnvironmentVariableGetter.get("TIBBER_API_TOKEN"))
-            },
+            headers={"Authorization": (EnvironmentVariableGetter.get("TIBBER_API_TOKEN"))},
         )
 
     async def get_next_price_minimum_timestamp(self) -> datetime:
@@ -40,15 +38,9 @@ class TibberAPIHandler(LoggerMixin):
         self.log.debug("Finding the price minimum...")
         api_result = await self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
-        upcoming_energy_rates = self._remove_energy_rates_from_the_past(
-            all_energy_rates
-        )
-        upcoming_energy_rates_till_maximum = self._get_energy_rates_till_first_maximum(
-            upcoming_energy_rates
-        )
-        minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
-            upcoming_energy_rates_till_maximum
-        )
+        upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
+        upcoming_energy_rates_till_maximum = self._get_energy_rates_till_first_maximum(upcoming_energy_rates)
+        minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(upcoming_energy_rates_till_maximum)
 
         return minimum_of_energy_rates.timestamp
 
@@ -90,9 +82,7 @@ class TibberAPIHandler(LoggerMixin):
         self.log.trace(f"Retrieved data: {response}")
         return response
 
-    def _extract_energy_rates_from_api_response(
-        self, api_result: GraphQLResponse
-    ) -> ConsecutiveEnergyRates:
+    def _extract_energy_rates_from_api_response(self, api_result: GraphQLResponse) -> ConsecutiveEnergyRates:
         """
         Args:
             api_result: The response object from the GraphQL API containing energy price information.
@@ -100,9 +90,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             A ConsecutiveEnergyRates object containing the energy rates extracted from the API response.
         """
-        prices_raw = api_result.data["viewer"]["homes"][0]["currentSubscription"][
-            "priceInfo"
-        ]
+        prices_raw = api_result.data["viewer"]["homes"][0]["currentSubscription"]["priceInfo"]
         upcoming_energy_rates = []
         for price in [*(prices_raw["today"]), *(prices_raw["tomorrow"])]:
             upcoming_energy_rates.append(
@@ -114,14 +102,10 @@ class TibberAPIHandler(LoggerMixin):
 
         upcoming_energy_rates = ConsecutiveEnergyRates(upcoming_energy_rates)
 
-        self.log.trace(
-            f"Extracted the the energy rates from the API response {upcoming_energy_rates}"
-        )
+        self.log.trace(f"Extracted the the energy rates from the API response {upcoming_energy_rates}")
         return upcoming_energy_rates
 
-    def _remove_energy_rates_from_the_past(
-        self, all_energy_rates: ConsecutiveEnergyRates
-    ) -> ConsecutiveEnergyRates:
+    def _remove_energy_rates_from_the_past(self, all_energy_rates: ConsecutiveEnergyRates) -> ConsecutiveEnergyRates:
         """
         Args:
             all_energy_rates: A ConsecutiveEnergyRates object.
@@ -130,19 +114,13 @@ class TibberAPIHandler(LoggerMixin):
             ConsecutiveEnergyRates: A new ConsecutiveEnergyRates object containing only the energy rates that are equal to or later than the beginning of the current hour.
         """
         current_time = datetime.now(tz=all_energy_rates[0].timestamp.tzinfo)
-        beginning_of_current_hour = current_time.replace(
-            minute=0, second=0, microsecond=0
-        )
+        beginning_of_current_hour = current_time.replace(minute=0, second=0, microsecond=0)
 
         upcoming_energy_rates = [
-            energy_rate
-            for energy_rate in all_energy_rates
-            if energy_rate.timestamp > beginning_of_current_hour
+            energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > beginning_of_current_hour
         ]
         upcoming_energy_rates = ConsecutiveEnergyRates(upcoming_energy_rates)
-        self.log.trace(
-            f"Removed the energy rates from the past. Upcoming energy rates are {upcoming_energy_rates}"
-        )
+        self.log.trace(f"Removed the energy rates from the past. Upcoming energy rates are {upcoming_energy_rates}")
         return upcoming_energy_rates
 
     def _get_energy_rates_till_first_maximum(
@@ -162,10 +140,7 @@ class TibberAPIHandler(LoggerMixin):
             if current_energy_rate.rate > last_energy_rate.rate:
                 last_energy_rate_was_maximum = True
 
-            if (
-                current_energy_rate.rate < last_energy_rate.rate
-                and last_energy_rate_was_maximum
-            ):
+            if current_energy_rate.rate < last_energy_rate.rate and last_energy_rate_was_maximum:
                 break
 
             energy_rates_till_maximum.append(current_energy_rate)
@@ -178,9 +153,7 @@ class TibberAPIHandler(LoggerMixin):
         )
         return energy_rates_till_maximum
 
-    def get_global_minimum_of_energy_rates(
-        self, energy_rates_till_maximum: ConsecutiveEnergyRates
-    ) -> EnergyRate:
+    def get_global_minimum_of_energy_rates(self, energy_rates_till_maximum: ConsecutiveEnergyRates) -> EnergyRate:
         """
         Args:
             energy_rates_till_maximum: A collection of ConsecutiveEnergyRates representing energy rates until the first maximum.
@@ -188,9 +161,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             EnergyRate: The global minimum energy rate from the provided collection.
         """
-        global_minimum_of_energy_rates = min(
-            energy_rates_till_maximum, key=lambda energy_rate: energy_rate.rate
-        )
+        global_minimum_of_energy_rates = min(energy_rates_till_maximum, key=lambda energy_rate: energy_rate.rate)
         self.log.debug(
             f"Found {global_minimum_of_energy_rates} to be the global minimum of the energy rates till the first maximum ({energy_rates_till_maximum})"
         )

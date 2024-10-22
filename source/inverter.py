@@ -12,30 +12,20 @@ class Inverter(LoggerMixin):
 
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
 
-        self.battery_capacity = int(
-            EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")
-        )
+        self.battery_capacity = int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY"))
         self.charging_amperage_cc_phase = float(
             EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_AMPERAGE_CC_PHASE")
         )
         self.charging_amperage_cv_phase = float(
             EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_AMPERAGE_CV_PHASE")
         )
-        self.cc_phase_limit = int(
-            EnvironmentVariableGetter.get(
-                "INVERTER_BATTERY_CHARGING_CC_PHASE_LIMIT", 80
-            )
-        )
-        self.charging_voltage = int(
-            EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_VOLTAGE")
-        )
+        self.cc_phase_limit = int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_CC_PHASE_LIMIT", 80))
+        self.charging_voltage = int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_VOLTAGE"))
         self.charging_efficiency = float(
             EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_EFFICIENCY", 0.9),
         )
 
-        self.dry_run = EnvironmentVariableGetter.get(
-            name_of_variable="DRY_RUN", default_value=True
-        )
+        self.dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
     async def connect(self) -> None:
         self.log.debug(f"Connecting to inverter on {self.hostname}...")
@@ -53,9 +43,7 @@ class Inverter(LoggerMixin):
 
     async def set_operation_mode(self, mode: OperationMode) -> None:
         if self.dry_run:
-            self.log.info(
-                f"Would set the inverter to {mode.name} but dry run is enabled"
-            )
+            self.log.info(f"Would set the inverter to {mode.name} but dry run is enabled")
             return
 
         if self.device is None:
@@ -72,9 +60,7 @@ class Inverter(LoggerMixin):
 
         self.log.info(f"Successfully set new operation mode {mode.name}")
 
-    def calculate_energy_missing_from_battery_from_state_of_charge(
-        self, state_of_charge: int
-    ) -> int:
+    def calculate_energy_missing_from_battery_from_state_of_charge(self, state_of_charge: int) -> int:
         """
         Calculates the amount of energy missing in the battery in watt-hours from the state of charge
 
@@ -84,16 +70,9 @@ class Inverter(LoggerMixin):
         Returns:
             The energy missing in watt-hours corresponding to the given state of charge.
         """
-        return (
-            self.battery_capacity
-            - self.calculate_energy_saved_in_battery_from_state_of_charge(
-                state_of_charge
-            )
-        )
+        return self.battery_capacity - self.calculate_energy_saved_in_battery_from_state_of_charge(state_of_charge)
 
-    def calculate_energy_saved_in_battery_from_state_of_charge(
-        self, state_of_charge: int
-    ) -> int:
+    def calculate_energy_saved_in_battery_from_state_of_charge(self, state_of_charge: int) -> int:
         """
         Calculates the amount of energy saved in the battery in watt-hours from the state of charge
 

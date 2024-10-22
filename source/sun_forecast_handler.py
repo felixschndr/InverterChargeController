@@ -23,16 +23,12 @@ class SunForecastHandler(LoggerMixin):
         longitude = EnvironmentVariableGetter.get("LOCATION_LONGITUDE")
         plane_declination = EnvironmentVariableGetter.get("LOCATION_PLANE_DECLINATION")
         plane_azimuth = EnvironmentVariableGetter.get("LOCATION_PLANE_AZIMUTH")
-        number_of_panels = int(
-            EnvironmentVariableGetter.get("LOCATION_NUMBER_OF_PANELS")
-        )
+        number_of_panels = int(EnvironmentVariableGetter.get("LOCATION_NUMBER_OF_PANELS"))
         maximum_output_of_panel_in_watts = int(
             EnvironmentVariableGetter.get("LOCATION_MAXIMUM_POWER_OUTPUT_PER_PANEL")
         )
 
-        maximum_output_of_all_panels_in_kw = (
-            number_of_panels * maximum_output_of_panel_in_watts / 1000
-        )
+        maximum_output_of_all_panels_in_kw = number_of_panels * maximum_output_of_panel_in_watts / 1000
 
         url = f"{api_base_url}/{latitude}/{longitude}/{plane_declination}/{plane_azimuth}/{maximum_output_of_all_panels_in_kw}"
         self.log.trace(f'Set API URL to "{url}"')
@@ -58,24 +54,14 @@ class SunForecastHandler(LoggerMixin):
         self.log.debug("Getting debug estimated solar output of today")
         return 10000
 
-    def get_solar_output_in_timeframe_in_watt_hours(
-        self, timestamp_start: datetime, timestamp_end: datetime
-    ) -> int:
-        self.log.debug(
-            f"Getting estimated solar output between {timestamp_start} and {timestamp_end}"
-        )
+    def get_solar_output_in_timeframe_in_watt_hours(self, timestamp_start: datetime, timestamp_end: datetime) -> int:
+        self.log.debug(f"Getting estimated solar output between {timestamp_start} and {timestamp_end}")
 
-        sunrise_plus_offset, sunset_minus_offset = (
-            self._get_sunset_and_sunrise_with_offset()
-        )
-        daylight_duration_in_seconds = (
-            sunset_minus_offset - sunrise_plus_offset
-        ).total_seconds()
+        sunrise_plus_offset, sunset_minus_offset = self._get_sunset_and_sunrise_with_offset()
+        daylight_duration_in_seconds = (sunset_minus_offset - sunrise_plus_offset).total_seconds()
 
-        duration_of_timeframe_during_sunlight = (
-            TimeHandler.calculate_overlap_between_time_frames(
-                timestamp_start, timestamp_end, sunrise_plus_offset, sunset_minus_offset
-            )
+        duration_of_timeframe_during_sunlight = TimeHandler.calculate_overlap_between_time_frames(
+            timestamp_start, timestamp_end, sunrise_plus_offset, sunset_minus_offset
         )
         self.log.info(
             f"There is {duration_of_timeframe_during_sunlight} of sunlight (with 10 % offsets) during the given timeframe"
@@ -85,25 +71,16 @@ class SunForecastHandler(LoggerMixin):
 
         solar_output_today_in_watt_hours = (
             self._get_debug_solar_output_in_watt_hours()
-            if EnvironmentVariableGetter.get(
-                name_of_variable="USE_DEBUG_SOLAR_OUTPUT", default_value=False
-            )
+            if EnvironmentVariableGetter.get(name_of_variable="USE_DEBUG_SOLAR_OUTPUT", default_value=False)
             else self._get_expected_solar_output_of_today_in_watt_hours()
         )
-        self.log.debug(
-            f"Expected solar output of today is {solar_output_today_in_watt_hours} Wh"
-        )
+        self.log.debug(f"Expected solar output of today is {solar_output_today_in_watt_hours} Wh")
         solar_output_today_in_watt_seconds = solar_output_today_in_watt_hours * 60 * 60
-        average_solar_output_in_watts = (
-            solar_output_today_in_watt_seconds / daylight_duration_in_seconds
-        )
-        self.log.debug(
-            f"Average solar output today is {int(average_solar_output_in_watts)} W"
-        )
+        average_solar_output_in_watts = solar_output_today_in_watt_seconds / daylight_duration_in_seconds
+        self.log.debug(f"Average solar output today is {int(average_solar_output_in_watts)} W")
 
         power_generation_during_sunlight_and_timeframe_in_watt_seconds = (
-            average_solar_output_in_watts
-            * duration_of_timeframe_during_sunlight.total_seconds()
+            average_solar_output_in_watts * duration_of_timeframe_during_sunlight.total_seconds()
         )
         power_generation_during_sunlight_and_timeframe_in_watt_hours = int(
             power_generation_during_sunlight_and_timeframe_in_watt_seconds / (60 * 60)
@@ -117,9 +94,7 @@ class SunForecastHandler(LoggerMixin):
         )
 
         sunrise = sun.get_sunrise_time(time_zone=self.timezone)
-        sunset = sun.get_sunset_time(
-            at_date=datetime.datetime.now() + timedelta(days=1), time_zone=self.timezone
-        )
+        sunset = sun.get_sunset_time(at_date=datetime.datetime.now() + timedelta(days=1), time_zone=self.timezone)
         sun_light_duration = sunset - sunrise
         sun_light_duration_offset = sun_light_duration * 0.1
         sunrise_plus_offset = sunrise + sun_light_duration_offset

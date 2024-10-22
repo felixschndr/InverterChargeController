@@ -30,18 +30,14 @@ class InverterChargeController(LoggerMixin):
         first_iteration = True
         while True:
             if first_iteration:
-                self.log.info(
-                    "Checking what has to be done to reach the next minimum..."
-                )
+                self.log.info("Checking what has to be done to reach the next minimum...")
                 first_iteration = False
             else:
                 self.log.info(
                     "Waiting is over, now is the a price minimum, Checking what has to be done to reach the next minimum..."
                 )
 
-            next_price_minimum = (
-                await self.tibber_api_handler.get_next_price_minimum_timestamp()
-            )
+            next_price_minimum = await self.tibber_api_handler.get_next_price_minimum_timestamp()
             self.log.info(f"The next price minimum is at {next_price_minimum}")
 
             timestamp_now = datetime.now(tz=self.timezone)
@@ -70,9 +66,7 @@ class InverterChargeController(LoggerMixin):
                 "Would check battery status, calculate amount to be charged and charge if necessary. To be implemented..."
             )
 
-            self.log.info(
-                f"The next price minimum is at {next_price_minimum}. Waiting until then..."
-            )
+            self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
             pause.until(next_price_minimum)
 
     async def _charge_inverter(
@@ -81,25 +75,17 @@ class InverterChargeController(LoggerMixin):
         duration_to_charge: timedelta,
         charging_price: float,
     ) -> None:
-        target_state_of_charge = int(
-            EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE", 98)
-        )
+        target_state_of_charge = int(EnvironmentVariableGetter.get("INVERTER_TARGET_STATE_OF_CHARGE", 98))
         charging_progress_check_interval = timedelta(minutes=10)
-        dry_run = EnvironmentVariableGetter.get(
-            name_of_variable="DRY_RUN", default_value=True
-        )
+        dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
         self.log.info(
             f"Calculated starting time to charge: {starting_time.strftime('%H:%M')} with an average rate {charging_price:.3f} €/kWh, waiting until then..."
         )
         pause.until(starting_time)
 
-        power_buy_of_today_before_charging = (
-            self.sems_portal_api_handler.get_power_buy_of_today()
-        )
-        self.log.debug(
-            f"The amount of power bought before charging is {power_buy_of_today_before_charging} Wh"
-        )
+        power_buy_of_today_before_charging = self.sems_portal_api_handler.get_power_buy_of_today()
+        self.log.debug(f"The amount of power bought before charging is {power_buy_of_today_before_charging} Wh")
 
         self.log.info("Starting to charge")
         await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
@@ -131,16 +117,10 @@ class InverterChargeController(LoggerMixin):
                 f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for another {charging_progress_check_interval}..."
             )
 
-        power_buy_of_today_after_charging = (
-            self.sems_portal_api_handler.get_power_buy_of_today()
-        )
-        self.log.debug(
-            f"The amount of power bought after charging is {power_buy_of_today_after_charging} Wh"
-        )
+        power_buy_of_today_after_charging = self.sems_portal_api_handler.get_power_buy_of_today()
+        self.log.debug(f"The amount of power bought after charging is {power_buy_of_today_after_charging} Wh")
 
-        power_buy_through_charging = (
-            power_buy_of_today_after_charging - power_buy_of_today_before_charging
-        )
+        power_buy_through_charging = power_buy_of_today_after_charging - power_buy_of_today_before_charging
         cost_to_charge = power_buy_through_charging / 1000 * charging_price
         self.log.info(
             f"Bought {power_buy_through_charging} Wh to charge the battery, cost about {cost_to_charge:.2f} €"

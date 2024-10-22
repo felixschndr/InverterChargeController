@@ -41,9 +41,11 @@ class LoggerMixin:
         log_level = EnvironmentVariableGetter.get(
             name_of_variable="LOGLEVEL", default_value="INFO"
         ).upper()
+        environment = EnvironmentVariableGetter.get("ENVIRONMENT", "")
+        environment = f"_{environment}" if environment else ""
 
         handler = RotatingFileHandler(
-            os.path.join(directory_of_logs, "app.log"),
+            os.path.join(directory_of_logs, f"app{environment}.log"),
             maxBytes=1024 * 1024,
             backupCount=7,
         )

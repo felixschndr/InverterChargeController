@@ -5,11 +5,14 @@
 # can't use source directly because of possible problems with quotes in the .env file in the semsportal password
 env_temp=$(mktemp)
 grep "DIRECTORY_OF_LOGS" .env >"${env_temp}"
+grep "ENVIRONMENT" .env >>"${env_temp}"
 # shellcheck disable=SC1090
 source "${env_temp}"
 
+[[ -n ${ENVIRONMENT} ]] && environment="_${ENVIRONMENT}" || environment=""
+
 log_directory=${DIRECTORY_OF_LOGS:-logs/}
-logfile=${log_directory}/app.log
+logfile=${log_directory}/app${environment}.log
 
 ###### Find values of power buy ######
 start_string="Initializing..."
@@ -26,7 +29,7 @@ if [[ -n ${timestamp_start} ]]; then
     timestamp_end=$(grep "Charging finished" "${temp_output_power_buy}" | awk '{print $1}' | tr -d '[]')
     amount_of_energy_bought=$(grep "Bought" "${temp_output_power_buy}" | sed -n 's/.*Bought \([0-9]*\) Wh.*/\1/p')
 
-    echo -e "${timestamp_start}\t${timestamp_end}\t${amount_of_energy_bought}" >>"${log_directory}"/power_buy.log
+    echo -e "${timestamp_start}\t${timestamp_end}\t${amount_of_energy_bought}" >>"${log_directory}"/power_buy${environment}.log
 fi
 
 ###### Find values of solar forecast ######
@@ -43,7 +46,7 @@ date=$(date -d "${timestamp}" +%Y-%m-%d)
 solar_forecast_expected=$(grep "The expected solar output for today" "${temp_output_solar_forecast}" | sed -n 's/.*is \([0-9]*\) Wh.*/\1/p')
 solar_forecast_real=$(grep "The actual solar output of today was" "${temp_output_solar_forecast}" | sed -n 's/.*was \([0-9]*\) Wh.*/\1/p')
 
-echo -e "${date}\t${solar_forecast_expected}\t${solar_forecast_real}" >>"${log_directory}"/solar_forecast_difference.log
+echo -e "${date}\t${solar_forecast_expected}\t${solar_forecast_real}" >>"${log_directory}"/solar_forecast_difference${environment}.log
 
 ###### Cleanup ######
 

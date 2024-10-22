@@ -19,7 +19,7 @@ class InverterChargeController(LoggerMixin):
 
         self.timezone = tz.gettz("Europe/Berlin")  # TODO: Convert to env variable
 
-        self.sems_portal_api_handler = SemsPortalApiHandler()
+        self.sems_portal_api_handler = SemsPortalApiHandler(self.timezone)
         self.sun_forecast_handler = SunForecastHandler(self.timezone)
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
@@ -41,22 +41,34 @@ class InverterChargeController(LoggerMixin):
 
             next_price_minimum = (
                 await self.tibber_api_handler.get_next_price_minimum_timestamp()
-            )  # TODO: See if this works
+            )
             self.log.info(f"The next price minimum is at {next_price_minimum}")
 
+            timestamp_now = datetime.now(tz=self.timezone)
             expected_power_generation_till_next_minimum = (
                 self.sun_forecast_handler.get_solar_output_in_timeframe_in_watt_hours(
-                    datetime.now(tz=self.timezone), next_price_minimum
+                    timestamp_now, next_price_minimum
                 )
             )
             self.log.info(
                 f"The expected solar output till the next price minimum is {expected_power_generation_till_next_minimum} Wh"
             )
 
-            """
-            Strom heute
-            Verbrauch 60:40 zwischen 06:00 bis 18:00 und 18:00 bis 06:00
-            """
+            expected_power_usage_till_next_minimum = (
+                self.sems_portal_api_handler.get_power_usage_in_timeframe_in_watt_hours(
+                    timestamp_now, next_price_minimum
+                )
+            )
+            self.log.info(
+                f"The expected power usage till the next price minimum is {expected_power_usage_till_next_minimum} Wh"
+            )
+
+            # TODO: Implement checking of battery
+            # TODO: Implement amount of energy to be charged
+            # TODO: Implement charging itself
+            self.log.info(
+                "Would check battery status, calculate amount to be charged and charge if necessary. To be implemented..."
+            )
 
             self.log.info(
                 f"The next price minimum is at {next_price_minimum}. Waiting until then..."

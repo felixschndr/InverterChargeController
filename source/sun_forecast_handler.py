@@ -59,10 +59,10 @@ class SunForecastHandler(LoggerMixin):
         return 10000
 
     def get_solar_output_in_timeframe_in_watt_hours(
-        self, start_timestamp: datetime, end_timestamp: datetime
+        self, timestamp_start: datetime, timestamp_end: datetime
     ) -> int:
         self.log.debug(
-            f"Getting estimated solar output between {start_timestamp} and {end_timestamp}"
+            f"Getting estimated solar output between {timestamp_start} and {timestamp_end}"
         )
 
         sunrise_plus_offset, sunset_minus_offset = (
@@ -74,7 +74,7 @@ class SunForecastHandler(LoggerMixin):
 
         duration_of_timeframe_during_sunlight = (
             TimeHandler.calculate_overlap_between_time_frames(
-                start_timestamp, end_timestamp, sunrise_plus_offset, sunset_minus_offset
+                timestamp_start, timestamp_end, sunrise_plus_offset, sunset_minus_offset
             )
         )
         self.log.info(

@@ -6,6 +6,7 @@ from dateutil.tz import tzfile
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 from suntime import Sun
+from time_handler import TimeHandler
 
 
 class SunForecastHandler(LoggerMixin):
@@ -72,7 +73,7 @@ class SunForecastHandler(LoggerMixin):
         ).total_seconds()
 
         duration_of_timeframe_during_sunlight = (
-            self._calculate_overlap_between_time_frames(
+            TimeHandler.calculate_overlap_between_time_frames(
                 start_timestamp, end_timestamp, sunrise_plus_offset, sunset_minus_offset
             )
         )
@@ -108,21 +109,6 @@ class SunForecastHandler(LoggerMixin):
             power_generation_during_sunlight_and_timeframe_in_watt_seconds / (60 * 60)
         )
         return power_generation_during_sunlight_and_timeframe_in_watt_hours
-
-    @staticmethod
-    def _calculate_overlap_between_time_frames(
-        start_timestamp_1: datetime,
-        end_timestamp_1: datetime,
-        start_timestamp_2: datetime,
-        end_timestamp_2: datetime,
-    ) -> timedelta:
-        overlap_start = max(start_timestamp_1, start_timestamp_2)
-        overlap_end = min(end_timestamp_1, end_timestamp_2)
-
-        if overlap_start < overlap_end:
-            return overlap_end - overlap_start
-        else:
-            return timedelta(seconds=0)
 
     def _get_sunset_and_sunrise_with_offset(self) -> tuple[datetime, datetime]:
         sun = Sun(

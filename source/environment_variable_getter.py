@@ -3,8 +3,6 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 
 class EnvironmentVariableGetter:
     @staticmethod
@@ -20,6 +18,8 @@ class EnvironmentVariableGetter:
         Raises:
             RuntimeError: If the environment variable is not set and no default value is provided.
         """
+        load_dotenv(override=True)
+
         try:
             value = os.environ[name_of_variable]
             return EnvironmentVariableGetter._cast_string_to_bool(value)
@@ -39,8 +39,8 @@ class EnvironmentVariableGetter:
             bool | str: The boolean value corresponding to the input string if it's "True" or "False".
             Otherwise, returns the input string.
         """
-        if value == "True":
+        if value.lower() == "true":
             return True
-        if value == "False":
+        if value.lower() == "false":
             return False
         return value

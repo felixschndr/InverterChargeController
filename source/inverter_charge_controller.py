@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 
 import pause
+from aiohttp import ClientError
 from dateutil import tz
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode
 from inverter import Inverter
 from logger import LoggerMixin
+from requests.exceptions import RequestException
 from sems_portal_api_handler import SemsPortalApiHandler
 from sun_forecast_handler import SunForecastHandler
 from tibber_api_handler import TibberAPIHandler
@@ -24,50 +26,63 @@ class InverterChargeController(LoggerMixin):
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
 
-    async def run(self) -> None:
+    async def start(self) -> None:
         self.log.info("Starting application")
 
         first_iteration = True
+        duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
-            if first_iteration:
-                self.log.info("Checking what has to be done to reach the next minimum...")
-                first_iteration = False
-            else:
-                self.log.info(
-                    "Waiting is over, now is the a price minimum, Checking what has to be done to reach the next minimum..."
-                )
+            try:
+                if first_iteration:
+                    self.log.info("Checking what has to be done to reach the next minimum...")
+                    first_iteration = False
+                else:
+                    self.log.info(
+                        "Waiting is over, now is the a price minimum, Checking what has to be done to reach the next minimum..."
+                    )
 
-            next_price_minimum = await self.tibber_api_handler.get_next_price_minimum_timestamp()
-            self.log.info(f"The next price minimum is at {next_price_minimum}")
+                next_price_minimum = await self._do_iteration()
+                self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
+                pause.until(next_price_minimum)
 
-            timestamp_now = datetime.now(tz=self.timezone)
-            expected_power_harvested_till_next_minimum = (
-                self.sun_forecast_handler.get_solar_output_in_timeframe_in_watt_hours(
-                    timestamp_now, next_price_minimum
-                )
-            )
-            self.log.info(
-                f"The expected energy harvested by the sun ill the next price minimum is {expected_power_harvested_till_next_minimum} Wh"
-            )
+            except (ClientError, RequestException) as e:
+                self.log.exception(f"An exception occurred while trying to fetch data from a different system: {e}")
+                self.log.warning(f"Waiting for {duration_to_wait_in_cause_of_error} to try again...")
+                pause.seconds(duration_to_wait_in_cause_of_error.total_seconds())
 
-            expected_energy_usage_till_next_minimum = (
-                self.sems_portal_api_handler.get_energy_usage_in_timeframe_in_watt_hours(
-                    timestamp_now, next_price_minimum
-                )
-            )
-            self.log.info(
-                f"The expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum} Wh"
-            )
+            except Exception as e:
+                self.log.exception(f"An unexpected error occurred: {e}")
+                self.log.critical("Exiting now...")
+                exit(1)
 
-            # TODO: Implement checking of battery
-            # TODO: Implement amount of energy to be charged
-            # TODO: Implement charging itself
-            self.log.info(
-                "Would check battery status, calculate amount to be charged and charge if necessary. To be implemented..."
-            )
+    async def _do_iteration(self) -> datetime:  # FIXME: Find better name
+        timestamp_now = datetime.now(tz=self.timezone)
 
-            self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
-            pause.until(next_price_minimum)
+        next_price_minimum = await self.tibber_api_handler.get_next_price_minimum_timestamp()
+        self.log.info(f"The next price minimum is at {next_price_minimum}")
+
+        expected_power_harvested_till_next_minimum = (
+            self.sun_forecast_handler.get_solar_output_in_timeframe_in_watt_hours(timestamp_now, next_price_minimum)
+        )
+        self.log.info(
+            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum} Wh"
+        )
+
+        expected_energy_usage_till_next_minimum = (
+            self.sems_portal_api_handler.get_energy_usage_in_timeframe_in_watt_hours(timestamp_now, next_price_minimum)
+        )
+        self.log.info(
+            f"The expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum} Wh"
+        )
+
+        self.log.info(
+            "Would check battery status, calculate amount to be charged and charge if necessary. To be implemented..."
+        )
+        # TODO: Implement checking of battery
+        # TODO: Implement amount of energy to be charged
+        # TODO: Implement charging itself
+
+        return next_price_minimum
 
     async def _charge_inverter(
         self,

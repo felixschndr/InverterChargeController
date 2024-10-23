@@ -44,9 +44,4 @@ if __name__ == "__main__":
         raise RuntimeError(f"Unknown argument {sys.argv[1]}!")
 
     inverter_charge_controller = InverterChargeController()
-    try:
-        asyncio.run(inverter_charge_controller.run())
-    except Exception as e:
-        inverter_charge_controller.log.exception(f"An unexpected error occurred: {e}")
-        inverter_charge_controller.log.critical("Exiting now...")
-        exit(1)
+    asyncio.run(inverter_charge_controller.start())

@@ -1,4 +1,5 @@
 import goodwe
+from energy_amount import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe.et import OperationMode
 from logger import LoggerMixin
@@ -12,7 +13,7 @@ class Inverter(LoggerMixin):
 
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
 
-        self.battery_capacity = int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY"))
+        self.battery_capacity = EnergyAmount(float(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
         self.charging_amperage_cc_phase = float(
             EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_AMPERAGE_CC_PHASE")
         )
@@ -60,7 +61,7 @@ class Inverter(LoggerMixin):
 
         self.log.info(f"Successfully set new operation mode {mode.name}")
 
-    def calculate_energy_missing_from_battery_from_state_of_charge(self, state_of_charge: int) -> int:
+    def calculate_energy_missing_from_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
         """
         Calculates the amount of energy missing in the battery in watt-hours from the state of charge
 
@@ -72,7 +73,7 @@ class Inverter(LoggerMixin):
         """
         return self.battery_capacity - self.calculate_energy_saved_in_battery_from_state_of_charge(state_of_charge)
 
-    def calculate_energy_saved_in_battery_from_state_of_charge(self, state_of_charge: int) -> int:
+    def calculate_energy_saved_in_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
         """
         Calculates the amount of energy saved in the battery in watt-hours from the state of charge
 
@@ -82,4 +83,4 @@ class Inverter(LoggerMixin):
         Returns:
             The energy saved in watt-hours corresponding to the given state of charge.
         """
-        return int(self.battery_capacity * state_of_charge / 100)
+        return self.battery_capacity * (state_of_charge / 100)

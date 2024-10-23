@@ -2,6 +2,7 @@ from datetime import datetime, time, timedelta
 
 import requests
 from dateutil.tz import tzfile
+from energy_amount import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 
@@ -48,7 +49,7 @@ class SemsPortalApiHandler(LoggerMixin):
 
         self.log.debug("Login successful")
 
-    def get_average_energy_consumption_per_day(self) -> int:
+    def get_average_energy_consumption_per_day(self) -> EnergyAmount:
         """
         Retrieves energy consumption data, extracts the relevant data, and computes the average power consumption per day.
 
@@ -60,8 +61,10 @@ class SemsPortalApiHandler(LoggerMixin):
 
         api_response = self._retrieve_energy_consumption_data()
         consumption_data = self._extract_energy_usage_data_of_response(api_response)
-        average_consumption_per_day_in_kwh = sum(consumption_data) / len(consumption_data)
-        return int(average_consumption_per_day_in_kwh * 1000)
+        average_consumption_per_day = sum([consumption.watt_hours for consumption in consumption_data]) / len(
+            consumption_data
+        )
+        return EnergyAmount(watt_hours=average_consumption_per_day)
 
     def _retrieve_energy_consumption_data(self) -> dict:
         """
@@ -94,7 +97,7 @@ class SemsPortalApiHandler(LoggerMixin):
 
         return response.json()
 
-    def _extract_energy_usage_data_of_response(self, response_json: dict) -> list[float]:
+    def _extract_energy_usage_data_of_response(self, response_json: dict) -> list[EnergyAmount]:
         """
         :param response_json: Dictionary containing the JSON response with energy consumption data.
         :return: List of the most recent seven daily energy usage values in kWh.
@@ -109,14 +112,16 @@ class SemsPortalApiHandler(LoggerMixin):
         consumption_data_raw_sorted = sorted(consumption_data_raw, key=lambda d: d["x"])
 
         # Create a list with the values of the last week
-        # Since we run some minutes after midnight, we want to exclude the current day
-        last_week_consumption_data = [data_point["y"] for data_point in consumption_data_raw_sorted[-9:-2]]
+        # Since we run some at any point during the day, we want to exclude the current day
+        last_weeks_energy_usage = [
+            EnergyAmount.from_kilo_watt_hours(data_point["y"]) for data_point in consumption_data_raw_sorted[-9:-2]
+        ]
 
-        self.log.debug(f"Extracted last weeks consumption data (in kWh): {last_week_consumption_data}")
+        self.log.debug(f"Extracted last weeks energy usage: {last_weeks_energy_usage}")
 
-        return last_week_consumption_data
+        return last_weeks_energy_usage
 
-    def get_energy_buy_of_today(self) -> int:
+    def get_energy_buy_of_today(self) -> EnergyAmount:
         """
         Retrieves the amount of energy bought today.
 
@@ -129,9 +134,8 @@ class SemsPortalApiHandler(LoggerMixin):
         api_response = self._retrieve_energy_consumption_data()
         lines = api_response["data"]["lines"]
         buy_line = [line for line in lines if "buy" in line["label"].lower()][0]
-        energy_buy_of_today_in_kwh = buy_line["xy"][-1]["y"]
 
-        return int(energy_buy_of_today_in_kwh * 1000)
+        return EnergyAmount.from_kilo_watt_hours(buy_line["xy"][-1]["y"])
 
     def get_state_of_charge(self) -> int:
         """
@@ -162,7 +166,7 @@ class SemsPortalApiHandler(LoggerMixin):
 
         return state_of_charge
 
-    def get_energy_usage_in_timeframe_in_watt_hours(self, timestamp_start: datetime, timestamp_end: datetime) -> int:
+    def get_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
         day_start = time(6, 0)
         night_start = time(18, 0)
         # 60 % energy usage during the day, 40 % energy usage during the night
@@ -175,29 +179,23 @@ class SemsPortalApiHandler(LoggerMixin):
             timestamp_start, timestamp_end, day_start, night_start
         )
 
-        energy_usage_of_today_in_watt_hours = self.get_average_energy_consumption_per_day()
-        self.log.debug(f"Expected energy usage of the day is {energy_usage_of_today_in_watt_hours} Wh")
-        energy_usage_of_today_in_watt_seconds = energy_usage_of_today_in_watt_hours * 60 * 60
+        energy_usage_of_today = self.get_average_energy_consumption_per_day()
+        self.log.debug(f"Expected energy usage of the day is {energy_usage_of_today}")
 
-        average_power_consumption_in_watts = energy_usage_of_today_in_watt_seconds / (60 * 60 * 24)
-        self.log.debug(f"Average power consumption today is {average_power_consumption_in_watts} W")
+        average_power_consumption = Power(watts=energy_usage_of_today.watt_seconds / (60 * 60 * 24))
+        self.log.debug(f"Average power consumption today is {average_power_consumption}")
 
-        energy_usage_during_the_day_in_watt_seconds = (
-            average_power_consumption_in_watts * day_duration.total_seconds() * 2 * factor_energy_usage_during_the_day
+        energy_usage_during_the_day = EnergyAmount.from_watt_seconds(
+            average_power_consumption.watts * day_duration.total_seconds() * 2 * factor_energy_usage_during_the_day
         )
-        energy_usage_during_the_night_in_watt_seconds = (
-            average_power_consumption_in_watts
-            * night_duration.total_seconds()
-            * 2
-            * factor_energy_usage_during_the_night
+        energy_usage_during_the_night = EnergyAmount.from_watt_seconds(
+            average_power_consumption.watts * night_duration.total_seconds() * 2 * factor_energy_usage_during_the_night
         )
-        energy_usage_during_the_day_in_watt_hours = int(energy_usage_during_the_day_in_watt_seconds / (60 * 60))
-        energy_usage_during_the_night_in_watt_hours = int(energy_usage_during_the_night_in_watt_seconds / (60 * 60))
         self.log.info(
-            f"Energy usage during daytime is {energy_usage_during_the_day_in_watt_hours} Wh, energy usage during nighttime is {energy_usage_during_the_night_in_watt_hours} Wh"
+            f"Energy usage during daytime is {energy_usage_during_the_day}, energy usage during nighttime is {energy_usage_during_the_night}"
         )
 
-        return energy_usage_during_the_day_in_watt_hours + energy_usage_during_the_night_in_watt_hours
+        return energy_usage_during_the_day + energy_usage_during_the_night
 
     def calculate_day_night_duration(
         self,
@@ -242,12 +240,3 @@ class SemsPortalApiHandler(LoggerMixin):
         )
 
         return duration_day, duration_night
-
-
-if __name__ == "__main__":
-
-    start = datetime(2024, 10, 22, 19, 0)  # Startzeitpunkt
-    end = datetime(2024, 10, 23, 20, 0)  # Endzeitpunkt
-
-    sems_portal_api_handler = SemsPortalApiHandler()
-    sems_portal_api_handler.get_energy_usage_in_timeframe_in_watt_hours(start, end)

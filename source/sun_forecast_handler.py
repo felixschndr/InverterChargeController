@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import requests
 from dateutil.tz import tzfile
+from energy_amount import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 from suntime import Sun
@@ -39,7 +40,7 @@ class SunForecastHandler(LoggerMixin):
     def _get_date_as_string() -> str:
         return datetime.datetime.now().strftime("%Y-%m-%d")
 
-    def _get_expected_solar_output_of_today_in_watt_hours(self) -> int:
+    def get_expected_solar_output_of_today(self) -> EnergyAmount:
         self.log.debug("Getting estimated solar output of today")
 
         response = requests.get(self.forecast_api_url, timeout=5)
@@ -47,14 +48,15 @@ class SunForecastHandler(LoggerMixin):
 
         data = response.json()
         self.log.trace(f"Retrieved data: {data}")
-        return data["result"]["watt_hours_day"][self._get_date_as_string()]
+        energy_amount = EnergyAmount(watt_hours=data["result"]["watt_hours_day"][self._get_date_as_string()])
+        return energy_amount
 
-    def _get_debug_solar_output_in_watt_hours(self) -> int:
+    def _get_debug_solar_output(self) -> EnergyAmount:
         # We use a sample value for debugging the code since the API offers very limited call per day
         self.log.debug("Getting debug estimated solar output of today")
-        return 10000
+        return EnergyAmount(watt_hours=10000)
 
-    def get_solar_output_in_timeframe_in_watt_hours(self, timestamp_start: datetime, timestamp_end: datetime) -> int:
+    def get_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
         self.log.debug(f"Getting estimated solar output between {timestamp_start} and {timestamp_end}")
 
         sunrise_plus_offset, sunset_minus_offset = self._get_sunset_and_sunrise_with_offset()
@@ -67,25 +69,20 @@ class SunForecastHandler(LoggerMixin):
             f"There is {duration_of_timeframe_during_sunlight} of sunlight (with 10 % offsets) during the given timeframe"
         )
         if duration_of_timeframe_during_sunlight.total_seconds() == 0:
-            return 0
+            return EnergyAmount(0)
 
-        solar_output_today_in_watt_hours = (
-            self._get_debug_solar_output_in_watt_hours()
+        solar_output_today = (
+            self._get_debug_solar_output()
             if EnvironmentVariableGetter.get(name_of_variable="USE_DEBUG_SOLAR_OUTPUT", default_value=False)
-            else self._get_expected_solar_output_of_today_in_watt_hours()
+            else self.get_expected_solar_output_of_today()
         )
-        self.log.debug(f"Expected solar output of today is {solar_output_today_in_watt_hours} Wh")
-        solar_output_today_in_watt_seconds = solar_output_today_in_watt_hours * 60 * 60
-        average_solar_output_in_watts = solar_output_today_in_watt_seconds / daylight_duration_in_seconds
-        self.log.debug(f"Average solar output today is {int(average_solar_output_in_watts)} W")
+        self.log.debug(f"Expected solar output of today is {solar_output_today}")
+        average_solar_output = Power(watts=solar_output_today.watt_seconds / daylight_duration_in_seconds)
+        self.log.debug(f"Average solar output today is {average_solar_output}")
 
-        energy_harvested_during_sunlight_and_timeframe_in_watt_seconds = (
-            average_solar_output_in_watts * duration_of_timeframe_during_sunlight.total_seconds()
+        return EnergyAmount.from_watt_seconds(
+            average_solar_output.watts * duration_of_timeframe_during_sunlight.total_seconds()
         )
-        energy_harvested_during_sunlight_and_timeframe_in_watt_hours = int(
-            energy_harvested_during_sunlight_and_timeframe_in_watt_seconds / (60 * 60)
-        )
-        return energy_harvested_during_sunlight_and_timeframe_in_watt_hours
 
     def _get_sunset_and_sunrise_with_offset(self) -> tuple[datetime, datetime]:
         sun = Sun(

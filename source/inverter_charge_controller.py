@@ -61,26 +61,26 @@ class InverterChargeController(LoggerMixin):
         next_price_minimum = await self.tibber_api_handler.get_next_price_minimum_timestamp()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
-        expected_power_harvested_till_next_minimum_in_watt_hours = (
-            self.sun_forecast_handler.get_solar_output_in_timeframe_in_watt_hours(timestamp_now, next_price_minimum)
+        expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
+            timestamp_now, next_price_minimum
         )
         self.log.info(
-            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum_in_watt_hours} Wh"
+            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
         )
 
-        expected_energy_usage_till_next_minimum_in_watt_hours = (
-            self.sems_portal_api_handler.get_energy_usage_in_timeframe_in_watt_hours(timestamp_now, next_price_minimum)
+        expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.get_energy_usage_in_timeframe(
+            timestamp_now, next_price_minimum
         )
         self.log.info(
-            f"The expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum_in_watt_hours} Wh"
+            f"The expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum}"
         )
 
         current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
-        energy_in_battery_in_watt_hours = self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(
+        energy_in_battery = self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(
             current_state_of_charge
         )
         self.log.info(
-            f"The battery is currently at {current_state_of_charge}%, thus it is holding {energy_in_battery_in_watt_hours} Wh"
+            f"The battery is currently at {current_state_of_charge} %, thus it is holding {energy_in_battery}"
         )
 
         self.log.info("Would calculate amount to be charged and charge if necessary. To be implemented...")
@@ -105,7 +105,7 @@ class InverterChargeController(LoggerMixin):
         pause.until(starting_time)
 
         energy_buy_of_today_before_charging = self.sems_portal_api_handler.get_energy_buy_of_today()
-        self.log.debug(f"The amount of energy bought before charging is {energy_buy_of_today_before_charging} Wh")
+        self.log.debug(f"The amount of energy bought before charging is {energy_buy_of_today_before_charging}")
 
         self.log.info("Starting to charge")
         await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
@@ -141,7 +141,7 @@ class InverterChargeController(LoggerMixin):
         self.log.debug(f"The amount of energy bought after charging is {energy_buy_of_today_after_charging} Wh")
 
         energy_bought_through_charging = energy_buy_of_today_after_charging - energy_buy_of_today_before_charging
-        cost_to_charge = energy_bought_through_charging / 1000 * charging_price
+        cost_to_charge = energy_bought_through_charging.watt_hours / 1000 * charging_price
         self.log.info(
-            f"Bought {energy_bought_through_charging} Wh to charge the battery, cost about {cost_to_charge:.2f} €"
+            f"Bought {energy_bought_through_charging} to charge the battery, cost about {cost_to_charge:.2f} €"
         )

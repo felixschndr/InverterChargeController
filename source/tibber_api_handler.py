@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from aiographql.client import GraphQLClient, GraphQLRequest, GraphQLResponse
-from energy_rate import ConsecutiveEnergyRates, EnergyRate
+from energy_amount import ConsecutiveEnergyRates, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 

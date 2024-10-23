@@ -3,19 +3,21 @@ import signal
 import sys
 from types import FrameType
 
+from dateutil.tz import tz
+from environment_variable_getter import EnvironmentVariableGetter
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
 from sun_forecast_handler import SunForecastHandler
 
 
 def log_solar_forecast(log_as_review: bool = False) -> None:
-    sun_forecast_handler = SunForecastHandler()
+    sun_forecast_handler = SunForecastHandler(tz.gettz(EnvironmentVariableGetter.get("TIMEZONE")))
 
-    solar_output_today = sun_forecast_handler._get_expected_solar_output_of_today_in_watt_hours()
+    solar_output_today = sun_forecast_handler.get_expected_solar_output_of_today()
     if log_as_review:
-        sun_forecast_handler.log.info(f"The actual solar output of today was {solar_output_today} Wh")
+        sun_forecast_handler.log.info(f"The actual solar output of today was {solar_output_today}")
     else:
-        sun_forecast_handler.log.info(f"The expected solar output of today is {solar_output_today} Wh")
+        sun_forecast_handler.log.info(f"The expected solar output of today is {solar_output_today}")
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:

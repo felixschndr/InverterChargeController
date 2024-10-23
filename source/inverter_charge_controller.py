@@ -19,7 +19,7 @@ class InverterChargeController(LoggerMixin):
 
         self.log.trace("Initializing...")
 
-        self.timezone = tz.gettz("Europe/Berlin")  # TODO: Convert to env variable
+        self.timezone = tz.gettz(EnvironmentVariableGetter.get("TIMEZONE"))
 
         self.sems_portal_api_handler = SemsPortalApiHandler(self.timezone)
         self.sun_forecast_handler = SunForecastHandler(self.timezone)

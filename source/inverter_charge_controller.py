@@ -61,24 +61,29 @@ class InverterChargeController(LoggerMixin):
         next_price_minimum = await self.tibber_api_handler.get_next_price_minimum_timestamp()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
-        expected_power_harvested_till_next_minimum = (
+        expected_power_harvested_till_next_minimum_in_watt_hours = (
             self.sun_forecast_handler.get_solar_output_in_timeframe_in_watt_hours(timestamp_now, next_price_minimum)
         )
         self.log.info(
-            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum} Wh"
+            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum_in_watt_hours} Wh"
         )
 
-        expected_energy_usage_till_next_minimum = (
+        expected_energy_usage_till_next_minimum_in_watt_hours = (
             self.sems_portal_api_handler.get_energy_usage_in_timeframe_in_watt_hours(timestamp_now, next_price_minimum)
         )
         self.log.info(
-            f"The expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum} Wh"
+            f"The expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum_in_watt_hours} Wh"
         )
 
-        self.log.info(
-            "Would check battery status, calculate amount to be charged and charge if necessary. To be implemented..."
+        current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
+        energy_in_battery_in_watt_hours = self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(
+            current_state_of_charge
         )
-        # TODO: Implement checking of battery
+        self.log.info(
+            f"The battery is currently at {current_state_of_charge}%, thus it is holding {energy_in_battery_in_watt_hours} Wh"
+        )
+
+        self.log.info("Would calculate amount to be charged and charge if necessary. To be implemented...")
         # TODO: Implement amount of energy to be charged
         # TODO: Implement charging itself
 

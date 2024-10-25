@@ -14,17 +14,6 @@ class Inverter(LoggerMixin):
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
 
         self.battery_capacity = EnergyAmount(float(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
-        self.charging_amperage_cc_phase = float(
-            EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_AMPERAGE_CC_PHASE")
-        )
-        self.charging_amperage_cv_phase = float(
-            EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_AMPERAGE_CV_PHASE")
-        )
-        self.cc_phase_limit = int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_CC_PHASE_LIMIT", 80))
-        self.charging_voltage = int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_VOLTAGE"))
-        self.charging_efficiency = float(
-            EnvironmentVariableGetter.get("INVERTER_BATTERY_CHARGING_EFFICIENCY", 0.9),
-        )
 
         self.dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
@@ -84,3 +73,9 @@ class Inverter(LoggerMixin):
             The energy saved in watt-hours corresponding to the given state of charge.
         """
         return self.battery_capacity * (state_of_charge / 100)
+
+    def calculate_state_of_charge_from_energy_amount(self, energy_amount: EnergyAmount) -> int:
+        state_of_charge = int(energy_amount.watt_hours / self.battery_capacity.watt_hours * 100)
+        if state_of_charge > 100:
+            return 100
+        return state_of_charge

@@ -192,7 +192,7 @@ class SemsPortalApiHandler(LoggerMixin):
             average_power_consumption.watts * night_duration.total_seconds() * 2 * factor_energy_usage_during_the_night
         )
         self.log.info(
-            f"Energy usage during daytime is {energy_usage_during_the_day}, energy usage during nighttime is {energy_usage_during_the_night}"
+            f"Energy usage during daytime is expected to be {energy_usage_during_the_day}, energy usage during nighttime is expected to be {energy_usage_during_the_night}"
         )
 
         return energy_usage_during_the_day + energy_usage_during_the_night

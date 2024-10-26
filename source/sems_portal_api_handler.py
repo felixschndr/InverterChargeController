@@ -169,8 +169,7 @@ class SemsPortalApiHandler(LoggerMixin):
     def get_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
         day_start = time(6, 0)
         night_start = time(18, 0)
-        # 60 % energy usage during the day, 40 % energy usage during the night
-        factor_energy_usage_during_the_day = 0.6
+        factor_energy_usage_during_the_day = float(EnvironmentVariableGetter.get("POWER_USAGE_FACTOR", 0.6))
         factor_energy_usage_during_the_night = 1 - factor_energy_usage_during_the_day
 
         self.log.debug(f"Getting estimated energy usage between {timestamp_start} and {timestamp_end}")

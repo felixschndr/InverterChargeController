@@ -24,10 +24,8 @@ class SunForecastHandler(LoggerMixin):
         longitude = EnvironmentVariableGetter.get("LOCATION_LONGITUDE")
         plane_declination = EnvironmentVariableGetter.get("LOCATION_PLANE_DECLINATION")
         plane_azimuth = EnvironmentVariableGetter.get("LOCATION_PLANE_AZIMUTH")
-        number_of_panels = int(EnvironmentVariableGetter.get("LOCATION_NUMBER_OF_PANELS"))
-        maximum_output_of_panel_in_watts = int(
-            EnvironmentVariableGetter.get("LOCATION_MAXIMUM_POWER_OUTPUT_PER_PANEL")
-        )
+        number_of_panels = int(EnvironmentVariableGetter.get("NUMBER_OF_PANELS"))
+        maximum_output_of_panel_in_watts = int(EnvironmentVariableGetter.get("MAXIMUM_POWER_OUTPUT_PER_PANEL"))
 
         maximum_output_of_all_panels_in_kw = number_of_panels * maximum_output_of_panel_in_watts / 1000
 

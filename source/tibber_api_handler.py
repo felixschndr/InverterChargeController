@@ -17,7 +17,14 @@ class TibberAPIHandler(LoggerMixin):
         )
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
 
-    def get_next_price_minimum_timestamp(self) -> datetime:
+    def get_timestamp_of_next_price_maximum(self) -> datetime:
+        self.log.debug("Finding the next price maximum...")
+        api_result = self._fetch_upcoming_prices_from_api()
+        all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
+        upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
+        return self._get_energy_rates_till_first_maximum(upcoming_energy_rates)[-1].timestamp
+
+    def get_timestamp_of_next_price_minimum(self) -> datetime:
         """
         Find the next optimal charging time based on upcoming energy prices.
 

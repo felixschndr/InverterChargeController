@@ -33,14 +33,11 @@ class InverterChargeController(LoggerMixin):
         while True:
             try:
                 if first_iteration:
-                    self.log.info("Checking what has to be done to reach the next minimum...")
                     first_iteration = False
+                    next_price_minimum = self._do_first_iteration()
                 else:
-                    self.log.info(
-                        "Waiting is over, now is the a price minimum, Checking what has to be done to reach the next minimum..."
-                    )
+                    next_price_minimum = self._do_iteration()
 
-                next_price_minimum = self._do_iteration()
                 self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
                 pause.until(next_price_minimum)
 
@@ -54,10 +51,35 @@ class InverterChargeController(LoggerMixin):
                 self.log.critical("Exiting now...")
                 exit(1)
 
+    def _do_first_iteration(self) -> datetime:
+        """
+        This is the first iteration after starting the program.
+        We have to wait for the first price maximum to be able to determine the next price minimum after that maximum.
+        After waiting, we can reliably determine the next price minimum.
+        Wait until then and then start with the normal operation mode.
+
+        If we did not wait for the first price maximum, all prices until then would be interpreted as minima.
+
+        Returns:
+            datetime: The timestamp of the next price minimum after waiting for the first price maximum.
+        """
+        next_price_maximum = self.tibber_api_handler.get_timestamp_of_next_price_maximum()
+        self.log.info(
+            f"The next price maximum is at {next_price_maximum}. Waiting until then to be able to find the next price minimum..."
+        )
+
+        pause.until(next_price_maximum)
+
+        return self.tibber_api_handler.get_timestamp_of_next_price_minimum()
+
     def _do_iteration(self) -> datetime:  # FIXME: Find better name
+        self.log.info(
+            "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
+        )
+
         timestamp_now = datetime.now(tz=self.timezone)
 
-        next_price_minimum = self.tibber_api_handler.get_next_price_minimum_timestamp()
+        next_price_minimum = self.tibber_api_handler.get_timestamp_of_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
         expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(

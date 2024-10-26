@@ -40,7 +40,7 @@ class InverterChargeController(LoggerMixin):
         Raises:
             SystemExit: If an unexpected error occurs, the program will exit with a status code of 1.
         """
-        first_iteration = True
+        first_iteration = False
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
             try:

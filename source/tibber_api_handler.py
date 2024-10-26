@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from energy_amount import ConsecutiveEnergyRates, EnergyRate
+from energy_amount import EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -96,15 +96,15 @@ class TibberAPIHandler(LoggerMixin):
         self.log.trace(f"Retrieved data: {response}")
         return response
 
-    def _extract_energy_rates_from_api_response(self, api_result: dict) -> ConsecutiveEnergyRates:
+    def _extract_energy_rates_from_api_response(self, api_result: dict) -> list[EnergyRate]:
         """
-        Extracts the raw energy rate information from the provided API response.
+        Extracts energy rates from the API response and returns them as a list of EnergyRate objects.
 
         Args:
-            api_result: The API response containing energy rate information.
+            api_result: The dictionary containing the API response with energy rate information.
 
         Returns:
-            ConsecutiveEnergyRates: A list of energy rates with associated timestamps.
+            A list of EnergyRate objects, each containing the rate and timestamp extracted from the API response.
         """
         prices_raw = api_result["viewer"]["homes"][0]["currentSubscription"]["priceInfo"]
         upcoming_energy_rates = []
@@ -116,19 +116,18 @@ class TibberAPIHandler(LoggerMixin):
                 )
             )
 
-        upcoming_energy_rates = ConsecutiveEnergyRates(upcoming_energy_rates)
-
         self.log.trace(f"Extracted the the energy rates from the API response {upcoming_energy_rates}")
         return upcoming_energy_rates
 
-    def _remove_energy_rates_from_the_past(self, all_energy_rates: ConsecutiveEnergyRates) -> ConsecutiveEnergyRates:
+    def _remove_energy_rates_from_the_past(self, all_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
         """
+        Returns a list of energy rates that are dated in the past relative to the current hour.
+
         Args:
-            all_energy_rates: A ConsecutiveEnergyRates object.
+            all_energy_rates: A list of EnergyRate objects where each object has a timestamp attribute.
 
         Returns:
-            ConsecutiveEnergyRates: A new ConsecutiveEnergyRates object containing only the energy rates that are
-                later than the beginning of the current hour.
+            A list of EnergyRate objects that have timestamps in the future relative to the beginning of the current hour.
         """
         current_time = datetime.now(tz=all_energy_rates[0].timestamp.tzinfo)
         beginning_of_current_hour = current_time.replace(minute=0, second=0, microsecond=0)
@@ -136,23 +135,20 @@ class TibberAPIHandler(LoggerMixin):
         upcoming_energy_rates = [
             energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > beginning_of_current_hour
         ]
-        upcoming_energy_rates = ConsecutiveEnergyRates(upcoming_energy_rates)
         self.log.trace(f"Removed the energy rates from the past. Upcoming energy rates are {upcoming_energy_rates}")
         return upcoming_energy_rates
 
-    def _get_energy_rates_till_first_maximum(
-        self, upcoming_energy_rates: ConsecutiveEnergyRates
-    ) -> ConsecutiveEnergyRates:
+    def _get_energy_rates_till_first_maximum(self, upcoming_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
         """
         Extracts energy rates up until the first maximum is reached from a sequence of upcoming energy rates.
         It iterates through the provided energy rates, appending each rate to a list until a rate lower than the last
         maximum rate is found, indicating the first peak is reached.
 
         Args:
-            upcoming_energy_rates: A sequence of consecutive energy rates to be analyzed.
+            upcoming_energy_rates: A list of consecutive energy rates to be analyzed.
 
         Returns:
-            A sequence of energy rates up to the first encountered maximum rate.
+            A list of energy rates up to the first encountered maximum rate.
         """
         last_energy_rate = upcoming_energy_rates[0]
         last_energy_rate_was_maximum = False
@@ -167,20 +163,20 @@ class TibberAPIHandler(LoggerMixin):
             energy_rates_till_maximum.append(current_energy_rate)
             last_energy_rate = current_energy_rate
 
-        energy_rates_till_maximum = ConsecutiveEnergyRates(energy_rates_till_maximum)
-
         self.log.debug(
             f"Found {last_energy_rate} to be the first maximum of the upcoming energy rates ({upcoming_energy_rates})"
         )
         return energy_rates_till_maximum
 
-    def get_global_minimum_of_energy_rates(self, energy_rates_till_maximum: ConsecutiveEnergyRates) -> EnergyRate:
+    def get_global_minimum_of_energy_rates(self, energy_rates_till_maximum: list[EnergyRate]) -> EnergyRate:
         """
+        Determines the global minimum energy rate from a list of energy rates (in this case up until the first maximum).
+
         Args:
-            energy_rates_till_maximum: A collection of ConsecutiveEnergyRates representing energy rates until the first maximum.
+            energy_rates_till_maximum: A list of EnergyRate objects from which the global minimum is to be determined.
 
         Returns:
-            EnergyRate: The global minimum energy rate from the provided collection.
+            EnergyRate: The EnergyRate object that has the lowest rate from the provided list.
         """
         global_minimum_of_energy_rates = min(energy_rates_till_maximum, key=lambda energy_rate: energy_rate.rate)
         self.log.debug(

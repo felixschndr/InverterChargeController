@@ -34,7 +34,7 @@ class SemsPortalApiHandler(LoggerMixin):
             "Content-Type": "application/json",
             "Token": '{"version":"v2.1.0","client":"ios","language":"en"}',
         }
-        payload = {  # TODO: Check what happens if wrong credentials are provided
+        payload = {
             "account": EnvironmentVariableGetter.get("SEMSPORTAL_USERNAME"),
             "pwd": EnvironmentVariableGetter.get("SEMSPORTAL_PASSWORD"),
         }
@@ -42,6 +42,12 @@ class SemsPortalApiHandler(LoggerMixin):
         response = requests.post(url, headers=headers, json=payload, timeout=10)
         response.raise_for_status()
         response = response.json()
+
+        if response["code"] != 0:
+            # The API always return a 200 status code, even if something went wrong
+            raise RuntimeError(
+                f"There was a problem logging in into the SEMSPortal: {response['msg']} (Code: {response['code']})"
+            )
 
         self.api_url = response["api"]
         self.token = response["data"]["token"]

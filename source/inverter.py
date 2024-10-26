@@ -1,3 +1,5 @@
+import asyncio
+
 import goodwe
 from energy_amount import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
@@ -17,32 +19,32 @@ class Inverter(LoggerMixin):
 
         self.dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
-    async def connect(self) -> None:
+    def connect(self) -> None:
         self.log.debug(f"Connecting to inverter on {self.hostname}...")
-        self.device = await goodwe.connect(self.hostname)
+        self.device = asyncio.run(goodwe.connect(self.hostname))
         self.log.info("Successfully connected to inverter")
 
-    async def get_operation_mode(self) -> OperationMode:
+    def get_operation_mode(self) -> OperationMode:
         if self.device is None:
-            await self.connect()
+            self.connect()
 
         self.log.debug("Getting current operation mode...")
-        operation_mode = await self.device.get_operation_mode()
+        operation_mode = asyncio.run(self.device.get_operation_mode())
         self.log.info(f"Current Operation mode is {operation_mode.name}")
         return operation_mode
 
-    async def set_operation_mode(self, mode: OperationMode) -> None:
+    def set_operation_mode(self, mode: OperationMode) -> None:
         if self.dry_run:
             self.log.info(f"Would set the inverter to {mode.name} but dry run is enabled")
             return
 
         if self.device is None:
-            await self.connect()
+            self.connect()
 
         self.log.debug(f"Setting new operation mode: {mode.name}...")
-        await self.device.set_operation_mode(mode)
+        asyncio.run(self.device.set_operation_mode(mode))
 
-        current_operation_mode = await self.get_operation_mode()
+        current_operation_mode = self.get_operation_mode()
         if current_operation_mode != mode:
             raise RuntimeError(
                 f"Setting the Operation mode was not successful: Expected {mode.name}, Actual: {current_operation_mode.name}"

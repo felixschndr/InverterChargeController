@@ -27,7 +27,7 @@ class InverterChargeController(LoggerMixin):
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
 
-    async def start(self) -> None:
+    def start(self) -> None:
         first_iteration = True
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
@@ -40,7 +40,7 @@ class InverterChargeController(LoggerMixin):
                         "Waiting is over, now is the a price minimum, Checking what has to be done to reach the next minimum..."
                     )
 
-                next_price_minimum = await self._do_iteration()
+                next_price_minimum = self._do_iteration()
                 self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
                 pause.until(next_price_minimum)
 
@@ -54,10 +54,10 @@ class InverterChargeController(LoggerMixin):
                 self.log.critical("Exiting now...")
                 exit(1)
 
-    async def _do_iteration(self) -> datetime:  # FIXME: Find better name
+    def _do_iteration(self) -> datetime:  # FIXME: Find better name
         timestamp_now = datetime.now(tz=self.timezone)
 
-        next_price_minimum = await self.tibber_api_handler.get_next_price_minimum_timestamp()
+        next_price_minimum = self.tibber_api_handler.get_next_price_minimum_timestamp()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
         expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
@@ -124,11 +124,11 @@ class InverterChargeController(LoggerMixin):
         )
 
         # TODO: Implement error handling
-        await self._charge_inverter(required_state_of_charge)
+        self._charge_inverter(required_state_of_charge)
 
         return next_price_minimum
 
-    async def _charge_inverter(self, target_state_of_charge: int) -> None:
+    def _charge_inverter(self, target_state_of_charge: int) -> None:
         charging_progress_check_interval = timedelta(minutes=10)
         dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
@@ -136,7 +136,7 @@ class InverterChargeController(LoggerMixin):
         self.log.debug(f"The amount of energy bought before charging is {energy_buy_of_today_before_charging}")
 
         self.log.info("Starting to charge")
-        await self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
+        self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
 
         self.log.info(
             f"Set the inverter to charge, the target state of charge is {target_state_of_charge} %. Checking the charging progress every {charging_progress_check_interval}..."
@@ -158,7 +158,7 @@ class InverterChargeController(LoggerMixin):
                 self.log.info(
                     f"Charging finished ({current_state_of_charge}%) --> Setting the inverter back to normal mode"
                 )
-                await self.inverter.set_operation_mode(OperationMode.GENERAL)
+                self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
 
             self.log.debug(

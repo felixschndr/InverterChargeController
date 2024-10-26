@@ -1,4 +1,3 @@
-import asyncio
 import signal
 import sys
 from types import FrameType
@@ -46,4 +45,4 @@ if __name__ == "__main__":
         raise RuntimeError(f"Unknown argument {sys.argv[1]}!")
 
     inverter_charge_controller = InverterChargeController()
-    asyncio.run(inverter_charge_controller.start())
+    inverter_charge_controller.start()

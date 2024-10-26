@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from aiographql.client import GraphQLClient, GraphQLRequest, GraphQLResponse
 from energy_amount import ConsecutiveEnergyRates, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
+from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
 from logger import LoggerMixin
 
 
@@ -10,12 +11,13 @@ class TibberAPIHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-        self.client = GraphQLClient(
-            endpoint="https://api.tibber.com/v1-beta/gql",
-            headers={"Authorization": (EnvironmentVariableGetter.get("TIBBER_API_TOKEN"))},
+        transport = AIOHTTPTransport(
+            url="https://api.tibber.com/v1-beta/gql",
+            headers={"Authorization": EnvironmentVariableGetter.get("TIBBER_API_TOKEN")},
         )
+        self.client = Client(transport=transport, fetch_schema_from_transport=True)
 
-    async def get_next_price_minimum_timestamp(self) -> datetime:
+    def get_next_price_minimum_timestamp(self) -> datetime:
         """
         Find the next optimal charging time based on upcoming energy prices.
 
@@ -36,7 +38,7 @@ class TibberAPIHandler(LoggerMixin):
             datetime: The timestamp of the next optimal charging time.
         """
         self.log.debug("Finding the price minimum...")
-        api_result = await self._fetch_upcoming_prices_from_api()
+        api_result = self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
         upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
         upcoming_energy_rates_till_maximum = self._get_energy_rates_till_first_maximum(upcoming_energy_rates)
@@ -44,7 +46,7 @@ class TibberAPIHandler(LoggerMixin):
 
         return minimum_of_energy_rates.timestamp
 
-    async def _fetch_upcoming_prices_from_api(self) -> GraphQLResponse:
+    def _fetch_upcoming_prices_from_api(self) -> dict:
         """
         Fetches upcoming electricity prices from the Tibber API.
 
@@ -55,7 +57,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             GraphQLResponse: The response from the Tibber API containing electricity prices.
         """
-        query = GraphQLRequest(
+        query = gql(
             """
             {
                 viewer {
@@ -78,11 +80,11 @@ class TibberAPIHandler(LoggerMixin):
         """
         )
         self.log.debug("Crawling the Tibber API for the electricity prices")
-        response = await self.client.query(query)
+        response = self.client.execute(query)
         self.log.trace(f"Retrieved data: {response}")
         return response
 
-    def _extract_energy_rates_from_api_response(self, api_result: GraphQLResponse) -> ConsecutiveEnergyRates:
+    def _extract_energy_rates_from_api_response(self, api_result: dict) -> ConsecutiveEnergyRates:
         """
         Args:
             api_result: The response object from the GraphQL API containing energy price information.
@@ -90,7 +92,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             A ConsecutiveEnergyRates object containing the energy rates extracted from the API response.
         """
-        prices_raw = api_result.data["viewer"]["homes"][0]["currentSubscription"]["priceInfo"]
+        prices_raw = api_result["viewer"]["homes"][0]["currentSubscription"]["priceInfo"]
         upcoming_energy_rates = []
         for price in [*(prices_raw["today"]), *(prices_raw["tomorrow"])]:
             upcoming_energy_rates.append(

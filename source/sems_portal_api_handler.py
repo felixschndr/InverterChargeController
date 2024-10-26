@@ -34,18 +34,19 @@ class SemsPortalApiHandler(LoggerMixin):
             "Content-Type": "application/json",
             "Token": '{"version":"v2.1.0","client":"ios","language":"en"}',
         }
-        payload = {
+        payload = {  # TODO: Check what happens if wrong credentials are provided
             "account": EnvironmentVariableGetter.get("SEMSPORTAL_USERNAME"),
             "pwd": EnvironmentVariableGetter.get("SEMSPORTAL_PASSWORD"),
         }
 
         response = requests.post(url, headers=headers, json=payload, timeout=10)
         response.raise_for_status()
+        response = response.json()
 
-        self.api_url = response.json()["api"]
-        self.token = response.json()["data"]["token"]
-        self.timestamp = response.json()["data"]["timestamp"]
-        self.user_id = response.json()["data"]["uid"]
+        self.api_url = response["api"]
+        self.token = response["data"]["token"]
+        self.timestamp = response["data"]["timestamp"]
+        self.user_id = response["data"]["uid"]
 
         self.log.debug("Login successful")
 
@@ -53,7 +54,8 @@ class SemsPortalApiHandler(LoggerMixin):
         """
         Retrieves energy consumption data, extracts the relevant data, and computes the average power consumption per day.
 
-        :return: The average energy consumption in Wh per day.
+        Returns:
+            EnergyAmount: An object containing the average energy consumption per day.
         """
         self.log.debug("Determining average energy consumption per day")
 
@@ -92,15 +94,19 @@ class SemsPortalApiHandler(LoggerMixin):
 
         response = requests.post(url, headers=headers, json=payload, timeout=20)
         response.raise_for_status()
+        response = response.json()
 
-        self.log.trace(f"Retrieved data: {response.json()}")
+        self.log.trace(f"Retrieved data: {response}")
 
-        return response.json()
+        return response
 
     def _extract_energy_usage_data_of_response(self, response_json: dict) -> list[EnergyAmount]:
         """
-        :param response_json: Dictionary containing the JSON response with energy consumption data.
-        :return: List of the most recent seven daily energy usage values in kWh.
+        Args:
+            response_json: JSON response from the SEMSPORTAL API containing detailed energy usage data.
+
+        Returns:
+            A list of EnergyAmount objects representing energy usage for the last week.
         """
         lines = response_json["data"]["lines"]
 
@@ -123,9 +129,10 @@ class SemsPortalApiHandler(LoggerMixin):
 
     def get_energy_buy_of_today(self) -> EnergyAmount:
         """
-        Retrieves the amount of energy bought today.
+        Crawls the SEMSPORTAL API for the amount of energy bought today until this point in time.
 
-        :return: The amount of energy bought today in Wh.
+        Returns:
+            EnergyAmount: The amount of energy bought today.
         """
         self.log.info("Determining amount of energy bought today")
 
@@ -167,6 +174,29 @@ class SemsPortalApiHandler(LoggerMixin):
         return state_of_charge
 
     def get_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
+        """
+        This method estimates the energy usage between the provided start and end timestamps by considering
+        different energy consumption rates during the day and night. The day is defined as starting at 6:00 AM
+        and ending at 6:00 PM, while the night includes the remaining hours.
+
+        It follows these steps:
+        1. Retrieve the energy usage factors for day and night from environment variables.
+        2. Calculate the total durations of day and night within the given timeframe.
+        3. Get the average daily energy consumption.
+        4. Calculate the average power consumption (in Watts) for the day.
+        5. Compute energy usage during the day and night separately by multiplying the average power consumption with
+            the duration of the respective time frame.
+        6. Return the total estimated energy usage by summing the day and night values.
+
+        Similar to SunForecastHandler.get_solar_output_in_timeframe().
+
+        Args:
+            timestamp_start: The start time of the period for which energy consumption is to be calculated.
+            timestamp_end: The end time of the period for which energy consumption is to be calculated.
+
+        Returns:
+            EnergyAmount: The estimated total energy usage within the given timeframe.
+        """
         day_start = time(6, 0)
         night_start = time(18, 0)
         factor_energy_usage_during_the_day = float(EnvironmentVariableGetter.get("POWER_USAGE_FACTOR", 0.6))
@@ -203,6 +233,30 @@ class SemsPortalApiHandler(LoggerMixin):
         day_start: time,
         night_start: time,
     ) -> tuple[timedelta, timedelta]:
+        """
+        Calculates the total duration of daytime and nighttime within a given timeframe.
+
+        This method divides the timeframe between `timestamp_start` and `timestamp_end` into daytime and nighttime
+        based on the provided day and night start times.
+
+        Example:
+            timestamp_start=04:00 AM
+            timestamp_end=10:00 PM
+            day_start=06:00 AM
+            night_start=06:00 PM
+
+            duration of daytime = 12 hours
+            duration of nighttime = 2 hours + 4 hours = 6 hours
+
+        Args:
+            timestamp_start: The starting timestamp of the timeframe to be analyzed.
+            timestamp_end: The ending timestamp of the timeframe to be analyzed.
+            day_start: The time of day when daytime begins.
+            night_start: The time of day when nighttime begins.
+
+        Returns:
+            A tuple containing the total duration of daytime and the total duration of nighttime.
+        """
         duration_day = timedelta(seconds=0)
         duration_night = timedelta(seconds=0)
 

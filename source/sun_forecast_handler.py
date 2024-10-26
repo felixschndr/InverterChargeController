@@ -36,9 +36,19 @@ class SunForecastHandler(LoggerMixin):
 
     @staticmethod
     def _get_date_as_string() -> str:
+        """
+        Returns:
+            str: The current date formatted as 'YYYY-MM-DD'.
+        """
         return datetime.datetime.now().strftime("%Y-%m-%d")
 
     def get_expected_solar_output_of_today(self) -> EnergyAmount:
+        """
+        Gets the expected solar energy output for the current day.
+
+        Returns:
+            EnergyAmount: The projected solar energy output for today in watt-hours.
+        """
         self.log.debug("Getting estimated solar output of today")
 
         response = requests.get(self.forecast_api_url, timeout=5)
@@ -50,11 +60,36 @@ class SunForecastHandler(LoggerMixin):
         return energy_amount
 
     def _get_debug_solar_output(self) -> EnergyAmount:
+        """
+        Returns a sample debug value for solar energy output.
+
+        Returns:
+            EnergyAmount: A sample energy amount of 10,000 watt-hours.
+        """
         # We use a sample value for debugging the code since the API offers very limited call per day
         self.log.debug("Getting debug estimated solar output of today")
         return EnergyAmount(watt_hours=10000)
 
     def get_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
+        """
+        This method calculates the estimated solar power output within a specified time frame.
+        It first determines the duration of daylight (sun is up) within the given timeframe.
+        If there is no overlap between the given timeframe and the calculated daylight duration,
+            it returns zero energy output.
+        Otherwise, it calculates the expected solar output based on the average solar power output of the day and the
+            duration of sunlight overlap in the specified timeframe.
+
+        Similar to SemsPortalAPIHandler.get_energy_usage_in_timeframe().
+
+        Args:
+            timestamp_start: The starting timestamp of the timeframe for which to calculate the solar output.
+            timestamp_end: The ending timestamp of the timeframe for which to calculate the solar output.
+
+        Returns:
+            EnergyAmount:
+            The estimated amount of energy generated from solar output within the specified timeframe.
+
+        """
         self.log.debug(f"Getting estimated solar output between {timestamp_start} and {timestamp_end}")
 
         sunrise_plus_offset, sunset_minus_offset = self._get_sunset_and_sunrise_with_offset()
@@ -83,12 +118,25 @@ class SunForecastHandler(LoggerMixin):
         )
 
     def _get_sunset_and_sunrise_with_offset(self) -> tuple[datetime, datetime]:
+        """
+        Calculates and returns the sunrise and sunset times with an offset.
+
+        This method retrieves the current geographical location's latitude and longitude
+        from environment variables, then calculates the sunrise and sunset times for the
+        next day.
+        It adds a 10% offset to the duration of sunlight to both the sunrise and
+        sunset times since this is when the sun is at its lowest points and thus weakest.
+
+        Returns:
+            tuple[datetime, datetime]: A tuple containing the adjusted sunrise and sunset times.
+        """
         sun = Sun(
             float(EnvironmentVariableGetter.get("LOCATION_LATITUDE")),
             float(EnvironmentVariableGetter.get("LOCATION_LONGITUDE")),
         )
 
         sunrise = sun.get_sunrise_time(time_zone=self.timezone)
+        # For some reason the library returns the sunset of yesterday by default
         sunset = sun.get_sunset_time(at_date=datetime.datetime.now() + timedelta(days=1), time_zone=self.timezone)
         sun_light_duration = sunset - sunrise
         sun_light_duration_offset = sun_light_duration * 0.1

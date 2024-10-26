@@ -18,11 +18,19 @@ class TibberAPIHandler(LoggerMixin):
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
 
     def get_timestamp_of_next_price_maximum(self) -> datetime:
+        """
+        Fetches the upcoming energy rates, filters out past rates, and returns the timestamp of the first maximum rate.
+
+        Returns:
+            datetime: The timestamp of the first maximum energy rate among the upcoming rates.
+        """
         self.log.debug("Finding the next price maximum...")
         api_result = self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
         upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
-        return self._get_energy_rates_till_first_maximum(upcoming_energy_rates)[-1].timestamp
+        maximum_of_energy_rates = self._get_energy_rates_till_first_maximum(upcoming_energy_rates)[-1]
+
+        return maximum_of_energy_rates.timestamp
 
     def get_timestamp_of_next_price_minimum(self) -> datetime:
         """
@@ -31,8 +39,8 @@ class TibberAPIHandler(LoggerMixin):
         This method performs a series of operations to determine the most cost-effective
         time to charge by analyzing upcoming energy rates retrieved from the Tibber API.
 
-        Looking at the prices trends, it can be seen
-        that the optimal time to charge is the minimum between now and the next maximum.
+        Looking at the prices trends, it can be seen that the optimal time to charge is the minimum between now and the
+            next maximum.
 
         Steps:
         1. Fetches the upcoming energy prices from the API asynchronously.
@@ -55,14 +63,11 @@ class TibberAPIHandler(LoggerMixin):
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
         """
-        Fetches upcoming electricity prices from the Tibber API.
-
-        This asynchronous method sends a GraphQL query to the Tibber API to retrieve
-        electricity prices for today and tomorrow.
-        The response contains the total price and the starting time for each price entry.
+        This method constructs a GraphQL query to retrieve the electricity prices for the current day and the following
+        day.
 
         Returns:
-            GraphQLResponse: The response from the Tibber API containing electricity prices.
+            dict: A dictionary containing the electricity prices for today and tomorrow.
         """
         query = gql(
             """
@@ -93,11 +98,13 @@ class TibberAPIHandler(LoggerMixin):
 
     def _extract_energy_rates_from_api_response(self, api_result: dict) -> ConsecutiveEnergyRates:
         """
+        Extracts the raw energy rate information from the provided API response.
+
         Args:
-            api_result: The response object from the GraphQL API containing energy price information.
+            api_result: The API response containing energy rate information.
 
         Returns:
-            A ConsecutiveEnergyRates object containing the energy rates extracted from the API response.
+            ConsecutiveEnergyRates: A list of energy rates with associated timestamps.
         """
         prices_raw = api_result["viewer"]["homes"][0]["currentSubscription"]["priceInfo"]
         upcoming_energy_rates = []
@@ -120,7 +127,8 @@ class TibberAPIHandler(LoggerMixin):
             all_energy_rates: A ConsecutiveEnergyRates object.
 
         Returns:
-            ConsecutiveEnergyRates: A new ConsecutiveEnergyRates object containing only the energy rates that are equal to or later than the beginning of the current hour.
+            ConsecutiveEnergyRates: A new ConsecutiveEnergyRates object containing only the energy rates that are
+                later than the beginning of the current hour.
         """
         current_time = datetime.now(tz=all_energy_rates[0].timestamp.tzinfo)
         beginning_of_current_hour = current_time.replace(minute=0, second=0, microsecond=0)
@@ -136,11 +144,15 @@ class TibberAPIHandler(LoggerMixin):
         self, upcoming_energy_rates: ConsecutiveEnergyRates
     ) -> ConsecutiveEnergyRates:
         """
+        Extracts energy rates up until the first maximum is reached from a sequence of upcoming energy rates.
+        It iterates through the provided energy rates, appending each rate to a list until a rate lower than the last
+        maximum rate is found, indicating the first peak is reached.
+
         Args:
-            upcoming_energy_rates: A list of energy rates to analyze.
+            upcoming_energy_rates: A sequence of consecutive energy rates to be analyzed.
 
         Returns:
-            A list of energy rates up to and including the first maximum rate encountered.
+            A sequence of energy rates up to the first encountered maximum rate.
         """
         last_energy_rate = upcoming_energy_rates[0]
         last_energy_rate_was_maximum = False

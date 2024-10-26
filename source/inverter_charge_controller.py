@@ -28,6 +28,18 @@ class InverterChargeController(LoggerMixin):
         self.tibber_api_handler = TibberAPIHandler()
 
     def start(self) -> None:
+        """
+        Starts the continuous running of the program and handles all exceptions possibly raised during execution.
+         - Expected exceptions: Wait for some minutes and retry
+         - Unexpected exceptions: Exit with status code 1
+
+        This method indefinitely repeats a sequence of operations until an unrecoverable error occurs.
+        On the first iteration, it performs a special initialization operation to determine the next scheduled execution time.
+        On subsequent iterations, it performs a standard operation to determine the next scheduled execution time.
+
+        Raises:
+            SystemExit: If an unexpected error occurs, the program will exit with a status code of 1.
+        """
         first_iteration = True
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
@@ -73,6 +85,19 @@ class InverterChargeController(LoggerMixin):
         return self.tibber_api_handler.get_timestamp_of_next_price_minimum()
 
     def _do_iteration(self) -> datetime:  # FIXME: Find better name
+        """
+        Computes the optimal charging strategy for an inverter until the next price minimum.
+
+        This method performs several key tasks to determine if and how much the inverter needs to be charged:
+        - Retrieves the current timestamp and the next price minimum.
+        - Estimates the solar power output and energy usage until the next price minimum.
+        - Calculates the current energy stored in the battery based on its state of charge.
+        - Compares the current and expected future state with the target minimum state of charge to determine if additional charging is necessary.
+        - Initiates charging if required.
+
+        Returns:
+            datetime: The timestamp of the next price minimum.
+        """
         self.log.info(
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
         )
@@ -151,6 +176,13 @@ class InverterChargeController(LoggerMixin):
         return next_price_minimum
 
     def _charge_inverter(self, target_state_of_charge: int) -> None:
+        """
+        Charges the inverter until a given state of charge is reached.
+        Checks every few minutes the current state of charge and compares to the target value.
+
+        Args:
+            target_state_of_charge: The desired state of charge percentage to reach before stopping the charging process.
+        """
         charging_progress_check_interval = timedelta(minutes=10)
         dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 

@@ -10,7 +10,8 @@ class LoggerMixin:
     """
     A mixin to set up and manage logging for a class.
 
-    Any class can inherit from this and then call self.log.{debug,info,warning,error,critical} to log.
+    Any class can inherit from this and then call self.log.{trace,debug,info,warning,error,critical} to log.
+    Notice that the loglevel trace with a weight of 5 was added.
     """
 
     def __init__(self):
@@ -66,6 +67,9 @@ class LoggerMixin:
 
     @staticmethod
     def _add_trace_loglevel() -> None:
+        """
+        Adds a custom TRACE log level, which is below the DEBUG level
+        """
         trace_level_number = logging.DEBUG - 5
         logging.addLevelName(trace_level_number, "TRACE")
 
@@ -88,6 +92,10 @@ class LoggerMixin:
 
     @staticmethod
     def _create_logging_directory_if_necessary(directory_of_logs: str) -> None:
+        """
+        Args:
+            directory_of_logs: The path to the directory where log files will be stored. If the directory does not already exist, it will be created.
+        """
         if os.path.exists(directory_of_logs):
             return
 

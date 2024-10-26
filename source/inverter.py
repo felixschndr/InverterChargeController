@@ -20,11 +20,26 @@ class Inverter(LoggerMixin):
         self.dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
     def connect(self) -> None:
+        """
+        Connects to the inverter using the configured hostname.
+
+        Raises:
+            goodwe.exceptions.ConnectionException: If the connection to the inverter fails
+        """
         self.log.debug(f"Connecting to inverter on {self.hostname}...")
         self.device = asyncio.run(goodwe.connect(self.hostname))
         self.log.info("Successfully connected to inverter")
 
     def get_operation_mode(self) -> OperationMode:
+        """
+        Gets the current operation mode of the device.
+
+        If the device is not already connected, it will attempt to connect before
+        fetching the operation mode.
+
+        Returns:
+            OperationMode: The current operation mode of the device.
+        """
         if self.device is None:
             self.connect()
 
@@ -34,6 +49,13 @@ class Inverter(LoggerMixin):
         return operation_mode
 
     def set_operation_mode(self, mode: OperationMode) -> None:
+        """
+        Args:
+            mode: The desired operation mode to be set for the inverter.
+
+        Raises:
+            RuntimeError: If the operation mode could not be set successfully.
+        """
         if self.dry_run:
             self.log.info(f"Would set the inverter to {mode.name} but dry run is enabled")
             return
@@ -54,29 +76,32 @@ class Inverter(LoggerMixin):
 
     def calculate_energy_missing_from_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
         """
-        Calculates the amount of energy missing in the battery in watt-hours from the state of charge
-
         Args:
-            state_of_charge: The current state of charge of the battery as a percentage.
+            state_of_charge (int): The current state of charge of the battery as a percentage.
 
         Returns:
-            The energy missing in watt-hours corresponding to the given state of charge.
+            EnergyAmount: The amount of energy missing from the battery based on the current state of charge.
         """
         return self.battery_capacity - self.calculate_energy_saved_in_battery_from_state_of_charge(state_of_charge)
 
     def calculate_energy_saved_in_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
         """
-        Calculates the amount of energy saved in the battery in watt-hours from the state of charge
-
         Args:
-            state_of_charge: The current state of charge of the battery as a percentage.
+            state_of_charge (int): The current state of charge of the battery as a percentage.
 
         Returns:
-            The energy saved in watt-hours corresponding to the given state of charge.
+            EnergyAmount: The amount of energy saved in the battery corresponding to the given state of charge.
         """
         return self.battery_capacity * (state_of_charge / 100)
 
     def calculate_state_of_charge_from_energy_amount(self, energy_amount: EnergyAmount) -> int:
+        """
+        Args:
+            energy_amount: An instance of EnergyAmount.
+
+        Returns:
+            int: The state of charge of the inverter depending on the battery size as a percentage, capped at 100%.
+        """
         state_of_charge = int(energy_amount.watt_hours / self.battery_capacity.watt_hours * 100)
         if state_of_charge > 100:
             return 100

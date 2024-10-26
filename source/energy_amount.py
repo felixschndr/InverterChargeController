@@ -70,6 +70,7 @@ class EnergyRate:
         return f"{self.rate} € at {self.timestamp}"
 
 
+# TODO: Remove this
 @dataclass
 class ConsecutiveEnergyRates:
     energy_rates: list[EnergyRate]

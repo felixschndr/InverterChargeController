@@ -20,6 +20,13 @@ def log_solar_forecast(log_as_review: bool = False) -> None:
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
+    """
+    Logs the signals SIGINT and SIGTERM and then exits.
+
+    Args:
+        signal_number: The number representing the signal received.
+        _frame: The current stack frame when the signal was received.
+    """
     logger = LoggerMixin()
     logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
     exit(0)

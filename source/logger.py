@@ -101,3 +101,12 @@ class LoggerMixin:
 
         print(f"Creating directory for logs {directory_of_logs}")
         os.mkdir(directory_of_logs)
+
+    def _write_newlines_to_log_file(self, amount_of_newlines: int = 2) -> None:
+        """
+        Writes the specified number of newline characters to the log file without a timestamp or loglevel.
+
+        Args:
+            amount_of_newlines: Number of newline characters to write. Default is 2.
+        """
+        self.log.parent.handlers[0].stream.write("".join("\n" for _ in range(amount_of_newlines)))

@@ -51,6 +51,7 @@ class InverterChargeController(LoggerMixin):
                     next_price_minimum = self._do_iteration()
 
                 self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
+                self._write_newlines_to_log_file()
                 pause.until(next_price_minimum)
 
             except (ClientError, RequestException) as e:

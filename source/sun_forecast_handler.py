@@ -1,20 +1,17 @@
 import datetime
-from datetime import timedelta
 
 import requests
-from dateutil.tz import tzfile
 from energy_amount import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
-from suntime import Sun
+from suntimes import SunTimes
 from time_handler import TimeHandler
 
 
 class SunForecastHandler(LoggerMixin):
-    def __init__(self, timezone: tzfile):
+    def __init__(self):
         super().__init__()
 
-        self.timezone = timezone
         self.forecast_api_url = self._forecast_api_url()
 
     def _forecast_api_url(self) -> str:
@@ -130,14 +127,14 @@ class SunForecastHandler(LoggerMixin):
         Returns:
             tuple[datetime, datetime]: A tuple containing the adjusted sunrise and sunset times.
         """
-        sun = Sun(
-            float(EnvironmentVariableGetter.get("LOCATION_LATITUDE")),
+        date = datetime.datetime.now()
+        sun = SunTimes(
             float(EnvironmentVariableGetter.get("LOCATION_LONGITUDE")),
+            float(EnvironmentVariableGetter.get("LOCATION_LATITUDE")),
         )
 
-        sunrise = sun.get_sunrise_time(time_zone=self.timezone)
-        # For some reason the library returns the sunset of yesterday by default
-        sunset = sun.get_sunset_time(at_date=datetime.datetime.now() + timedelta(days=1), time_zone=self.timezone)
+        sunrise = sun.riselocal(date)
+        sunset = sun.setlocal(date)
         sun_light_duration = sunset - sunrise
         sun_light_duration_offset = sun_light_duration * 0.1
         sunrise_plus_offset = sunrise + sun_light_duration_offset

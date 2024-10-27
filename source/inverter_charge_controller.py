@@ -23,7 +23,7 @@ class InverterChargeController(LoggerMixin):
         self.timezone = tz.gettz(EnvironmentVariableGetter.get("TIMEZONE"))
 
         self.sems_portal_api_handler = SemsPortalApiHandler(self.timezone)
-        self.sun_forecast_handler = SunForecastHandler(self.timezone)
+        self.sun_forecast_handler = SunForecastHandler()
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
 

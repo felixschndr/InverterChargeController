@@ -17,36 +17,19 @@ class TibberAPIHandler(LoggerMixin):
         )
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
 
-    def get_timestamp_of_next_price_maximum(self) -> datetime:
-        """
-        Fetches the upcoming energy rates, filters out past rates, and returns the timestamp of the first maximum rate.
-
-        Returns:
-            datetime: The timestamp of the first maximum energy rate among the upcoming rates.
-        """
-        self.log.debug("Finding the next price maximum...")
-        api_result = self._fetch_upcoming_prices_from_api()
-        all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
-        upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
-        maximum_of_energy_rates = self._get_energy_rates_till_first_maximum(upcoming_energy_rates)[-1]
-
-        return maximum_of_energy_rates.timestamp
-
     def get_timestamp_of_next_price_minimum(self) -> datetime:
         """
-        Find the next optimal charging time based on upcoming energy prices.
+        This method performs a series of operations to determine the most cost-effective time to charge by analyzing
+        upcoming energy rates retrieved from the Tibber API and returns its timestamp.
 
-        This method performs a series of operations to determine the most cost-effective
-        time to charge by analyzing upcoming energy rates retrieved from the Tibber API.
-
-        Looking at the prices trends, it can be seen that the optimal time to charge is the minimum between now and the
-            next maximum.
+        Looking at the prices trends, it can be seen that the optimal time to charge is the minimum between the first
+        maximum and the subsequent maximum.
 
         Steps:
-        1. Fetches the upcoming energy prices from the API asynchronously.
+        1. Fetches the upcoming energy prices from the API.
         2. Extracts energy rates from the API response.
         3. Filters out energy rates that are in the past.
-        4. Gets energy rates up until the first maximum rate.
+        4. Gets energy rates up between the first and second maximum rate.
         5. Finds the minimum of the filtered energy rates.
 
         Returns:
@@ -56,8 +39,12 @@ class TibberAPIHandler(LoggerMixin):
         api_result = self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
         upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
-        upcoming_energy_rates_till_maximum = self._get_energy_rates_till_first_maximum(upcoming_energy_rates)
-        minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(upcoming_energy_rates_till_maximum)
+        energy_rates_starting_at_first_maximum_and_ending_at_second_maximum = (
+            self._get_energy_rates_starting_between_first_and_second_maximum(upcoming_energy_rates)
+        )
+        minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
+            energy_rates_starting_at_first_maximum_and_ending_at_second_maximum
+        )
 
         return minimum_of_energy_rates.timestamp
 
@@ -91,6 +78,8 @@ class TibberAPIHandler(LoggerMixin):
             }
         """
         )
+        # Note: Sometimes we only get the prices for today from the tibber api and the prices for tomorrow stay empty
+        # I guess they are not determined yet...?
         self.log.debug("Crawling the Tibber API for the electricity prices")
         response = self.client.execute(query)
         self.log.trace(f"Retrieved data: {response}")
@@ -135,21 +124,42 @@ class TibberAPIHandler(LoggerMixin):
         upcoming_energy_rates = [
             energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > beginning_of_current_hour
         ]
-        self.log.trace(f"Removed the energy rates from the past. Upcoming energy rates are {upcoming_energy_rates}")
+        self.log.debug(f"The Upcoming energy rates are {upcoming_energy_rates}")
         return upcoming_energy_rates
 
-    def _get_energy_rates_till_first_maximum(self, upcoming_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
+    def _get_energy_rates_starting_between_first_and_second_maximum(
+        self, upcoming_energy_rates: list[EnergyRate]
+    ) -> list[EnergyRate]:
         """
-        Extracts energy rates up until the first maximum is reached from a sequence of upcoming energy rates.
-        It iterates through the provided energy rates, appending each rate to a list until a rate lower than the last
-        maximum rate is found, indicating the first peak is reached.
+        Returns a list of the upcoming energy rates starting from the first maximum rate (excluding the rates leading up
+        to the first maximum) and ending at the second minimum rate.
 
         Args:
-            upcoming_energy_rates: A list of consecutive energy rates to be analyzed.
+            upcoming_energy_rates: List of EnergyRate objects representing the upcoming energy rates.
 
         Returns:
-            A list of energy rates up to the first encountered maximum rate.
+            List of EnergyRate objects that start between the first and second maximum energy rates.
         """
+        energy_rates_ending_at_first_maximum = self._find_energy_rates_till_first_maximum(upcoming_energy_rates)
+
+        first_maximum_energy_rate = energy_rates_ending_at_first_maximum.pop()
+        energy_rates_starting_at_first_maximum = upcoming_energy_rates.copy()
+        for energy_rate in energy_rates_ending_at_first_maximum:
+            energy_rates_starting_at_first_maximum.remove(energy_rate)
+
+        self.log.debug(f"Found {first_maximum_energy_rate} to be the first maximum of the upcoming energy rates")
+
+        energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
+            energy_rates_starting_at_first_maximum
+        )
+        self.log.debug(
+            f"Found {energy_rates_between_first_and_second_maximum[-1]} to be the second maximum of the upcoming energy rates"
+        )
+
+        return energy_rates_between_first_and_second_maximum
+
+    @staticmethod
+    def _find_energy_rates_till_first_maximum(upcoming_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
         last_energy_rate = upcoming_energy_rates[0]
         last_energy_rate_was_maximum = False
         energy_rates_till_maximum = []
@@ -163,9 +173,6 @@ class TibberAPIHandler(LoggerMixin):
             energy_rates_till_maximum.append(current_energy_rate)
             last_energy_rate = current_energy_rate
 
-        self.log.debug(
-            f"Found {last_energy_rate} to be the first maximum of the upcoming energy rates ({upcoming_energy_rates})"
-        )
         return energy_rates_till_maximum
 
     def get_global_minimum_of_energy_rates(self, energy_rates_till_maximum: list[EnergyRate]) -> EnergyRate:
@@ -180,6 +187,11 @@ class TibberAPIHandler(LoggerMixin):
         """
         global_minimum_of_energy_rates = min(energy_rates_till_maximum, key=lambda energy_rate: energy_rate.rate)
         self.log.debug(
-            f"Found {global_minimum_of_energy_rates} to be the global minimum of the energy rates till the first maximum ({energy_rates_till_maximum})"
+            f"Found {global_minimum_of_energy_rates} to be the global minimum of the energy rates between the first and second maximum"
         )
         return global_minimum_of_energy_rates
+
+
+if __name__ == "__main__":
+    api_handler = TibberAPIHandler()
+    print(api_handler.get_timestamp_of_next_price_minimum())

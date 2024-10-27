@@ -40,13 +40,13 @@ class InverterChargeController(LoggerMixin):
         Raises:
             SystemExit: If an unexpected error occurs, the program will exit with a status code of 1.
         """
-        first_iteration = False
+        first_iteration = True
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
             try:
                 if first_iteration:
                     first_iteration = False
-                    next_price_minimum = self._do_first_iteration()
+                    next_price_minimum = self.tibber_api_handler.get_timestamp_of_next_price_minimum()
                 else:
                     next_price_minimum = self._do_iteration()
 
@@ -63,27 +63,6 @@ class InverterChargeController(LoggerMixin):
                 self.log.exception(f"An unexpected error occurred: {e}")
                 self.log.critical("Exiting now...")
                 exit(1)
-
-    def _do_first_iteration(self) -> datetime:
-        """
-        This is the first iteration after starting the program.
-        We have to wait for the first price maximum to be able to determine the next price minimum after that maximum.
-        After waiting, we can reliably determine the next price minimum.
-        Wait until then and then start with the normal operation mode.
-
-        If we did not wait for the first price maximum, all prices until then would be interpreted as minima.
-
-        Returns:
-            datetime: The timestamp of the next price minimum after waiting for the first price maximum.
-        """
-        next_price_maximum = self.tibber_api_handler.get_timestamp_of_next_price_maximum()
-        self.log.info(
-            f"The next price maximum is at {next_price_maximum}. Waiting until then to be able to find the next price minimum..."
-        )
-
-        pause.until(next_price_maximum)
-
-        return self.tibber_api_handler.get_timestamp_of_next_price_minimum()
 
     def _do_iteration(self) -> datetime:  # FIXME: Find better name
         """

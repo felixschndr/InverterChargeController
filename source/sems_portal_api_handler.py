@@ -208,6 +208,11 @@ class SemsPortalApiHandler(LoggerMixin):
         factor_energy_usage_during_the_day = float(EnvironmentVariableGetter.get("POWER_USAGE_FACTOR", 0.6))
         factor_energy_usage_during_the_night = 1 - factor_energy_usage_during_the_day
 
+        if not 0 <= factor_energy_usage_during_the_day <= 1:
+            raise ValueError(
+                f'The "POWER_USAGE_FACTOR" has to be between 0 and 1 (actual: {factor_energy_usage_during_the_day})!'
+            )
+
         self.log.debug(f"Getting estimated energy usage between {timestamp_start} and {timestamp_end}")
 
         day_duration, night_duration = self.calculate_day_night_duration(

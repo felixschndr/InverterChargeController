@@ -15,7 +15,7 @@ class SunForecastHandler(LoggerMixin):
         self.forecast_api_url = self._forecast_api_url()
 
     def _forecast_api_url(self) -> str:
-        api_base_url = "https://api.forecast.solar/estimate"
+        api_base_url = "https://api.forecast.solar/estimate/watthours/day"
 
         latitude = EnvironmentVariableGetter.get("LOCATION_LATITUDE")
         longitude = EnvironmentVariableGetter.get("LOCATION_LONGITUDE")
@@ -53,7 +53,7 @@ class SunForecastHandler(LoggerMixin):
 
         data = response.json()
         self.log.trace(f"Retrieved data: {data}")
-        energy_amount = EnergyAmount(watt_hours=data["result"]["watt_hours_day"][self._get_date_as_string()])
+        energy_amount = EnergyAmount(watt_hours=data["result"][self._get_date_as_string()])
         return energy_amount
 
     def _get_debug_solar_output(self) -> EnergyAmount:
@@ -148,3 +148,6 @@ class SunForecastHandler(LoggerMixin):
         )
 
         return sunrise_plus_offset, sunset_minus_offset
+
+
+SunForecastHandler()

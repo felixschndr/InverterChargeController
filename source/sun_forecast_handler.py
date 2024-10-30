@@ -131,6 +131,7 @@ class SunForecastHandler(LoggerMixin):
         sun = SunTimes(
             float(EnvironmentVariableGetter.get("LOCATION_LONGITUDE")),
             float(EnvironmentVariableGetter.get("LOCATION_LATITUDE")),
+            int(EnvironmentVariableGetter.get("LOCATION_HEIGHT", 0)),
         )
 
         sunrise = sun.riselocal(date)

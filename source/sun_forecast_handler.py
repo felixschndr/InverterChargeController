@@ -9,27 +9,10 @@ from time_handler import TimeHandler
 
 
 class SunForecastHandler(LoggerMixin):
+    API_BASE_URL = "https://api.forecast.solar/estimate/watthours/day"
+
     def __init__(self):
         super().__init__()
-
-        self.forecast_api_url = self._forecast_api_url()
-
-    def _forecast_api_url(self) -> str:
-        api_base_url = "https://api.forecast.solar/estimate/watthours/day"
-
-        latitude = EnvironmentVariableGetter.get("LOCATION_LATITUDE")
-        longitude = EnvironmentVariableGetter.get("LOCATION_LONGITUDE")
-        plane_declination = EnvironmentVariableGetter.get("LOCATION_PLANE_DECLINATION")
-        plane_azimuth = EnvironmentVariableGetter.get("LOCATION_PLANE_AZIMUTH")
-        number_of_panels = int(EnvironmentVariableGetter.get("NUMBER_OF_PANELS"))
-        maximum_output_of_panel_in_watts = int(EnvironmentVariableGetter.get("MAXIMUM_POWER_OUTPUT_PER_PANEL"))
-
-        maximum_output_of_all_panels_in_kw = number_of_panels * maximum_output_of_panel_in_watts / 1000
-
-        url = f"{api_base_url}/{latitude}/{longitude}/{plane_declination}/{plane_azimuth}/{maximum_output_of_all_panels_in_kw}"
-        self.log.trace(f'Set API URL to "{url}"')
-
-        return url
 
     @staticmethod
     def _get_date_as_string() -> str:
@@ -48,13 +31,33 @@ class SunForecastHandler(LoggerMixin):
         """
         self.log.debug("Getting estimated solar output of today")
 
-        response = requests.get(self.forecast_api_url, timeout=5)
-        response.raise_for_status()
+        solar_pack_indices = [1]
+        if EnvironmentVariableGetter.get("PANELS_PACK2_INSTALLED", False):
+            solar_pack_indices.append(2)
 
-        data = response.json()
-        self.log.trace(f"Retrieved data: {data}")
-        energy_amount = EnergyAmount(watt_hours=data["result"][self._get_date_as_string()])
-        return energy_amount
+        total_solar_forecast = EnergyAmount(0)
+        latitude = EnvironmentVariableGetter.get("LOCATION_LATITUDE")
+        longitude = EnvironmentVariableGetter.get("LOCATION_LONGITUDE")
+        for index in solar_pack_indices:
+            plane_declination = EnvironmentVariableGetter.get(f"PANELS_PACK{index}_PLANE_DECLINATION")
+            plane_azimuth = EnvironmentVariableGetter.get(f"PANELS_PACK{index}_PLANE_AZIMUTH")
+            number_of_panels = int(EnvironmentVariableGetter.get(f"PANELS_PACK{index}_NUMBER_OF_PANELS"))
+            maximum_output_of_panel_in_watts = int(
+                EnvironmentVariableGetter.get(f"PANELS_PACK{index}_MAXIMUM_POWER_OUTPUT_PER_PANEL")
+            )
+            maximum_output_of_all_panels_in_kw = number_of_panels * maximum_output_of_panel_in_watts / 1000
+            url = f"{self.API_BASE_URL}/{latitude}/{longitude}/{plane_declination}/{plane_azimuth}/{maximum_output_of_all_panels_in_kw}"
+            self.log.trace(f'Set API URL to "{url}"')
+
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+
+            data = response.json()
+            self.log.trace(f"Retrieved data: {data}")
+
+            total_solar_forecast += data["result"][self._get_date_as_string()]
+
+        return total_solar_forecast
 
     def _get_debug_solar_output(self) -> EnergyAmount:
         """
@@ -148,6 +151,3 @@ class SunForecastHandler(LoggerMixin):
         )
 
         return sunrise_plus_offset, sunset_minus_offset
-
-
-SunForecastHandler()

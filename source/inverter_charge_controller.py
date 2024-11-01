@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import pause
 from aiohttp import ClientError
 from dateutil import tz
-from energy_amount import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode
 from inverter import Inverter
@@ -139,7 +138,7 @@ class InverterChargeController(LoggerMixin):
             self.log.info(f"There is {excess_energy} of excess energy, thus there is no need to charge")
             return next_price_minimum
 
-        missing_energy = EnergyAmount(excess_energy.watt_hours * -1)
+        missing_energy = excess_energy * -1
         self.log.info(f"There is a need to charge {missing_energy}")
 
         required_energy_in_battery = current_energy_in_battery + missing_energy

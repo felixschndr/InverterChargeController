@@ -24,7 +24,7 @@ When the current time is a price minimum, the program wakes up and does the foll
 5. Calculate the difference between these values.
 6. Charge the battery (if necessary) such that reaching the next price minimum is possible.
    - This is (as well as the main loop) is done in the [InverterChargeController](source/inverter_charge_controller.py).
-   - If charging is necessary, the code calculates the target state of charge, sets the inverter controller accordingly and checks the battery status every 10 minutes.
+   - If charging is necessary, the code calculates the target state of charge, sets the inverter controller accordingly and checks the battery status every 5 minutes.
    - If no charging is needed, the program will do nothing.
    - Afterwards, the program will go back to sleep until the next price minimum.
 

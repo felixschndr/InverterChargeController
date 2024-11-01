@@ -163,7 +163,7 @@ class InverterChargeController(LoggerMixin):
         Args:
             target_state_of_charge: The desired state of charge percentage to reach before stopping the charging process.
         """
-        charging_progress_check_interval = timedelta(minutes=10)
+        charging_progress_check_interval = timedelta(minutes=5)
         dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
         energy_buy_of_today_before_charging = self.sems_portal_api_handler.get_energy_buy_of_today()

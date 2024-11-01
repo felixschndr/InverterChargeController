@@ -189,9 +189,7 @@ class InverterChargeController(LoggerMixin):
                 current_state_of_charge = target_state_of_charge
 
             if current_state_of_charge >= target_state_of_charge:
-                self.log.info(
-                    f"Charging finished ({current_state_of_charge}%) --> Setting the inverter back to normal mode"
-                )
+                self.log.info("Charging finished --> Setting the inverter back to normal mode")
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
 

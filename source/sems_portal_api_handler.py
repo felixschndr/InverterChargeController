@@ -140,7 +140,7 @@ class SemsPortalApiHandler(LoggerMixin):
         Returns:
             EnergyAmount: The amount of energy bought today.
         """
-        self.log.info("Determining amount of energy bought today")
+        self.log.debug("Determining the amount of energy bought today")
 
         self.login()
 

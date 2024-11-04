@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import pause
+from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
 from dateutil import tz
 from environment_variable_getter import EnvironmentVariableGetter
@@ -25,6 +26,7 @@ class InverterChargeController(LoggerMixin):
         self.sun_forecast_handler = SunForecastHandler()
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
+        self.absence_handler = AbsenceHandler(self.timezone)
 
     def start(self) -> None:
         """
@@ -93,9 +95,20 @@ class InverterChargeController(LoggerMixin):
             f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
         )
 
-        expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.get_energy_usage_in_timeframe(
-            timestamp_now, next_price_minimum
-        )
+        if self.absence_handler.check_for_current_absence():
+            self.log.info(
+                "Currently there is an absence, using the power consumption configured in the environment as the basis for calculation"
+            )
+            expected_energy_usage_till_next_minimum = self.absence_handler.calculate_power_usage_for_absence(
+                timestamp_now, next_price_minimum
+            )
+        else:
+            self.log.info(
+                "Currently there is no absence, using last week's power consumption data as the basis for calculation"
+            )
+            expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.get_energy_usage_in_timeframe(
+                timestamp_now, next_price_minimum
+            )
         self.log.info(
             f"The total expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum}"
         )

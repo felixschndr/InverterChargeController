@@ -46,23 +46,27 @@ class LoggerMixin:
         environment = EnvironmentVariableGetter.get("ENVIRONMENT", "")
         environment = f"_{environment}" if environment else ""
 
-        handler = RotatingFileHandler(
-            os.path.join(directory_of_logs, f"app{environment}.log"),
-            maxBytes=1024 * 1024,
-            backupCount=7,
-        )
-        handler.setLevel(log_level)
-
-        # Write newlines when starting the application for better readability
-        handler.stream.write("\n\n")
-
         formatter = logging.Formatter(
             "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
-        handler.setFormatter(formatter)
 
-        root_logger.addHandler(handler)
+        file_handler = RotatingFileHandler(
+            os.path.join(directory_of_logs, f"app{environment}.log"),
+            maxBytes=1024 * 1024,
+            backupCount=7,
+        )
+
+        # Write newlines when starting the application for better readability
+        file_handler.stream.write("\n\n")
+
+        stdout_handler = logging.StreamHandler()
+
+        for handler in [file_handler, stdout_handler]:
+            handler.setFormatter(formatter)
+            handler.setLevel(log_level)
+            root_logger.addHandler(handler)
+
         root_logger.setLevel(log_level)
 
     @staticmethod

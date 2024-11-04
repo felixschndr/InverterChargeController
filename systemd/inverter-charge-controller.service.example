@@ -6,6 +6,7 @@ Wants=network-online.target
 [Service]
 ExecStart=<path to repository>/.venv/bin/python3.11 <path to repository>/source/main.py # Change here
 User=<user to run program as> # Change here
+StandardOutput=null
 
 [Install]
 WantedBy=default.target

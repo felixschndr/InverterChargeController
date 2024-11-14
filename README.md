@@ -183,7 +183,14 @@ cp systemd/inverter-charge-controller.service.example systemd/inverter-charge-co
 vi systemd/inverter-charge-controller.service
 sudo ln -s <path to repository>/systemd/inverter-charge-controller.service /etc/systemd/system
 sudo systemctl daemon-reload
-sudo systemctl enable --now inverter-charge-controller.service
+```
+
+Once done, you can control the program like any other systemd service:
+- Status: `sudo systemctl status inverter-charge-controller.service`
+- Starting: `sudo systemctl start inverter-charge-controller.service`
+- Stopping: `sudo systemctl stop inverter-charge-controller.service`
+- Restarting: `sudo systemctl restart inverter-charge-controller.service`
+- Enabling to run at boot: `sudo systemctl enable inverter-charge-controller.service`
 ```
 
 ### Logs

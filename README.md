@@ -192,7 +192,11 @@ Once done, you can control the program like any other systemd service:
 - Stopping: `sudo systemctl stop inverter-charge-controller.service`
 - Restarting: `sudo systemctl restart inverter-charge-controller.service`
 - Enabling to run at boot: `sudo systemctl enable inverter-charge-controller.service`
-```
+
+
+## Extra script
+
+You can use the [inverter script](./inverter) to control the inverter manually over the command line. It supports getting the current state of charge and operation mode and setting the operation mode.
 
 ### Logs
 

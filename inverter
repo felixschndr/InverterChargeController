@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+source "${SCRIPT_DIR}"/.venv/bin/activate
+cd "${SCRIPT_DIR}"/source || exit 1
+
+read -r -d '' setup_code <<'EOF'
+from goodwe.et import OperationMode
+from inverter import Inverter
+
+inverter = Inverter()
+EOF
+
+
+if [[ ! ${1} =~ ^(--status|--mode)$ ]]; then
+	echo "This script allows you to interact with the inverter."
+	echo ""
+	echo "You have to supply one of the following arguments:"
+	echo " --status                    Get the current state of charge and operation mode of the inverter"
+	echo " --mode {GENERAL,ECO_CHARGE} Set the operation mode of the inverter"
+	echo ""
+	echo "It uses the hostname defined in the .env file"
+	exit 1
+fi
+
+if [[ ${1} == "--status" ]]; then
+	python3 - << EOF
+${setup_code}
+mode = inverter.get_operation_mode().name
+soc = inverter.get_state_of_charge()
+print(f"SoC: {soc} %\nmode: {mode}")
+EOF
+fi
+
+if [[ ${1} == "--mode" ]]; then
+	if [[ ! ${2} =~ ^(GENERAL|ECO_CHARGE)$ ]]; then
+		echo "Unsupported mode, valid modes are \"GENERAL\" and \"ECO_CHARGE\""
+		exit 1
+	fi
+
+	python3 - << EOF
+${setup_code}
+last_mode = inverter.get_operation_mode().name
+inverter.set_operation_mode(OperationMode.${2})
+print(f"last mode: {last_mode}\nnew mode: ${2}")
+EOF
+fi

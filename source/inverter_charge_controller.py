@@ -191,6 +191,12 @@ class InverterChargeController(LoggerMixin):
         while True:
             pause.seconds(charging_progress_check_interval.total_seconds())
 
+            if self.inverter.get_operation_mode() != OperationMode.ECO_CHARGE:
+                self.log.warning(
+                    "The operation mode of the inverter changed from the user --> Stopping the charging progress"
+                )
+                break
+
             current_state_of_charge = self.inverter.get_state_of_charge()
             self.log.info(f"The current state of charge is {current_state_of_charge}%")
 

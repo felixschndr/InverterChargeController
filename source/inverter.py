@@ -45,7 +45,7 @@ class Inverter(LoggerMixin):
 
         self.log.debug("Getting current operation mode...")
         operation_mode = asyncio.run(self.device.get_operation_mode())
-        self.log.info(f"Current Operation mode is {operation_mode.name}")
+        self.log.info(f"The current Operation mode is {operation_mode.name}")
         return operation_mode
 
     def set_operation_mode(self, mode: OperationMode) -> None:

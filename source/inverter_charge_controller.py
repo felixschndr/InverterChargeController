@@ -113,7 +113,7 @@ class InverterChargeController(LoggerMixin):
             f"The total expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum}"
         )
 
-        current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
+        current_state_of_charge = self.inverter.get_state_of_charge()
         current_energy_in_battery = self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(
             current_state_of_charge
         )
@@ -191,7 +191,7 @@ class InverterChargeController(LoggerMixin):
         while True:
             pause.seconds(charging_progress_check_interval.total_seconds())
 
-            current_state_of_charge = self.sems_portal_api_handler.get_state_of_charge()
+            current_state_of_charge = self.inverter.get_state_of_charge()
             self.log.info(f"The current state of charge is {current_state_of_charge}%")
 
             if dry_run:

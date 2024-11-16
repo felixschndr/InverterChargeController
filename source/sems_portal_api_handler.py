@@ -150,35 +150,6 @@ class SemsPortalApiHandler(LoggerMixin):
 
         return EnergyAmount.from_kilo_watt_hours(buy_line["xy"][-1]["y"])
 
-    def get_state_of_charge(self) -> int:
-        """
-        Fetches the current state of charge from the SEMSPORTAL API.
-
-        Returns:
-            int: The current state of charge as an integer percentage.
-        """
-        self.log.debug("Crawling the SEMSPORTAL API for current state of charge...")
-
-        self.login()
-
-        url = "https://eu.semsportal.com/api/v3/PowerStation/GetPlantDetailByPowerstationId"
-        headers = {
-            "Content-Type": "application/json",
-            "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
-        }
-        payload = {
-            "powerStationId": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
-        }
-
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
-        response.raise_for_status()
-
-        self.log.trace(f"Retrieved data: {response.json()}")
-
-        state_of_charge = int(response.json()["data"]["soc"][0]["power"])
-
-        return state_of_charge
-
     def get_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
         """
         This method estimates the energy usage between the provided start and end timestamps by considering

@@ -106,3 +106,18 @@ class Inverter(LoggerMixin):
         if state_of_charge > 100:
             return 100
         return state_of_charge
+
+    def get_state_of_charge(self) -> int:
+        """
+        Gets the current state of charge of the device's battery.
+
+        Returns:
+            int: The current state of charge in percentage.
+        """
+        if self.device is None:
+            self.connect()
+
+        self.log.debug("Getting current state of charge...")
+        runtime_data = asyncio.run(self.device.read_runtime_data())
+        state_of_charge = runtime_data["battery_soc"]
+        return state_of_charge

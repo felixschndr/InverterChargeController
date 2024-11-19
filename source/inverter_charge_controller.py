@@ -46,8 +46,8 @@ class InverterChargeController(LoggerMixin):
         while True:
             try:
                 if first_iteration:
+                    next_price_minimum = self.tibber_api_handler.get_timestamp_of_next_price_minimum(first_iteration)
                     first_iteration = False
-                    next_price_minimum = self.tibber_api_handler.get_timestamp_of_next_price_minimum()
                 else:
                     next_price_minimum = self._do_iteration()
 

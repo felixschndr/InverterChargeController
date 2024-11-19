@@ -68,3 +68,9 @@ class EnergyRate:
 
     def __repr__(self):
         return f"{self.rate} € at {self.timestamp}"
+
+    def __lt__(self, other: EnergyRate) -> bool:
+        return self.rate < other.rate
+
+    def __gt__(self, other: EnergyRate) -> bool:
+        return self.rate > other.rate

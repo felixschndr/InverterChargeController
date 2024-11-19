@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pause
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
 from dateutil import tz
+from energy_amount import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode
 from inverter import Inverter
@@ -179,8 +180,9 @@ class InverterChargeController(LoggerMixin):
         charging_progress_check_interval = timedelta(minutes=5)
         dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
-        energy_buy_of_today_before_charging = self.sems_portal_api_handler.get_energy_buy_of_today()
-        self.log.debug(f"The amount of energy bought before charging is {energy_buy_of_today_before_charging}")
+        energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
+        date_starting_to_charge = date.today()
+        self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
@@ -217,9 +219,24 @@ class InverterChargeController(LoggerMixin):
                 f"Charging is still ongoing (current: {current_state_of_charge} %, target: >= {target_state_of_charge} %) --> Waiting for another {charging_progress_check_interval}..."
             )
 
-        energy_buy_of_today_after_charging = self.sems_portal_api_handler.get_energy_buy_of_today()
-        self.log.debug(f"The amount of energy bought after charging is {energy_buy_of_today_after_charging}")
+        energy_bought = self._calculate_amount_of_energy_bought(energy_bought_before_charging, date_starting_to_charge)
+        self.log.info(f"Bought {energy_bought} to charge the battery")
 
-        self.log.info(
-            f"Bought {energy_buy_of_today_after_charging - energy_buy_of_today_before_charging} to charge the battery"
+    def _calculate_amount_of_energy_bought(
+        self, energy_bought_before_charging: EnergyAmount, date_starting_to_charge: date
+    ) -> EnergyAmount:
+        date_ending_to_charge = date.today()
+
+        if date_starting_to_charge == date_ending_to_charge:
+            energy_bought_today_after_charging = self.sems_portal_api_handler.get_energy_buy()
+            self.log.debug(
+                f"It is till the same day since starting to charge, the amount of energy bought after charging is {energy_bought_today_after_charging}"
+            )
+            return energy_bought_today_after_charging - energy_bought_before_charging
+
+        energy_bought_today_after_charging = self.sems_portal_api_handler.get_energy_buy()
+        energy_bought_yesterday = self.sems_portal_api_handler.get_energy_buy(1) - energy_bought_before_charging
+        self.log.debug(
+            f"It is the next day since starting to charge, the amount of energy bought after charging (today) is {energy_bought_today_after_charging}, the amount of energy bought after charging (yesterday) is {energy_bought_yesterday}"
         )
+        return energy_bought_today_after_charging + energy_bought_yesterday

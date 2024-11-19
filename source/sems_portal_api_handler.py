@@ -131,12 +131,19 @@ class SemsPortalApiHandler(LoggerMixin):
 
         return last_weeks_energy_usage
 
-    def get_energy_buy_of_today(self) -> EnergyAmount:
+    def get_energy_buy(self, days_in_past: int = 0) -> EnergyAmount:
         """
-        Crawls the SEMSPORTAL API for the amount of energy bought today until this point in time.
+        Determines the amount of energy bought for a specified day in the past.
+
+        The argument days_in_past specifies how many days to look for in the past. E.g.,
+         - days_in_past = 0 --> energy bought today until this point in time
+         - days_in_past = 1 --> energy bought yesterday
+
+        Args:
+            days_in_past: The number of days in the past to retrieve data for. Default is 0, which means today.
 
         Returns:
-            EnergyAmount: The amount of energy bought today.
+            An instance of EnergyAmount representing the energy bought.
         """
         self.log.debug("Determining the amount of energy bought today")
 
@@ -146,7 +153,7 @@ class SemsPortalApiHandler(LoggerMixin):
         lines = api_response["data"]["lines"]
         buy_line = [line for line in lines if "buy" in line["label"].lower()][0]
 
-        return EnergyAmount.from_kilo_watt_hours(buy_line["xy"][-1]["y"])
+        return EnergyAmount.from_kilo_watt_hours(buy_line["xy"][-1 - days_in_past]["y"])
 
     def estimate_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
         """

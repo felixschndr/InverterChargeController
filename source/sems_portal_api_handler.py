@@ -1,22 +1,20 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 
 import requests
-from dateutil.tz import tzfile
 from energy_amount import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
+from time_handler import TimeHandler
 
 
 class SemsPortalApiHandler(LoggerMixin):
-    def __init__(self, timezone: tzfile):
+    def __init__(self):
         super().__init__()
 
         self.api_url = None
         self.token = None
         self.timestamp = None
         self.user_id = None
-
-        self.timezone = timezone
 
     def login(self) -> None:
         """
@@ -44,7 +42,7 @@ class SemsPortalApiHandler(LoggerMixin):
         response = response.json()
 
         if response["code"] != 0:
-            # The API always return a 200 status code, even if something went wrong
+            # The API always returns a 200 status code, even if something went wrong
             raise RuntimeError(
                 f"There was a problem logging in into the SEMSPortal: {response['msg']} (Code: {response['code']})"
             )
@@ -150,7 +148,7 @@ class SemsPortalApiHandler(LoggerMixin):
 
         return EnergyAmount.from_kilo_watt_hours(buy_line["xy"][-1]["y"])
 
-    def get_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
+    def estimate_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
         """
         This method estimates the energy usage between the provided start and end timestamps by considering
         different energy consumption rates during the day and night. The day is defined as starting at 6:00 AM
@@ -186,8 +184,11 @@ class SemsPortalApiHandler(LoggerMixin):
 
         self.log.debug(f"Getting estimated energy usage between {timestamp_start} and {timestamp_end}")
 
-        day_duration, night_duration = self.calculate_day_night_duration(
+        day_duration, night_duration = TimeHandler.calculate_day_night_duration(
             timestamp_start, timestamp_end, day_start, night_start
+        )
+        self.log.debug(
+            f"The time between the given timeframe is split across {day_duration} of daytime and {night_duration} of nighttime"
         )
 
         energy_usage_of_today = self.get_average_energy_consumption_per_day()
@@ -207,71 +208,3 @@ class SemsPortalApiHandler(LoggerMixin):
         )
 
         return energy_usage_during_the_day + energy_usage_during_the_night
-
-    def calculate_day_night_duration(
-        self,
-        timestamp_start: datetime,
-        timestamp_end: datetime,
-        day_start: time,
-        night_start: time,
-    ) -> tuple[timedelta, timedelta]:
-        """
-        Calculates the total duration of daytime and nighttime within a given timeframe.
-
-        This method divides the timeframe between `timestamp_start` and `timestamp_end` into daytime and nighttime
-        based on the provided day and night start times.
-
-        Example:
-            timestamp_start=04:00 AM
-            timestamp_end=10:00 PM
-            day_start=06:00 AM
-            night_start=06:00 PM
-
-            duration of daytime = 12 hours
-            duration of nighttime = 2 hours + 4 hours = 6 hours
-
-        Args:
-            timestamp_start: The starting timestamp of the timeframe to be analyzed.
-            timestamp_end: The ending timestamp of the timeframe to be analyzed.
-            day_start: The time of day when daytime begins.
-            night_start: The time of day when nighttime begins.
-
-        Returns:
-            A tuple containing the total duration of daytime and the total duration of nighttime.
-        """
-        duration_day = timedelta(seconds=0)
-        duration_night = timedelta(seconds=0)
-
-        current_time = timestamp_start
-
-        while current_time < timestamp_end:
-            self.log.trace(f"current_time is {current_time}")
-            # Calculate day and night start timestamp depending on the current time
-            day_start_time = datetime.combine(current_time.date(), day_start, tzinfo=self.timezone)
-            night_start_time = datetime.combine(current_time.date(), night_start, tzinfo=self.timezone)
-            next_day_start_time = day_start_time + timedelta(days=1)
-
-            if current_time < day_start_time or current_time >= night_start_time:
-                # Duration of the night
-                if current_time < day_start_time:
-                    night_end = min(day_start_time, timestamp_end)
-                else:
-                    night_end = min(next_day_start_time, timestamp_end)
-                slot_duration = night_end - current_time
-                duration_night += slot_duration
-                self.log.trace(f"Adding {slot_duration} to the night duration (now: {duration_night}")
-                current_time = night_end
-
-            else:
-                # Duration of the day
-                day_end = min(night_start_time, timestamp_end)
-                slot_duration = day_end - current_time
-                duration_day += slot_duration
-                self.log.trace(f"Adding {slot_duration} to the day duration (now: {duration_day}")
-                current_time = day_end
-
-        self.log.debug(
-            f"The time between the given timeframe is split across {duration_day} of daytime and {duration_night} of nighttime"
-        )
-
-        return duration_day, duration_night

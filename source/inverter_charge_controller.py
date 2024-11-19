@@ -20,13 +20,13 @@ class InverterChargeController(LoggerMixin):
 
         self.log.info("Starting application")
 
-        self.timezone = tz.gettz(EnvironmentVariableGetter.get("TIMEZONE"))
+        self.timezone = tz.gettz()
 
-        self.sems_portal_api_handler = SemsPortalApiHandler(self.timezone)
+        self.sems_portal_api_handler = SemsPortalApiHandler()
         self.sun_forecast_handler = SunForecastHandler()
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
-        self.absence_handler = AbsenceHandler(self.timezone)
+        self.absence_handler = AbsenceHandler()
 
     def start(self) -> None:
         """
@@ -70,11 +70,12 @@ class InverterChargeController(LoggerMixin):
         Computes the optimal charging strategy for an inverter until the next price minimum.
 
         This method performs several key tasks to determine if and how much the inverter needs to be charged:
-        - Retrieves the current timestamp and the next price minimum.
-        - Estimates the solar power output and energy usage until the next price minimum.
-        - Calculates the current energy stored in the battery based on its state of charge.
-        - Compares the current and expected future state with the target minimum state of charge to determine if additional charging is necessary.
-        - Initiates charging if required.
+         - Retrieves the current timestamp and the next price minimum.
+         - Estimates the solar power output and energy usage until the next price minimum.
+         - Calculates the current energy stored in the battery based on its state of charge.
+         - Compares the current and expected future state with the target minimum state of charge to determine if
+           additional charging is necessary.
+         - Initiates charging if required.
 
         Returns:
             datetime: The timestamp of the next price minimum.
@@ -106,7 +107,7 @@ class InverterChargeController(LoggerMixin):
             self.log.info(
                 "Currently there is no absence, using last week's power consumption data as the basis for calculation"
             )
-            expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.get_energy_usage_in_timeframe(
+            expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.estimate_energy_usage_in_timeframe(
                 timestamp_now, next_price_minimum
             )
         self.log.info(

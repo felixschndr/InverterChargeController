@@ -2,15 +2,13 @@ import signal
 import sys
 from types import FrameType
 
-from dateutil.tz import tz
-from environment_variable_getter import EnvironmentVariableGetter
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
 from sun_forecast_handler import SunForecastHandler
 
 
 def log_solar_forecast(log_as_review: bool = False) -> None:
-    sun_forecast_handler = SunForecastHandler(tz.gettz(EnvironmentVariableGetter.get("TIMEZONE")))
+    sun_forecast_handler = SunForecastHandler()
 
     solar_output_today = sun_forecast_handler.get_expected_solar_output_of_today()
     if log_as_review:

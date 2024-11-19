@@ -199,21 +199,22 @@ class InverterChargeController(LoggerMixin):
                 break
 
             current_state_of_charge = self.inverter.get_state_of_charge()
-            self.log.info(f"The current state of charge is {current_state_of_charge}%")
 
             if dry_run:
                 self.log.debug(
-                    f"Assuming state of charge is {target_state_of_charge}% (actually it is {current_state_of_charge}%) since dry run is enabled"
+                    f"Assuming state of charge is {target_state_of_charge} % (actually it is {current_state_of_charge} %) since dry run is enabled"
                 )
                 current_state_of_charge = target_state_of_charge
 
             if current_state_of_charge >= target_state_of_charge:
-                self.log.info("Charging finished --> Setting the inverter back to normal mode")
+                self.log.info(
+                    f"Charging finished {current_state_of_charge} %--> Setting the inverter back to normal mode"
+                )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
 
             self.log.debug(
-                f"Charging is still ongoing (current: {current_state_of_charge}%, target: >= {target_state_of_charge}%) --> Waiting for another {charging_progress_check_interval}..."
+                f"Charging is still ongoing (current: {current_state_of_charge} %, target: >= {target_state_of_charge} %) --> Waiting for another {charging_progress_check_interval}..."
             )
 
         energy_buy_of_today_after_charging = self.sems_portal_api_handler.get_energy_buy_of_today()

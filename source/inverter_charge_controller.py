@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pause
 from abscence_handler import AbsenceHandler
@@ -164,8 +164,22 @@ class InverterChargeController(LoggerMixin):
             f"Need to charge to {required_state_of_charge} % in order to reach the next minimum with {target_min_state_of_charge} % left"
         )
 
+        energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
+        timestamp_starting_to_charge = datetime.now(tz=self.timezone)
+        self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
+
         # TODO: Implement error handling
         self._charge_inverter(required_state_of_charge)
+
+        timestamp_ending_to_charge = datetime.now(tz=self.timezone)
+        energy_bought = self._calculate_amount_of_energy_bought(
+            energy_bought_before_charging, timestamp_starting_to_charge, timestamp_ending_to_charge
+        )
+        self.log.info(f"Bought {energy_bought} to charge the battery")
+
+        self._write_energy_buy_statistics_to_file(
+            timestamp_starting_to_charge, timestamp_ending_to_charge, energy_bought
+        )
 
         return next_price_minimum
 
@@ -179,10 +193,6 @@ class InverterChargeController(LoggerMixin):
         """
         charging_progress_check_interval = timedelta(minutes=5)
         dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
-
-        energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
-        date_starting_to_charge = date.today()
-        self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
@@ -219,15 +229,13 @@ class InverterChargeController(LoggerMixin):
                 f"Charging is still ongoing (current: {current_state_of_charge} %, target: >= {target_state_of_charge} %) --> Waiting for another {charging_progress_check_interval}..."
             )
 
-        energy_bought = self._calculate_amount_of_energy_bought(energy_bought_before_charging, date_starting_to_charge)
-        self.log.info(f"Bought {energy_bought} to charge the battery")
-
     def _calculate_amount_of_energy_bought(
-        self, energy_bought_before_charging: EnergyAmount, date_starting_to_charge: date
+        self,
+        energy_bought_before_charging: EnergyAmount,
+        timestamp_starting_to_charge: datetime,
+        timestamp_ending_to_charge: datetime,
     ) -> EnergyAmount:
-        date_ending_to_charge = date.today()
-
-        if date_starting_to_charge == date_ending_to_charge:
+        if timestamp_starting_to_charge.date() == timestamp_ending_to_charge.date():
             energy_bought_today_after_charging = self.sems_portal_api_handler.get_energy_buy()
             self.log.debug(
                 f"It is till the same day since starting to charge, the amount of energy bought after charging is {energy_bought_today_after_charging}"
@@ -240,3 +248,12 @@ class InverterChargeController(LoggerMixin):
             f"It is the next day since starting to charge, the amount of energy bought after charging (today) is {energy_bought_today_after_charging}, the amount of energy bought after charging (yesterday) is {energy_bought_yesterday}"
         )
         return energy_bought_today_after_charging + energy_bought_yesterday
+
+    def _write_energy_buy_statistics_to_file(
+        self, timestamp_starting_to_charge: datetime, timestamp_ending_to_charge: datetime, energy_bought: EnergyAmount
+    ) -> None:
+        filename = super().directory_of_logs + "/energy_buy_prod.log"
+        with open(filename, "a") as f:
+            f.write(
+                f"{timestamp_starting_to_charge.isoformat()}\t{timestamp_ending_to_charge.isoformat()}\t{energy_bought.watt_hours}\n"
+            )

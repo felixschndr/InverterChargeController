@@ -36,11 +36,11 @@ class LoggerMixin:
         directory_of_repository = pathlib.Path(__file__).parent.parent.resolve()
         directory_of_logs_default_value = os.path.join(directory_of_repository, "logs")
 
-        directory_of_logs = EnvironmentVariableGetter.get(
+        self._directory_of_logs = EnvironmentVariableGetter.get(
             name_of_variable="DIRECTORY_OF_LOGS",
             default_value=directory_of_logs_default_value,
         )
-        self._create_logging_directory_if_necessary(directory_of_logs)
+        self._create_logging_directory_if_necessary(self._directory_of_logs)
 
         log_level = EnvironmentVariableGetter.get(name_of_variable="LOGLEVEL", default_value="INFO").upper()
         environment = EnvironmentVariableGetter.get("ENVIRONMENT", "")
@@ -52,7 +52,7 @@ class LoggerMixin:
         )
 
         file_handler = RotatingFileHandler(
-            os.path.join(directory_of_logs, f"app{environment}.log"),
+            os.path.join(self._directory_of_logs, f"app{environment}.log"),
             maxBytes=1024 * 1024,
             backupCount=7,
         )
@@ -116,3 +116,7 @@ class LoggerMixin:
             amount_of_newlines: Number of newline characters to write. Default is 2.
         """
         self.log.parent.handlers[0].stream.write("".join("\n" for _ in range(amount_of_newlines)))
+
+    @property
+    def directory_of_logs(self) -> str:
+        return self._directory_of_logs

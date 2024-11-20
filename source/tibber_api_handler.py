@@ -54,9 +54,20 @@ class TibberAPIHandler(LoggerMixin):
         api_result = self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
         upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
-        energy_rates_between_first_and_second_maximum = self._get_energy_rates_between_first_and_second_maximum(
-            upcoming_energy_rates, first_iteration
-        )
+        if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
+            upcoming_energy_rates
+        ):
+            self.log.info(
+                "This is the first time finding the minimum prices and the prices are currently on a decline. "
+                + "Thus the next price minimum is considered (instead of the one after the first maximum)."
+            )
+            energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
+                upcoming_energy_rates
+            )
+        else:
+            energy_rates_between_first_and_second_maximum = self._get_energy_rates_between_first_and_second_maximum(
+                upcoming_energy_rates, first_iteration
+            )
         minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
             energy_rates_between_first_and_second_maximum
         )
@@ -68,6 +79,25 @@ class TibberAPIHandler(LoggerMixin):
         )
 
         return minimum_of_energy_rates.timestamp, minimum_has_to_be_rechecked
+
+    @staticmethod
+    def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:
+        """
+        Args:
+            all_upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
+
+        Returns:
+            bool: True if the average of the second, third, and fourth rates is higher than the first rate.
+        """
+        future_energy_rates_to_consider = 3
+        if len(all_upcoming_energy_rates) < future_energy_rates_to_consider + 1:
+            return False  # Not enough data to compare, should never happen
+
+        considered_upcoming_energy_rates = all_upcoming_energy_rates[1 : future_energy_rates_to_consider + 1]
+        average_of_considered_upcoming_energy_rates = sum(
+            energy_rate.rate for energy_rate in considered_upcoming_energy_rates
+        ) / len(considered_upcoming_energy_rates)
+        return average_of_considered_upcoming_energy_rates > all_upcoming_energy_rates[0].rate
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
         """
@@ -206,6 +236,17 @@ class TibberAPIHandler(LoggerMixin):
 
         return energy_rates_till_maximum
 
+    def determine_if_average_of_next_few_prices_higher(self, upcoming_energy_rates: list[EnergyRate]) -> bool:
+        """
+        Determines whether the average of the 2nd and 3rd energy rates is higher than the first one.
+
+        Args:
+            upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
+
+        Returns:
+            bool: True if the average of the 2nd and 3rd rates is higher than the 1st rate, otherwise False.
+        """
+
     def get_global_minimum_of_energy_rates(self, energy_rates_till_maximum: list[EnergyRate]) -> EnergyRate:
         """
         Determines the global minimum energy rate from a list of energy rates (in this case up until the first maximum).
@@ -260,10 +301,3 @@ class TibberAPIHandler(LoggerMixin):
         self.log.trace(f"The price rates for tomorrow are unavailable: {are_tomorrows_rates_unavailable}")
 
         return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable
-
-
-if __name__ == "__main__":
-    api_handler = TibberAPIHandler()
-    timestamp, minimum_has_to_be_rechecked = api_handler.get_timestamp_of_next_price_minimum(first_iteration=True)
-    print(f"The timestamp of the next minimum energy rate is {timestamp}")
-    print(f"The minimum has to be re-checked: {minimum_has_to_be_rechecked}")

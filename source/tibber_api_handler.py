@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from dateutil import tz
 from energy_amount import EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
@@ -18,7 +19,7 @@ class TibberAPIHandler(LoggerMixin):
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
         self.maximum_threshold = 0.03  # in €
 
-    def get_timestamp_of_next_price_minimum(self, first_iteration: bool = False) -> datetime:
+    def get_timestamp_of_next_price_minimum(self, first_iteration: bool = False) -> tuple[datetime, bool]:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
@@ -46,6 +47,8 @@ class TibberAPIHandler(LoggerMixin):
 
         Returns:
             datetime: The timestamp of the next minimum energy rate.
+            minimum_has_to_be_rechecked: Whether the price minimum has to be re-checked since not all the prices were
+                available yet.
         """
         self.log.debug("Finding the price minimum...")
         api_result = self._fetch_upcoming_prices_from_api()
@@ -58,7 +61,13 @@ class TibberAPIHandler(LoggerMixin):
             energy_rates_between_first_and_second_maximum
         )
 
-        return minimum_of_energy_rates.timestamp
+        minimum_has_to_be_rechecked = (
+            self._check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
+                minimum_of_energy_rates, upcoming_energy_rates
+            )
+        )
+
+        return minimum_of_energy_rates.timestamp, minimum_has_to_be_rechecked
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
         """
@@ -212,3 +221,48 @@ class TibberAPIHandler(LoggerMixin):
             f"Found {global_minimum_of_energy_rates} to be the global minimum of the energy rates between the first and second maximum"
         )
         return global_minimum_of_energy_rates
+
+    def _check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
+        self, price_minimum: EnergyRate, upcoming_energy_rates: list[EnergyRate]
+    ) -> bool:
+        """
+        This method determines whether the timestamp of the `price_minimum` falls within the last 3 hours of the current
+        day and checks if there are no energy rates available for the subsequent day.
+        This is done since the price rates of the next day are only available after ~ 02:00 PM. If the price rates of
+        the next day are unavailable while determining the price minimum, it is likely that the price minimum is just
+        the last rate of the day but not actually the minimum.
+        In this case we have to check in later (after ~ 02:00 PM) to re-request the prices from the Tibber API to get
+        the values of the next day.
+
+        Args:
+            price_minimum (EnergyRate): The energy rate with the minimum price.
+            upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
+
+        Returns:
+            bool: True if the price minimum is in the last 3 hours of the current day and there are no rates for
+                the next day, otherwise False.
+        """
+
+        # We use 00:01 instead of 00:00 since the software runs just a few (milli)seconds after the start of the hour
+        timezone = tz.gettz()
+        end_of_day = (datetime.now(tz=timezone) + timedelta(days=1)).replace(hour=0, minute=1, second=0, microsecond=0)
+        three_hours_before_end_of_day = end_of_day - timedelta(hours=3)
+
+        is_price_minimum_near_end_of_day = price_minimum.timestamp >= three_hours_before_end_of_day
+        self.log.trace(
+            f"The price minimum {price_minimum.timestamp} is at the end of the day: {is_price_minimum_near_end_of_day}"
+        )
+
+        are_tomorrows_rates_unavailable = all(
+            rate.timestamp.date() == price_minimum.timestamp.date() for rate in upcoming_energy_rates
+        )
+        self.log.trace(f"The price rates for tomorrow are unavailable: {are_tomorrows_rates_unavailable}")
+
+        return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable
+
+
+if __name__ == "__main__":
+    api_handler = TibberAPIHandler()
+    timestamp, minimum_has_to_be_rechecked = api_handler.get_timestamp_of_next_price_minimum(first_iteration=True)
+    print(f"The timestamp of the next minimum energy rate is {timestamp}")
+    print(f"The minimum has to be re-checked: {minimum_has_to_be_rechecked}")

@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import pause
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
-from dateutil import tz
 from energy_amount import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode
@@ -13,6 +12,7 @@ from requests.exceptions import RequestException
 from sems_portal_api_handler import SemsPortalApiHandler
 from sun_forecast_handler import SunForecastHandler
 from tibber_api_handler import TibberAPIHandler
+from time_handler import TimeHandler
 
 
 class InverterChargeController(LoggerMixin):
@@ -21,8 +21,7 @@ class InverterChargeController(LoggerMixin):
 
         self.log.info("Starting application")
 
-        self.timezone = tz.gettz()
-
+        self.timezone = TimeHandler.get_timezone()
         self.sems_portal_api_handler = SemsPortalApiHandler()
         self.sun_forecast_handler = SunForecastHandler()
         self.inverter = Inverter()

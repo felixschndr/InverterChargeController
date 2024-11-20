@@ -1,6 +1,6 @@
 from datetime import datetime, time, timedelta
 
-from dateutil.tz import tz
+from dateutil.tz import tz, tzfile
 
 
 class TimeHandler:
@@ -63,7 +63,7 @@ class TimeHandler:
         duration_day = timedelta(seconds=0)
         duration_night = timedelta(seconds=0)
 
-        timezone = tz.gettz()
+        timezone = TimeHandler.get_timezone()
 
         current_time = timestamp_start
 
@@ -91,3 +91,7 @@ class TimeHandler:
                 current_time = day_end
 
         return duration_day, duration_night
+
+    @staticmethod
+    def get_timezone() -> tzfile:
+        return tz.gettz()

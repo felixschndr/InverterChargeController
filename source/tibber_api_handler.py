@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 
-from dateutil import tz
 from energy_amount import EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 from logger import LoggerMixin
+from time_handler import TimeHandler
 
 
 class TibberAPIHandler(LoggerMixin):
@@ -244,8 +244,9 @@ class TibberAPIHandler(LoggerMixin):
         """
 
         # We use 00:01 instead of 00:00 since the software runs just a few (milli)seconds after the start of the hour
-        timezone = tz.gettz()
-        end_of_day = (datetime.now(tz=timezone) + timedelta(days=1)).replace(hour=0, minute=1, second=0, microsecond=0)
+        end_of_day = (datetime.now(tz=TimeHandler.get_timezone()) + timedelta(days=1)).replace(
+            hour=0, minute=1, second=0, microsecond=0
+        )
         three_hours_before_end_of_day = end_of_day - timedelta(hours=3)
 
         is_price_minimum_near_end_of_day = price_minimum.timestamp >= three_hours_before_end_of_day

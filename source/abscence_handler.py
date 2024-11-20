@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from dateutil.tz import tz
 from energy_amount import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
+from time_handler import TimeHandler
 
 
 class AbsenceHandler(LoggerMixin):
@@ -11,8 +11,6 @@ class AbsenceHandler(LoggerMixin):
 
     def __init__(self):
         super().__init__()
-
-        self.timezone = tz.gettz()
 
     def check_for_current_absence(self) -> bool:
         absence_input = ""
@@ -42,7 +40,7 @@ class AbsenceHandler(LoggerMixin):
             if timestamp.tzinfo is None:
                 raise ValueError(f'"{absence_start_raw}" has no timezone information')
 
-        if absence_start < datetime.now(tz=self.timezone) < absence_end:
+        if absence_start < datetime.now(tz=TimeHandler.get_timezone()) < absence_end:
             return True
 
         return False

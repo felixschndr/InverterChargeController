@@ -2,6 +2,6 @@
 .idea
 **/__pycache__
 .env
-systemd/inverter-charge-controller.service
-systemd/inverter-charge-controller-just-solar-forecast.service
+!systemd/inverter-charge-controller.service
+systemd/inverter-charge-controller*
 logs/

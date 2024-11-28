@@ -55,19 +55,19 @@ class InverterChargeController(LoggerMixin):
                 else:
                     next_price_minimum, minimum_has_to_be_rechecked = self._do_iteration()
 
-                time_to_sleep_to = next_price_minimum
                 if minimum_has_to_be_rechecked:
                     time_to_sleep_to = datetime.now(tz=self.timezone).replace(
                         hour=14, minute=0, second=0, microsecond=0
                     )
                     self.log.info(f"The price minimum has to re-checked at {time_to_sleep_to}. Waiting until then...")
                     pause.until(time_to_sleep_to)
+                    self.log.info("Waking up since the the price minimum has to re-checked")
                     next_price_minimum, _ = self.tibber_api_handler.get_timestamp_of_next_price_minimum(True)
 
                 self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
 
                 self._write_newlines_to_log_file()
-                pause.until(time_to_sleep_to)
+                pause.until(next_price_minimum)
 
             except (ClientError, RequestException) as e:
                 self.log.exception(f"An exception occurred while trying to fetch data from a different system: {e}")

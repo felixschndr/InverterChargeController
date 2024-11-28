@@ -90,7 +90,7 @@ class SunForecastHandler(LoggerMixin):
             The estimated amount of energy generated from solar output within the specified timeframe.
 
         """
-        self.log.debug(f"Getting estimated solar output between {timestamp_start} and {timestamp_end}")
+        self.log.debug(f"Calculating estimated solar output between {timestamp_start} and {timestamp_end}")
 
         sunrise_plus_offset, sunset_minus_offset = self._get_sunset_and_sunrise_with_offset()
         daylight_duration_in_seconds = (sunset_minus_offset - sunrise_plus_offset).total_seconds()

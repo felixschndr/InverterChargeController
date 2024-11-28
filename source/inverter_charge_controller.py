@@ -5,7 +5,7 @@ from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
 from energy_amount import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
-from goodwe import OperationMode
+from goodwe import OperationMode, RequestFailedException
 from inverter import Inverter
 from logger import LoggerMixin
 from requests.exceptions import RequestException
@@ -205,7 +205,6 @@ class InverterChargeController(LoggerMixin):
         timestamp_starting_to_charge = datetime.now(tz=self.timezone)
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
-        # TODO: Implement error handling
         self._charge_inverter(required_state_of_charge)
 
         timestamp_ending_to_charge = datetime.now(tz=self.timezone)
@@ -238,16 +237,32 @@ class InverterChargeController(LoggerMixin):
             f"Set the inverter to charge, the target state of charge is {target_state_of_charge} %. Checking the charging progress every {charging_progress_check_interval}..."
         )
 
+        error_counter = 0
         while True:
-            pause.seconds(charging_progress_check_interval.total_seconds())
-
-            if self.inverter.get_operation_mode() != OperationMode.ECO_CHARGE:
-                self.log.warning(
-                    "The operation mode of the inverter changed from the user --> Stopping the charging progress"
+            if error_counter == 3:
+                self.log.error(
+                    f"An error occurred {error_counter} times while trying to get the current state of charge --> Stopping the charging process"
                 )
+                # Can't set the mode of the inverter as it is unresponsive
                 break
 
-            current_state_of_charge = self.inverter.get_state_of_charge()
+            pause.seconds(charging_progress_check_interval.total_seconds())
+
+            try:
+                if self.inverter.get_operation_mode() != OperationMode.ECO_CHARGE:
+                    self.log.warning(
+                        "The operation mode of the inverter changed from the user --> Stopping the charging progress"
+                    )
+                    break
+
+                current_state_of_charge = self.inverter.get_state_of_charge()
+
+                error_counter = 0
+            except RequestFailedException as e:
+                self.log.exception(f"An exception occurred while trying to fetch the current state of charge: {e}")
+                self.log.warning(f"Waiting for {charging_progress_check_interval} to try again...")
+                error_counter += 1
+                continue
 
             if dry_run:
                 self.log.debug(

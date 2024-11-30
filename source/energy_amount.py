@@ -60,6 +60,10 @@ class Power:
     def __str__(self):
         return f"{int(self.watts)} W"
 
+    @staticmethod
+    def from_kilo_watts(kilo_watts: float) -> Power:
+        return Power(watts=kilo_watts * 1000)
+
 
 @dataclass
 class EnergyRate:

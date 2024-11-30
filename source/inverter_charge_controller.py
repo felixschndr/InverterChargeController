@@ -208,8 +208,17 @@ class InverterChargeController(LoggerMixin):
         self._charge_inverter(required_state_of_charge)
 
         timestamp_ending_to_charge = datetime.now(tz=self.timezone)
+
+        duration_to_wait_for_semsportal_update = timedelta(minutes=10)
+        self.log.info(
+            f"Sleeping for {duration_to_wait_for_semsportal_update} to let the SEMS Portal update its power consumption data..."
+        )
+        pause.seconds(duration_to_wait_for_semsportal_update.total_seconds())
+
         energy_bought = self._calculate_amount_of_energy_bought(
-            energy_bought_before_charging, timestamp_starting_to_charge, timestamp_ending_to_charge
+            energy_bought_before_charging,
+            timestamp_starting_to_charge,
+            timestamp_ending_to_charge + duration_to_wait_for_semsportal_update,
         )
         self.log.info(f"Bought {energy_bought} to charge the battery")
 

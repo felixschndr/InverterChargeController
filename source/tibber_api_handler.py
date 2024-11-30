@@ -169,7 +169,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             A list of EnergyRate objects that have timestamps in the future relative to the beginning of the current hour.
         """
-        current_time = datetime.now(tz=all_energy_rates[0].timestamp.tzinfo)
+        current_time = TimeHandler.get_time()
         beginning_of_current_hour = current_time.replace(minute=0, second=0, microsecond=0)
 
         upcoming_energy_rates = [
@@ -272,7 +272,7 @@ class TibberAPIHandler(LoggerMixin):
         This is done since the price rates of the next day are only available after ~ 02:00 PM. If the price rates of
         the next day are unavailable while determining the price minimum, it is likely that the price minimum is just
         the last rate of the day but not actually the minimum.
-        In this case we have to check in later (after ~ 02:00 PM) to re-request the prices from the Tibber API to get
+        In this case we have to check in later (at ~ 02:00 PM) to re-request the prices from the Tibber API to get
         the values of the next day.
 
         Args:
@@ -285,19 +285,16 @@ class TibberAPIHandler(LoggerMixin):
         """
 
         # We use 00:01 instead of 00:00 since the software runs just a few (milli)seconds after the start of the hour
-        end_of_day = (datetime.now(tz=TimeHandler.get_timezone()) + timedelta(days=1)).replace(
-            hour=0, minute=1, second=0, microsecond=0
-        )
+        end_of_day = (TimeHandler.get_time() + timedelta(days=1)).replace(hour=0, minute=1, second=0, microsecond=0)
         three_hours_before_end_of_day = end_of_day - timedelta(hours=3)
 
-        is_price_minimum_near_end_of_day = price_minimum.timestamp >= three_hours_before_end_of_day
+        is_price_minimum_near_end_of_day = three_hours_before_end_of_day <= price_minimum.timestamp <= end_of_day
         self.log.trace(
             f"The price minimum {price_minimum.timestamp} is at the end of the day: {is_price_minimum_near_end_of_day}"
         )
 
-        are_tomorrows_rates_unavailable = all(
-            rate.timestamp.date() == price_minimum.timestamp.date() for rate in upcoming_energy_rates
-        )
+        today = datetime.now().date()
+        are_tomorrows_rates_unavailable = all(rate.timestamp.date() == today for rate in upcoming_energy_rates)
         self.log.trace(f"The price rates for tomorrow are unavailable: {are_tomorrows_rates_unavailable}")
 
         return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import pause
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
+from deprecated_sun_forecast_handler import DeprecatedSunForecastHandler
 from energy_amount import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode, RequestFailedException
@@ -10,7 +11,6 @@ from inverter import Inverter
 from logger import LoggerMixin
 from requests.exceptions import RequestException
 from sems_portal_api_handler import SemsPortalApiHandler
-from sun_forecast_handler import SunForecastHandler
 from tibber_api_handler import TibberAPIHandler
 from time_handler import TimeHandler
 
@@ -25,7 +25,7 @@ class InverterChargeController(LoggerMixin):
 
         self.timezone = TimeHandler.get_timezone()
         self.sems_portal_api_handler = SemsPortalApiHandler()
-        self.sun_forecast_handler = SunForecastHandler()
+        self.deprecated_sun_forecast_handler = DeprecatedSunForecastHandler()
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
         self.absence_handler = AbsenceHandler()
@@ -110,8 +110,8 @@ class InverterChargeController(LoggerMixin):
                 "The price minimum has to be re-checked since it is at the end of a day and the price rates for tomorrow are unavailable"
             )
 
-        expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
-            timestamp_now, next_price_minimum
+        expected_power_harvested_till_next_minimum = (
+            self.deprecated_sun_forecast_handler.get_solar_output_in_timeframe(timestamp_now, next_price_minimum)
         )
         self.log.info(
             f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"

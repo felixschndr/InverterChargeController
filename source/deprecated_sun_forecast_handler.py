@@ -8,7 +8,7 @@ from suntimes import SunTimes
 from time_handler import TimeHandler
 
 
-class SunForecastHandler(LoggerMixin):
+class DeprecatedSunForecastHandler(LoggerMixin):
     API_BASE_URL = "https://api.forecast.solar/estimate/watthours/day"
 
     def __init__(self):

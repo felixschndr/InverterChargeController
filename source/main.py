@@ -1,20 +1,31 @@
 import signal
 import sys
+from datetime import datetime, timedelta
 from types import FrameType
 
 from deprecated_sun_forecast_handler import DeprecatedSunForecastHandler
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
+from sun_forecast_handler import SunForecastHandler
+from time_handler import TimeHandler
 
 
 def log_solar_forecast(log_as_review: bool = False) -> None:
+    sun_forecast_handler = SunForecastHandler()
     deprecated_sun_forecast_handler = DeprecatedSunForecastHandler()
 
-    solar_output_today = deprecated_sun_forecast_handler.get_expected_solar_output_of_today()
+    start = datetime.now(tz=TimeHandler.get_timezone()).replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    solar_output_today = sun_forecast_handler.get_solar_output_in_timeframe(start, end)
+    solar_output_today_deprecated = deprecated_sun_forecast_handler.get_expected_solar_output_of_today()
     if log_as_review:
-        deprecated_sun_forecast_handler.log.info(f"The actual solar output of today was {solar_output_today}")
+        sun_forecast_handler.log.info(
+            f"The actual solar output of today was {solar_output_today} ({solar_output_today_deprecated})"
+        )
     else:
-        deprecated_sun_forecast_handler.log.info(f"The expected solar output of today is {solar_output_today}")
+        sun_forecast_handler.log.info(
+            f"The expected solar output of today is {solar_output_today} ({solar_output_today_deprecated})"
+        )
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:

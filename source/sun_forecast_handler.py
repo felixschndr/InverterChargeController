@@ -8,18 +8,23 @@ from logger import LoggerMixin
 from time_handler import TimeHandler
 
 
-class NewSolarForecastHandler(LoggerMixin):
-    API_BASE_URL = "https://api.solcast.com.au/rooftop_sites/{0}/forecasts?format=json"
-
-    def retrieve_solar_forecast_data(self) -> list[dict]:
-        url = NewSolarForecastHandler.API_BASE_URL.format(EnvironmentVariableGetter.get("ROOFTOP_ID"))
+class SunForecastHandler(LoggerMixin):
+    def _retrieve_data_from_api(self, path: str) -> list[dict]:
+        api_base_url = "https://api.solcast.com.au/rooftop_sites/{0}/{1}?format=json"
+        url = api_base_url.format(EnvironmentVariableGetter.get("ROOFTOP_ID"), path)
         headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
         response = requests.get(url, timeout=5, headers=headers)
         response.raise_for_status()
 
         data = response.json()
         self.log.trace(f"Retrieved data: {data}")
-        return data["forecasts"]
+        return data[path]
+
+    def retrieve_solar_forecast_data(self) -> list[dict]:
+        return self._retrieve_data_from_api("forecasts")
+
+    def retrieve_historic_data(self) -> list[dict]:
+        return self._retrieve_data_from_api("estimated_actuals")
 
     def _get_debug_solar_output(self) -> EnergyAmount:
         """
@@ -33,14 +38,23 @@ class NewSolarForecastHandler(LoggerMixin):
         return EnergyAmount(watt_hours=10000)
 
     def get_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
-        timezone = TimeHandler.get_timezone()
+        solar_data = []
+
+        now = datetime.now(tz=(TimeHandler.get_timezone())) - timedelta(
+            minutes=1
+        )  # Account for execution times of the program
+        if timestamp_start >= now or timestamp_end >= now:
+            self.log.trace("Need to retrieve forecast data")
+            solar_data += self.retrieve_solar_forecast_data()
+        if timestamp_start <= now:
+            self.log.trace("Need to retrieve historic data")
+            solar_data += self.retrieve_historic_data()
+        solar_data.sort(key=lambda x: x["period_end"])
+
         expected_solar_output = EnergyAmount(0)
-
-        forecast_data = self.retrieve_solar_forecast_data()
-
-        timeslot_duration = parse_duration(forecast_data[0]["period"])
-        for timeslot in forecast_data:
-            timeslot_end = datetime.fromisoformat(timeslot["period_end"]).replace(tzinfo=timezone)
+        timeslot_duration = parse_duration(solar_data[0]["period"])
+        for timeslot in solar_data:
+            timeslot_end = datetime.fromisoformat(timeslot["period_end"]).astimezone()
             timeslot_start = timeslot_end - timeslot_duration
             overlap = TimeHandler.calculate_overlap_between_time_frames(
                 timestamp_start, timestamp_end, timeslot_start, timeslot_end
@@ -63,10 +77,11 @@ class NewSolarForecastHandler(LoggerMixin):
 
 
 if __name__ == "__main__":
-    new_solar_forecast_handler = NewSolarForecastHandler()
-    start = datetime.now(tz=TimeHandler.get_timezone()).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
-        days=1
-    )
+    new_solar_forecast_handler = SunForecastHandler()
+    start = datetime.now(tz=TimeHandler.get_timezone()).replace(hour=0, minute=0, second=0, microsecond=0)
     end = start + timedelta(days=1)
+    # end = start + timedelta(hours=10)
+    # start = datetime.now(tz=TimeHandler.get_timezone())
+    # end = start + timedelta(hours=4)
 
     print(new_solar_forecast_handler.get_solar_output_in_timeframe(start, end))

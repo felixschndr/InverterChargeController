@@ -40,8 +40,8 @@ class SunForecastHandler(LoggerMixin):
     def get_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
         solar_data = []
 
-        now = datetime.now(tz=(TimeHandler.get_timezone())) - timedelta(
-            minutes=1
+        now = datetime.now(tz=(TimeHandler.get_timezone())).replace(second=0, microsecond=0) - timedelta(
+            seconds=1
         )  # Account for execution times of the program
         if timestamp_start >= now or timestamp_end >= now:
             self.log.trace("Need to retrieve forecast data")

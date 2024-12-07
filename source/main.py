@@ -14,8 +14,12 @@ def log_solar_forecast(log_as_review: bool = False) -> None:
     sun_forecast_handler = SunForecastHandler()
     deprecated_sun_forecast_handler = DeprecatedSunForecastHandler()
 
-    start = datetime.now(tz=TimeHandler.get_timezone()).replace(hour=0, minute=0, second=0, microsecond=0)
-    end = start + timedelta(days=1)
+    now = datetime.now(tz=TimeHandler.get_timezone())
+    start = now.replace(hour=5, minute=0, second=0, microsecond=0)
+    end = now.replace(hour=23, minute=0, second=0, microsecond=0)
+    if log_as_review:
+        end -= timedelta(minutes=2)
+
     solar_output_today = sun_forecast_handler.get_solar_output_in_timeframe(start, end)
     solar_output_today_deprecated = deprecated_sun_forecast_handler.get_expected_solar_output_of_today()
     if log_as_review:

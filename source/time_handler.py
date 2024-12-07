@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from dateutil.tz import tz, tzfile
 
@@ -95,3 +95,15 @@ class TimeHandler:
     @staticmethod
     def get_timezone() -> tzfile:
         return tz.gettz()
+
+    @staticmethod
+    def get_time() -> datetime:
+        return datetime.now(tz=(TimeHandler.get_timezone()))
+
+    @staticmethod
+    def get_date() -> date:
+        return TimeHandler.get_time().date()
+
+    @staticmethod
+    def get_date_as_string() -> str:
+        return TimeHandler.get_date().strftime("%Y-%m-%d")

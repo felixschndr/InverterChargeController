@@ -1,6 +1,6 @@
 import signal
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from types import FrameType
 
 from deprecated_sun_forecast_handler import DeprecatedSunForecastHandler
@@ -14,7 +14,7 @@ def log_solar_forecast(log_as_review: bool = False) -> None:
     sun_forecast_handler = SunForecastHandler()
     deprecated_sun_forecast_handler = DeprecatedSunForecastHandler()
 
-    now = datetime.now(tz=TimeHandler.get_timezone())
+    now = TimeHandler.get_time()
     start = now.replace(hour=5, minute=0, second=0, microsecond=0)
     end = now.replace(hour=23, minute=0, second=0, microsecond=0)
     if log_as_review:

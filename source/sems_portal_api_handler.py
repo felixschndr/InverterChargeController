@@ -93,7 +93,7 @@ class SemsPortalApiHandler(LoggerMixin):
             "id": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
             "range": 2,
             "chartIndexId": "8",
-            "date": datetime.now().strftime("%Y-%m-%d"),
+            "date": TimeHandler.get_date_as_string(),
         }
 
         response = requests.post(url, headers=headers, json=payload, timeout=20)

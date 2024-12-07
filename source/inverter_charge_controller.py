@@ -54,9 +54,7 @@ class InverterChargeController(LoggerMixin):
                     next_price_minimum, minimum_has_to_be_rechecked = self._do_iteration()
 
                 if minimum_has_to_be_rechecked:
-                    time_to_sleep_to = datetime.now(tz=self.timezone).replace(
-                        hour=14, minute=0, second=0, microsecond=0
-                    )
+                    time_to_sleep_to = TimeHandler.get_time().replace(hour=14, minute=0, second=0, microsecond=0)
                     self.log.info(f"The price minimum has to re-checked at {time_to_sleep_to}. Waiting until then...")
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
@@ -98,7 +96,7 @@ class InverterChargeController(LoggerMixin):
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
         )
 
-        timestamp_now = datetime.now(tz=self.timezone)
+        timestamp_now = TimeHandler.get_time()
 
         next_price_minimum, minimum_has_to_be_rechecked = self.tibber_api_handler.get_timestamp_of_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
@@ -202,12 +200,12 @@ class InverterChargeController(LoggerMixin):
             required_state_of_charge = max_target_soc
 
         energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
-        timestamp_starting_to_charge = datetime.now(tz=self.timezone)
+        timestamp_starting_to_charge = TimeHandler.get_time()
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
         self._charge_inverter(required_state_of_charge)
 
-        timestamp_ending_to_charge = datetime.now(tz=self.timezone)
+        timestamp_ending_to_charge = TimeHandler.get_time()
 
         duration_to_wait_for_semsportal_update = timedelta(minutes=10)
         self.log.info(

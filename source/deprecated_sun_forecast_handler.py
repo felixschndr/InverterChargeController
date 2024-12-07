@@ -14,14 +14,6 @@ class DeprecatedSunForecastHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-    @staticmethod
-    def _get_date_as_string() -> str:
-        """
-        Returns:
-            str: The current date formatted as 'YYYY-MM-DD'.
-        """
-        return datetime.datetime.now().strftime("%Y-%m-%d")
-
     def get_expected_solar_output_of_today(self) -> EnergyAmount:
         """
         Gets the expected solar energy output for the current day.
@@ -55,7 +47,7 @@ class DeprecatedSunForecastHandler(LoggerMixin):
             data = response.json()
             self.log.trace(f"Retrieved data: {data}")
 
-            total_solar_forecast += data["result"][self._get_date_as_string()]
+            total_solar_forecast += data["result"][TimeHandler.get_date_as_string()]
 
         return total_solar_forecast
 
@@ -130,7 +122,7 @@ class DeprecatedSunForecastHandler(LoggerMixin):
         Returns:
             tuple[datetime, datetime]: A tuple containing the adjusted sunrise and sunset times.
         """
-        date = datetime.datetime.now()
+        date = TimeHandler.get_time()
         sun = SunTimes(
             float(EnvironmentVariableGetter.get("LOCATION_LONGITUDE")),
             float(EnvironmentVariableGetter.get("LOCATION_LATITUDE")),

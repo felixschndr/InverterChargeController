@@ -40,7 +40,7 @@ class AbsenceHandler(LoggerMixin):
             if timestamp.tzinfo is None:
                 raise ValueError(f'"{absence_start_raw}" has no timezone information')
 
-        if absence_start < datetime.now(tz=TimeHandler.get_timezone()) < absence_end:
+        if absence_start < TimeHandler.get_time() < absence_end:
             return True
 
         return False

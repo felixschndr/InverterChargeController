@@ -26,8 +26,8 @@ done
 
 timestamp=$(head -n 1 "${temp_output_solar_forecast}" | awk '{print $1}' | tr -d '[]')
 date=$(date -d "${timestamp}" +%Y-%m-%d)
-solar_forecast_expected=$(grep "${start_string}" "${temp_output_solar_forecast}" | sed -n 's/.*is \([0-9]*\) Wh.*/\1/p')
-solar_forecast_real=$(grep "The actual solar output of today was" "${temp_output_solar_forecast}" | sed -n 's/.*was \([0-9]*\) Wh.*/\1/p')
+solar_forecast_expected=$(grep "${start_string}" "${temp_output_solar_forecast}" | sed 's/^.* is //')
+solar_forecast_real=$(grep "The actual solar output of today was" "${temp_output_solar_forecast}" | sed 's/^.* was //')
 
 echo -e "${date}\t${solar_forecast_expected}\t${solar_forecast_real}" >>"${log_directory}/solar_forecast_difference${environment}.log"
 

@@ -16,8 +16,6 @@ from time_handler import TimeHandler
 
 
 class InverterChargeController(LoggerMixin):
-    MAX_TARGET_SOC = 97
-
     def __init__(self):
         super().__init__()
 
@@ -195,11 +193,13 @@ class InverterChargeController(LoggerMixin):
         self.log.info(
             f"Need to charge to {required_state_of_charge} % in order to reach the next minimum with {target_min_state_of_charge} % left"
         )
-        if required_state_of_charge > InverterChargeController.MAX_TARGET_SOC:
+
+        max_target_soc = int(EnvironmentVariableGetter.get("INVERTER_MAX_TARGET_SOC", 90))
+        if required_state_of_charge > max_target_soc:
             self.log.info(
-                f"The target state of charge is (nearly) 100 %. Setting it to {InverterChargeController.MAX_TARGET_SOC} since charging the battery this full takes hours for the last few percent."
+                f"The target state of charge is (nearly) 100 %. Setting it to {max_target_soc} since charging the battery this full takes hours for the last few percent."
             )
-            required_state_of_charge = InverterChargeController.MAX_TARGET_SOC
+            required_state_of_charge = max_target_soc
 
         energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
         timestamp_starting_to_charge = datetime.now(tz=self.timezone)

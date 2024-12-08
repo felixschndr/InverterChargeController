@@ -314,5 +314,5 @@ class InverterChargeController(LoggerMixin):
         filename = super().directory_of_logs + "/energy_buy_prod.log"
         with open(filename, "a") as f:
             f.write(
-                f"{timestamp_starting_to_charge.isoformat()}\t{timestamp_ending_to_charge.isoformat()}\t{energy_bought.watt_hours}\n"
+                f"{timestamp_starting_to_charge.isoformat()}\t{timestamp_ending_to_charge.isoformat()}\t{int(energy_bought.watt_hours)}\n"
             )

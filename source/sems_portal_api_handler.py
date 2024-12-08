@@ -145,13 +145,15 @@ class SemsPortalApiHandler(LoggerMixin):
         Returns:
             An instance of EnergyAmount representing the energy bought.
         """
-        self.log.debug("Determining the amount of energy bought today")
+        self.log.debug(f"Determining the amount of energy bought {days_in_past} days ago")
 
         self.login()
 
         api_response = self._retrieve_energy_consumption_data()
         lines = api_response["data"]["lines"]
         buy_line = [line for line in lines if "buy" in line["label"].lower()][0]
+        if days_in_past != 0:
+            self.log.debug(f"Buy line is {buy_line}, days in past: {days_in_past}")
 
         return EnergyAmount.from_kilo_watt_hours(buy_line["xy"][-1 - days_in_past]["y"])
 
@@ -215,3 +217,8 @@ class SemsPortalApiHandler(LoggerMixin):
         )
 
         return energy_usage_during_the_day + energy_usage_during_the_night
+
+
+if __name__ == "__main__":
+    s = SemsPortalApiHandler()
+    print(s.get_energy_buy(1))

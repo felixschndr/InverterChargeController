@@ -69,6 +69,7 @@ class Power:
 class EnergyRate:
     rate: float
     timestamp: datetime
+    is_minimum_that_has_to_be_rechecked: bool = False
 
     def __repr__(self):
         return f"{self.rate} € at {self.timestamp}"

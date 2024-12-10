@@ -47,22 +47,20 @@ class InverterChargeController(LoggerMixin):
         while True:
             try:
                 if first_iteration:
-                    next_price_minimum, minimum_has_to_be_rechecked = self.tibber_api_handler.get_next_price_minimum(
-                        first_iteration
-                    )
+                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False
                 else:
-                    next_price_minimum, minimum_has_to_be_rechecked = self._do_iteration(next_price_minimum.rate)
+                    next_price_minimum = self._do_iteration(next_price_minimum.rate)
 
-                if minimum_has_to_be_rechecked:
+                if next_price_minimum.is_minimum_that_has_to_be_rechecked:
                     now = TimeHandler.get_time()
                     time_to_sleep_to = now.replace(hour=14, minute=0, second=0, microsecond=0)
                     if now > time_to_sleep_to:
                         time_to_sleep_to += timedelta(days=1)
-                    self.log.info(f"The price minimum has to re-checked at {time_to_sleep_to}. Waiting until then...")
+                    self.log.info(f"The price minimum has to re-checked --> Waiting until {time_to_sleep_to}...")
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
-                    next_price_minimum, _ = self.tibber_api_handler.get_next_price_minimum(True)
+                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
 
                 self.log.info(f"The next price minimum is at {next_price_minimum.timestamp}. Waiting until then...")
 
@@ -79,7 +77,7 @@ class InverterChargeController(LoggerMixin):
                 self.log.critical("Exiting now...")
                 exit(1)
 
-    def _do_iteration(self, current_energy_rate: float) -> tuple[EnergyRate, bool]:  # FIXME: Find better name
+    def _do_iteration(self, current_energy_rate: float) -> EnergyRate:
         """
         Computes the optimal charging strategy for an inverter until the next price minimum.
 
@@ -93,8 +91,6 @@ class InverterChargeController(LoggerMixin):
 
         Returns:
             EnergyRate: The next price minimum energy rate.
-            minimum_has_to_be_rechecked: Whether the price minimum has to be re-checked since not all the prices were
-                available yet.
         """
         self.log.info(
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
@@ -102,13 +98,13 @@ class InverterChargeController(LoggerMixin):
 
         timestamp_now = TimeHandler.get_time()
 
-        next_price_minimum, minimum_has_to_be_rechecked = self.tibber_api_handler.get_next_price_minimum()
+        next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
         if next_price_minimum.rate > current_energy_rate:
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
 
-        if minimum_has_to_be_rechecked:
+        if next_price_minimum.is_minimum_that_has_to_be_rechecked:
             self.log.info(
                 "The price minimum has to be re-checked since it is at the end of a day and the price rates for tomorrow are unavailable"
             )
@@ -135,7 +131,7 @@ class InverterChargeController(LoggerMixin):
                 timestamp_now, next_price_minimum.timestamp
             )
 
-        if minimum_has_to_be_rechecked:
+        if next_price_minimum.is_minimum_that_has_to_be_rechecked:
             power_usage_increase_factor = 20
             self.log.info(
                 "Since the real price minimum is unknown at the moment the expected power usage "
@@ -172,7 +168,7 @@ class InverterChargeController(LoggerMixin):
             "current energy in battery": current_energy_in_battery,
             "target min state of charge": target_min_state_of_charge,
             "energy to be in battery when reaching next minimum": energy_to_be_in_battery_when_reaching_next_minimum,
-            "minimum_has_to_be_rechecked": minimum_has_to_be_rechecked,
+            "minimum_has_to_be_rechecked": next_price_minimum.is_minimum_that_has_to_be_rechecked,
         }
         self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
@@ -184,7 +180,7 @@ class InverterChargeController(LoggerMixin):
         )
         if excess_energy.watt_hours > 0:
             self.log.info(f"There is {excess_energy} of excess energy, thus there is no need to charge")
-            return next_price_minimum, minimum_has_to_be_rechecked
+            return next_price_minimum
 
         missing_energy = excess_energy * -1
         self.log.info(f"There is a need to charge {missing_energy}")
@@ -229,7 +225,7 @@ class InverterChargeController(LoggerMixin):
             timestamp_starting_to_charge, timestamp_ending_to_charge, energy_bought
         )
 
-        return next_price_minimum, minimum_has_to_be_rechecked
+        return next_price_minimum
 
     def _charge_inverter(self, target_state_of_charge: int) -> None:
         """

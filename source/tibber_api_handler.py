@@ -19,7 +19,7 @@ class TibberAPIHandler(LoggerMixin):
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
         self.maximum_threshold = 0.03  # in €
 
-    def get_next_price_minimum(self, first_iteration: bool = False) -> tuple[EnergyRate, bool]:
+    def get_next_price_minimum(self, first_iteration: bool = False) -> EnergyRate:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
@@ -34,7 +34,6 @@ class TibberAPIHandler(LoggerMixin):
         TLDR: Introduce a maximum threshold to better identify real maximum energy rates, preventing minor fluctuations
         from being misinterpreted as maxima.
 
-
         Steps:
         1. Fetches the upcoming energy prices from the API.
         2. Extracts energy rates from the API response.
@@ -47,8 +46,6 @@ class TibberAPIHandler(LoggerMixin):
 
         Returns:
             EnergyRate: The next price minimum energy rate.
-            minimum_has_to_be_rechecked: Whether the price minimum has to be re-checked since not all the prices were
-                available yet.
         """
         self.log.debug("Finding the price minimum...")
         api_result = self._fetch_upcoming_prices_from_api()
@@ -72,9 +69,10 @@ class TibberAPIHandler(LoggerMixin):
             energy_rates_between_first_and_second_maximum
         )
 
-        minimum_has_to_be_rechecked = self._check_if_minimum_is_at_end_of_day(minimum_of_energy_rates)
+        if self._check_if_minimum_is_at_end_of_day(minimum_of_energy_rates):
+            minimum_of_energy_rates.is_minimum_that_has_to_be_rechecked = True
 
-        return minimum_of_energy_rates, minimum_has_to_be_rechecked
+        return minimum_of_energy_rates
 
     @staticmethod
     def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:

@@ -137,8 +137,8 @@ class InverterChargeController(LoggerMixin):
                 "Since the real price minimum is unknown at the moment the expected power usage "
                 + f"({expected_energy_usage_till_next_minimum}) is increased by {power_usage_increase_factor} %"
             )
-            expected_energy_usage_till_next_minimum += (
-                expected_energy_usage_till_next_minimum * power_usage_increase_factor
+            expected_energy_usage_till_next_minimum += expected_energy_usage_till_next_minimum * (
+                power_usage_increase_factor / 100
             )
 
         self.log.info(

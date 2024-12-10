@@ -9,9 +9,19 @@ from time_handler import TimeHandler
 
 
 class SunForecastHandler(LoggerMixin):
-    def _retrieve_data_from_api(self, path: str) -> list[dict]:
+    def _retrieve_data_from_api(self, rooftop_id: str, path: str) -> list[dict]:
+        """
+        Retrieves data from the Solcast API for a given rooftop site and data path.
+
+        Args:
+            rooftop_id (str): The unique identifier for the rooftop site.
+            path (str): The specific data path to retrieve from the API.
+
+        Returns:
+            list[dict]: A list of dictionaries containing the retrieved data.
+        """
         api_base_url = "https://api.solcast.com.au/rooftop_sites/{0}/{1}?format=json"
-        url = api_base_url.format(EnvironmentVariableGetter.get("ROOFTOP_ID"), path)
+        url = api_base_url.format(rooftop_id, path)
         headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
         response = requests.get(url, timeout=5, headers=headers)
         response.raise_for_status()
@@ -20,11 +30,11 @@ class SunForecastHandler(LoggerMixin):
         self.log.trace(f"Retrieved data: {data}")
         return data[path]
 
-    def retrieve_solar_forecast_data(self) -> list[dict]:
-        return self._retrieve_data_from_api("forecasts")
+    def retrieve_solar_forecast_data(self, rooftop_id: str) -> list[dict]:
+        return self._retrieve_data_from_api(rooftop_id, "forecasts")
 
-    def retrieve_historic_data(self) -> list[dict]:
-        return self._retrieve_data_from_api("estimated_actuals")
+    def retrieve_historic_data(self, rooftop_id: str) -> list[dict]:
+        return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
 
     def _get_debug_solar_output(self) -> EnergyAmount:
         """
@@ -37,7 +47,27 @@ class SunForecastHandler(LoggerMixin):
         self.log.debug("Getting debug estimated solar output of today")
         return EnergyAmount(watt_hours=10000)
 
-    def get_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
+    def get_solar_output_in_timeframe_for_rooftop(
+        self, timestamp_start: datetime, timestamp_end: datetime, rooftop_id: str
+    ) -> EnergyAmount:
+        """
+        Retrieves the solar energy output within a specific timeframe for a given rooftop
+        identifier by combining historical data and forecast data as needed.
+
+        This method calculates the expected solar energy output for a rooftop in the
+        specified timeframe. It retrieves historical solar data if the timeframe includes
+        past periods, and forecast data for future periods. The retrieved data is used
+        to compute the overlap between the requested timeframe and each data timeslot,
+        determining the energy produced during those overlapping intervals.
+
+        Args:
+            timestamp_start: Start of the desired timeframe for solar energy calculation.
+            timestamp_end: End of the desired timeframe for solar energy calculation.
+            rooftop_id: Identifier of the rooftop for which the solar output is being calculated.
+
+        Returns:
+            EnergyAmount: The total expected solar energy output in the specified timeframe.
+        """
         solar_data = []
 
         now = TimeHandler.get_time().replace(second=0, microsecond=0) - timedelta(
@@ -45,10 +75,10 @@ class SunForecastHandler(LoggerMixin):
         )  # Account for execution times of the program
         if timestamp_start >= now or timestamp_end >= now:
             self.log.trace("Need to retrieve forecast data")
-            solar_data += self.retrieve_solar_forecast_data()
+            solar_data += self.retrieve_solar_forecast_data(rooftop_id)
         if timestamp_start <= now:
             self.log.trace("Need to retrieve historic data")
-            solar_data += self.retrieve_historic_data()
+            solar_data += self.retrieve_historic_data(rooftop_id)
         solar_data.sort(key=lambda x: x["period_end"])
 
         expected_solar_output = EnergyAmount(0)
@@ -75,13 +105,36 @@ class SunForecastHandler(LoggerMixin):
 
         return expected_solar_output
 
+    def get_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
+        """
+        Calculates the estimated solar output over a specified time frame by aggregating the
+        solar output from one or more rooftop solar installations.
 
-if __name__ == "__main__":
-    new_solar_forecast_handler = SunForecastHandler()
-    start = TimeHandler.get_time().replace(hour=0, minute=0, second=0, microsecond=0)
-    end = start + timedelta(days=1)
-    # end = start + timedelta(hours=10)
-    # start = datetime.now(tz=TimeHandler.get_timezone())
-    # end = start + timedelta(hours=4)
+        This method retrieves the solar output for a given time frame across a collection of
+        rooftop installations specified via environment variables. It iteratively fetches solar
+        output for each rooftop and aggregates the result into a single value.
 
-    print(new_solar_forecast_handler.get_solar_output_in_timeframe(start, end))
+        Args:
+            timestamp_start (datetime): The start timestamp of the timeframe for which expected
+                solar output is to be calculated.
+            timestamp_end (datetime): The end timestamp of the timeframe for which expected
+                solar output is to be calculated.
+
+        Returns:
+            EnergyAmount: The aggregated solar output from all specified rooftops within the given
+                timeframe.
+        """
+        expected_solar_output = EnergyAmount(0)
+        rooftop_ids = [EnvironmentVariableGetter.get("ROOFTOP_ID_1")]
+        rooftop_id_2 = EnvironmentVariableGetter.get("ROOFTOP_ID_2", None)
+        if rooftop_id_2 is not None:
+            rooftop_ids.append(rooftop_id_2)
+
+        for rooftop_id in rooftop_ids:
+            self.log.debug(f'Getting the estimated solar output for rooftop "{rooftop_id}"')
+            expected_solar_output += self.get_solar_output_in_timeframe_for_rooftop(
+                timestamp_start, timestamp_end, rooftop_id
+            )
+            self.log.debug(f'The expected solar output for rooftop "{rooftop_id}" is {expected_solar_output}')
+
+        return expected_solar_output

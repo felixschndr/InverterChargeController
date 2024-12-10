@@ -5,7 +5,6 @@
 # can't use source directly because of possible problems with quotes in the .env file in the semsportal password
 env_temp=$(mktemp)
 grep "DIRECTORY_OF_LOGS" .env >"${env_temp}"
-grep "ENVIRONMENT" .env >>"${env_temp}"
 grep "ERROR_MAIL_ADDRESS" .env >>"${env_temp}"
 # shellcheck disable=SC1090
 source "${env_temp}"
@@ -15,10 +14,8 @@ if [[ -z ${ERROR_MAIL_ADDRESS} ]]; then
 	exit 1
 fi
 
-[[ -n ${ENVIRONMENT} ]] && environment="_${ENVIRONMENT}" || environment=""
-
 log_directory=${DIRECTORY_OF_LOGS:-logs/}
-logfile=${log_directory}/app${environment}.log
+logfile=${log_directory}/app.log
 
 current_date=$(date '+%Y-%m-%d')
 search_pattern="ERROR|WARNING|CRITICAL"

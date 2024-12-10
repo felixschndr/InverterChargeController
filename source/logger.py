@@ -43,8 +43,6 @@ class LoggerMixin:
         self._create_logging_directory_if_necessary(self._directory_of_logs)
 
         log_level = EnvironmentVariableGetter.get(name_of_variable="LOGLEVEL", default_value="INFO").upper()
-        environment = EnvironmentVariableGetter.get("ENVIRONMENT", "")
-        environment = f"_{environment}" if environment else ""
 
         formatter = logging.Formatter(
             "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
@@ -52,7 +50,7 @@ class LoggerMixin:
         )
 
         file_handler = RotatingFileHandler(
-            os.path.join(self._directory_of_logs, f"app{environment}.log"),
+            os.path.join(self._directory_of_logs, "app.log"),
             maxBytes=1024 * 1024,
             backupCount=7,
         )

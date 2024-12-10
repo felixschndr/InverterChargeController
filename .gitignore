@@ -2,6 +2,6 @@
 .idea
 **/__pycache__
 .env
-!systemd/inverter-charge-controller.service
-systemd/inverter-charge-controller*
+!systemd/inverter-charge-controller.service.example
+systemd/
 logs/

@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
 
 ###### Setup ######
-
-# can't use source directly because of possible problems with quotes in the .env file in the semsportal password
-env_temp=$(mktemp)
-grep "DIRECTORY_OF_LOGS" .env >"${env_temp}"
-# shellcheck disable=SC1090
-source "${env_temp}"
-
-
+source .env
 log_directory=${DIRECTORY_OF_LOGS:-logs/}
 logfile=${log_directory}/app.log
 
@@ -29,4 +22,4 @@ solar_forecast_real=$(grep "The actual solar output of today was" "${temp_output
 echo -e "${date}\t${solar_forecast_expected}\t${solar_forecast_real}" >>"${log_directory}/solar_forecast_difference.log"
 
 ###### Cleanup ######
-rm "${temp_output_solar_forecast}" "${env_temp}"
+rm "${temp_output_solar_forecast}"

@@ -149,9 +149,7 @@ class InverterChargeController(LoggerMixin):
         current_energy_in_battery = self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(
             current_state_of_charge
         )
-        self.log.info(
-            f"The battery is currently at {current_state_of_charge} %, thus it is holding {current_energy_in_battery}"
-        )
+        self.log.info(f"The battery is currently holds {current_energy_in_battery} ({current_state_of_charge} %)")
 
         target_min_state_of_charge = int(EnvironmentVariableGetter.get("INVERTER_TARGET_MIN_STATE_OF_CHARGE", 20))
         energy_to_be_in_battery_when_reaching_next_minimum = (
@@ -191,14 +189,14 @@ class InverterChargeController(LoggerMixin):
         required_state_of_charge = self.inverter.calculate_state_of_charge_from_energy_amount(
             required_energy_in_battery
         )
-        self.log.info(
-            f"Need to charge to {required_state_of_charge} % in order to reach the next minimum with {target_min_state_of_charge} % left"
-        )
+        self.log.info(f"Need to charge to {required_state_of_charge} %")
 
-        max_target_soc = int(EnvironmentVariableGetter.get("INVERTER_MAX_TARGET_SOC", 90))
+        max_target_soc_environment_variable = "INVERTER_MAX_TARGET_SOC"
+        max_target_soc = int(EnvironmentVariableGetter.get(max_target_soc_environment_variable, 90))
         if required_state_of_charge > max_target_soc:
             self.log.info(
-                f"The target state of charge is (nearly) 100 %. Setting it to {max_target_soc} since charging the battery this full takes hours for the last few percent."
+                "The target state of charge is more than the maximum allowed charge set in the environment "
+                + f'("{max_target_soc_environment_variable}") --> Setting it to {max_target_soc} %'
             )
             required_state_of_charge = max_target_soc
 
@@ -282,7 +280,7 @@ class InverterChargeController(LoggerMixin):
 
             if current_state_of_charge >= target_state_of_charge:
                 self.log.info(
-                    f"Charging finished {current_state_of_charge} % --> Setting the inverter back to normal mode"
+                    f"Charging finished ({current_state_of_charge} %) --> Setting the inverter back to normal mode"
                 )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break

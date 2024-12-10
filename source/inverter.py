@@ -104,7 +104,7 @@ class Inverter(LoggerMixin):
         """
         state_of_charge = int(energy_amount.watt_hours / self.battery_capacity.watt_hours * 100)
         if state_of_charge > 100:
-            self.log.info(f"The calculated state of charge is {state_of_charge}, capping it at 100 %")
+            self.log.info(f"The calculated state of charge is {state_of_charge} %, capping it at 100 %")
             return 100
         return state_of_charge
 

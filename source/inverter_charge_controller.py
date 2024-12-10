@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pause
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
-from energy_amount import EnergyAmount
+from energy_amount import EnergyAmount, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode, RequestFailedException
 from inverter import Inverter
@@ -42,16 +42,17 @@ class InverterChargeController(LoggerMixin):
             SystemExit: If an unexpected error occurs, the program will exit with a status code of 1.
         """
         first_iteration = True
+        next_price_minimum = None
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
             try:
                 if first_iteration:
-                    next_price_minimum, minimum_has_to_be_rechecked = (
-                        self.tibber_api_handler.get_timestamp_of_next_price_minimum(first_iteration)
+                    next_price_minimum, minimum_has_to_be_rechecked = self.tibber_api_handler.get_next_price_minimum(
+                        first_iteration
                     )
                     first_iteration = False
                 else:
-                    next_price_minimum, minimum_has_to_be_rechecked = self._do_iteration()
+                    next_price_minimum, minimum_has_to_be_rechecked = self._do_iteration(next_price_minimum.rate)
 
                 if minimum_has_to_be_rechecked:
                     now = TimeHandler.get_time()
@@ -61,12 +62,12 @@ class InverterChargeController(LoggerMixin):
                     self.log.info(f"The price minimum has to re-checked at {time_to_sleep_to}. Waiting until then...")
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
-                    next_price_minimum, _ = self.tibber_api_handler.get_timestamp_of_next_price_minimum(True)
+                    next_price_minimum, _ = self.tibber_api_handler.get_next_price_minimum(True)
 
-                self.log.info(f"The next price minimum is at {next_price_minimum}. Waiting until then...")
+                self.log.info(f"The next price minimum is at {next_price_minimum.timestamp}. Waiting until then...")
 
                 self._write_newlines_to_log_file()
-                pause.until(next_price_minimum)
+                pause.until(next_price_minimum.timestamp)
 
             except (ClientError, RequestException) as e:
                 self.log.exception(f"An exception occurred while trying to fetch data from a different system: {e}")
@@ -78,7 +79,7 @@ class InverterChargeController(LoggerMixin):
                 self.log.critical("Exiting now...")
                 exit(1)
 
-    def _do_iteration(self) -> tuple[datetime, bool]:  # FIXME: Find better name
+    def _do_iteration(self, current_energy_rate: float) -> tuple[EnergyRate, bool]:  # FIXME: Find better name
         """
         Computes the optimal charging strategy for an inverter until the next price minimum.
 
@@ -91,7 +92,7 @@ class InverterChargeController(LoggerMixin):
          - Initiates charging if required.
 
         Returns:
-            datetime: The timestamp of the next price minimum.
+            EnergyRate: The next price minimum energy rate.
             minimum_has_to_be_rechecked: Whether the price minimum has to be re-checked since not all the prices were
                 available yet.
         """
@@ -101,8 +102,11 @@ class InverterChargeController(LoggerMixin):
 
         timestamp_now = TimeHandler.get_time()
 
-        next_price_minimum, minimum_has_to_be_rechecked = self.tibber_api_handler.get_timestamp_of_next_price_minimum()
+        next_price_minimum, minimum_has_to_be_rechecked = self.tibber_api_handler.get_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
+
+        if next_price_minimum.rate > current_energy_rate:
+            self.log.info("The price of the upcoming minimum is higher than the current energy rate")
 
         if minimum_has_to_be_rechecked:
             self.log.info(
@@ -110,7 +114,7 @@ class InverterChargeController(LoggerMixin):
             )
 
         expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
-            timestamp_now, next_price_minimum
+            timestamp_now, next_price_minimum.timestamp
         )
         self.log.info(
             f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
@@ -121,14 +125,14 @@ class InverterChargeController(LoggerMixin):
                 "Currently there is an absence, using the power consumption configured in the environment as the basis for calculation"
             )
             expected_energy_usage_till_next_minimum = self.absence_handler.calculate_power_usage_for_absence(
-                timestamp_now, next_price_minimum
+                timestamp_now, next_price_minimum.timestamp
             )
         else:
             self.log.info(
                 "Currently there is no absence, using last week's power consumption data as the basis for calculation"
             )
             expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.estimate_energy_usage_in_timeframe(
-                timestamp_now, next_price_minimum
+                timestamp_now, next_price_minimum.timestamp
             )
 
         if minimum_has_to_be_rechecked:
@@ -161,7 +165,7 @@ class InverterChargeController(LoggerMixin):
 
         summary_of_energy_vales = {
             "timestamp now": str(timestamp_now),
-            "next price minimum": str(next_price_minimum),
+            "next price minimum": str(next_price_minimum.timestamp),
             "expected power harvested till next minimum": expected_power_harvested_till_next_minimum,
             "expected energy usage till next minimum": expected_energy_usage_till_next_minimum,
             "current state of charge": current_state_of_charge,

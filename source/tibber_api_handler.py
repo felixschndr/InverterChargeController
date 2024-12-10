@@ -19,7 +19,7 @@ class TibberAPIHandler(LoggerMixin):
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
         self.maximum_threshold = 0.03  # in €
 
-    def get_timestamp_of_next_price_minimum(self, first_iteration: bool = False) -> tuple[datetime, bool]:
+    def get_next_price_minimum(self, first_iteration: bool = False) -> tuple[EnergyRate, bool]:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
@@ -46,7 +46,7 @@ class TibberAPIHandler(LoggerMixin):
             first_iteration: A boolean flag indicating whether this is the first iteration of fetching upcoming prices.
 
         Returns:
-            datetime: The timestamp of the next minimum energy rate.
+            EnergyRate: The next price minimum energy rate.
             minimum_has_to_be_rechecked: Whether the price minimum has to be re-checked since not all the prices were
                 available yet.
         """
@@ -74,7 +74,7 @@ class TibberAPIHandler(LoggerMixin):
 
         minimum_has_to_be_rechecked = self._check_if_minimum_is_at_end_of_day(minimum_of_energy_rates)
 
-        return minimum_of_energy_rates.timestamp, minimum_has_to_be_rechecked
+        return minimum_of_energy_rates, minimum_has_to_be_rechecked
 
     @staticmethod
     def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:

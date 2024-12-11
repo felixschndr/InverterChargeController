@@ -132,9 +132,10 @@ class SunForecastHandler(LoggerMixin):
 
         for rooftop_id in rooftop_ids:
             self.log.debug(f'Getting the estimated solar output for rooftop "{rooftop_id}"')
-            expected_solar_output += self.get_solar_output_in_timeframe_for_rooftop(
+            solar_forecast_for_rooftop = self.get_solar_output_in_timeframe_for_rooftop(
                 timestamp_start, timestamp_end, rooftop_id
             )
-            self.log.debug(f'The expected solar output for rooftop "{rooftop_id}" is {expected_solar_output}')
+            self.log.debug(f'The expected solar output for rooftop "{rooftop_id}" is {solar_forecast_for_rooftop}')
+            expected_solar_output += solar_forecast_for_rooftop
 
         return expected_solar_output

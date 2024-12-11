@@ -10,7 +10,7 @@ from goodwe.et import OperationMode
 from inverter import Inverter
 
 inverter = Inverter()
-inverter.log.info("Inverter is manually controlled by user")
+inverter.log.info("Inverter is manually controlled by a user")
 EOF
 
 

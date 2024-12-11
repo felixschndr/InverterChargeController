@@ -14,10 +14,7 @@ class Inverter(LoggerMixin):
         self.device = None
 
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
-
         self.battery_capacity = EnergyAmount(float(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
-
-        self.dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
     def connect(self) -> None:
         """
@@ -56,7 +53,7 @@ class Inverter(LoggerMixin):
         Raises:
             RuntimeError: If the operation mode could not be set successfully.
         """
-        if self.dry_run:
+        if EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True):
             self.log.info(f"Would set the inverter to {mode.name} but dry run is enabled")
             return
 

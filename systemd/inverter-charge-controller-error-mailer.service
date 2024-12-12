@@ -1,0 +1,13 @@
+[Unit]
+Description = "Checks for errors in the inverter charge controller logs and mails them if existend"
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/home/chrctrl/app/
+ExecStart=/home/chrctrl/app/error_mailer.sh
+User=chrctrl
+StandardOutput=null
+
+[Install]
+WantedBy=default.target

@@ -2,6 +2,4 @@
 .idea
 **/__pycache__
 .env
-!systemd/inverter-charge-controller.service.example
-systemd/
 logs/

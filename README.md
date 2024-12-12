@@ -183,7 +183,6 @@ chown -R <username>: app/
 
 After that, you can create the systemd configuration:
 ```bash
-cp systemd/inverter-charge-controller.service.example systemd/inverter-charge-controller.service
 vi systemd/inverter-charge-controller.service
 sudo ln -s <path to repository>/systemd/inverter-charge-controller.service /etc/systemd/system
 sudo systemctl daemon-reload

@@ -1,0 +1,10 @@
+[Unit]
+Description = "Timer: Checks for errors in the inverter charge controller logs and mails them if existend"
+
+[Timer]
+OnCalendar=Mon..Sun 23:55
+RandomizedDelaySec=0
+Persistent=true
+
+[Install]
+WantedBy=timers.target

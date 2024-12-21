@@ -16,7 +16,7 @@ search_pattern="ERROR|WARNING|CRITICAL"
 temp_output=$(mktemp)
 
 grep -A10 -n "${current_date}" "${logfile}" | grep -A10 -E "${search_pattern}" > "${temp_output}"
-if [[ $(wc -l "${temp_output}") != 0 ]]; then
+if [[ $(wc -l < "${temp_output}") != 0 ]]; then
 	 mail -r "InverterChargeController" -s "Fehler beim InverterChargeController" "${ERROR_MAIL_ADDRESS}" < "${temp_output}"
 fi
 

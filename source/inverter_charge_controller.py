@@ -1,3 +1,4 @@
+import socket
 from datetime import datetime, timedelta
 
 import pause
@@ -67,7 +68,7 @@ class InverterChargeController(LoggerMixin):
                 self._write_newlines_to_log_file()
                 pause.until(next_price_minimum.timestamp)
 
-            except (ClientError, RequestException) as e:
+            except (ClientError, RequestException, socket.gaierror) as e:
                 self.log.exception(f"An exception occurred while trying to fetch data from a different system: {e}")
                 self.log.warning(f"Waiting for {duration_to_wait_in_cause_of_error} to try again...")
                 pause.seconds(duration_to_wait_in_cause_of_error.total_seconds())

@@ -69,7 +69,9 @@ class TibberAPIHandler(LoggerMixin):
             energy_rates_between_first_and_second_maximum
         )
 
-        if self._check_if_minimum_is_at_end_of_day(minimum_of_energy_rates):
+        if self._check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
+            minimum_of_energy_rates, upcoming_energy_rates
+        ):
             minimum_of_energy_rates.is_minimum_that_has_to_be_rechecked = True
 
         return minimum_of_energy_rates
@@ -257,20 +259,34 @@ class TibberAPIHandler(LoggerMixin):
         )
         return global_minimum_of_energy_rates
 
-    def _check_if_minimum_is_at_end_of_day(self, price_minimum: EnergyRate) -> bool:
+    def _check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
+        self, price_minimum: EnergyRate, upcoming_energy_rates: list[EnergyRate]
+    ) -> bool:
         """
-        This method determines whether the timestamp of the `price_minimum` falls within the last 3 hours a day.
-        This is done since the price rates of the next day are only available after ~ 02:00 PM.
+        This method determines whether the timestamp of the `price_minimum` is in the last hour of the day and checks if
+        there are no energy rates available for the subsequent day.
+        This is done since the price rates of the next day are only available after ~ 02:00 PM. If the price rates of
+        the next day are unavailable while determining the price minimum, it is likely that the price minimum is just
+        the last rate of the day but not actually the minimum.
+        In this case we have to check in later (at ~ 02:00 PM) to re-request the prices from the Tibber API to get
+        the values of the next day.
 
         Args:
             price_minimum (EnergyRate): The energy rate with the minimum price.
+            upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
 
         Returns:
-            bool: True if the price minimum is in the last 3 hours of the day, otherwise False.
+            bool: True if the price minimum is in the last hour current day and there are no rates for
+                the next day, otherwise False.
         """
 
-        is_price_minimum_near_end_of_day = 21 <= price_minimum.timestamp.hour <= 23
+        is_price_minimum_near_end_of_day = price_minimum.timestamp.hour == 23
         self.log.trace(
             f"The price minimum {price_minimum.timestamp} is at the end of the day: {is_price_minimum_near_end_of_day}"
         )
-        return is_price_minimum_near_end_of_day
+
+        today = datetime.now().date()
+        are_tomorrows_rates_unavailable = all(rate.timestamp.date() == today for rate in upcoming_energy_rates)
+        self.log.trace(f"The price rates for tomorrow are unavailable: {are_tomorrows_rates_unavailable}")
+
+        return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable

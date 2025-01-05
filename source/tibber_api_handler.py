@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from database_handler import DatabaseHandler
 from energy_amount import EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
@@ -50,6 +51,7 @@ class TibberAPIHandler(LoggerMixin):
         self.log.debug("Finding the price minimum...")
         api_result = self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
+        self.write_energy_rates_to_database(all_energy_rates)
         upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
         if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
             upcoming_energy_rates
@@ -290,3 +292,12 @@ class TibberAPIHandler(LoggerMixin):
         self.log.trace(f"The price rates for tomorrow are unavailable: {are_tomorrows_rates_unavailable}")
 
         return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable
+
+    def write_energy_rates_to_database(self, energy_rates: list[EnergyRate]) -> None:
+        self.log.debug("Writing prices to database...")
+        database_handler = DatabaseHandler()
+
+        for energy_rate in energy_rates:
+            database_handler.write_to_database("energy_price", "price", energy_rate.rate * 100, energy_rate.timestamp)
+
+        database_handler.close_connection()

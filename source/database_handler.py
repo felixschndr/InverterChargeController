@@ -6,6 +6,7 @@ from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from logger import LoggerMixin
 from time_handler import TimeHandler
+from urllib3.exceptions import NewConnectionError
 
 
 @dataclasses.dataclass
@@ -43,10 +44,12 @@ class DatabaseHandler(LoggerMixin):
         for field_to_insert in fields_to_insert:
             point = point.field(field_to_insert.name, field_to_insert.value)
         point = point.time(timestamp)
-        # point = Point("sun_forecast").field("pv_estimate", 20.52).time(TimeHandler.get_time())
 
         self.log.trace(f"Writing to database: {point}")
-        self.write_api.write(bucket=self.bucket, record=point)
+        try:
+            self.write_api.write(bucket=self.bucket, record=point)
+        except NewConnectionError as e:
+            self.log.warning(f"Connection to database failed (ignoring): {str(e)}")
 
     def close_connection(self) -> None:
         self.write_api.close()

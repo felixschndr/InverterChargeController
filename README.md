@@ -210,3 +210,11 @@ You can monitor how far the prediction of the solar forecast was off and how muc
 It saves the following data:
 - `<directory> of logs>/power_buy.log`: `<timestamp of start of charging>\t<timestamp of end of charging>\t<power bought in Wh>`
 - `<directory> of logs>/solar_forecast_difference.log`: `<date>\t<prediction at start of day in Wh>\t<prediction at end of day in Wh>`
+
+## InfluxDB commands
+
+- See all `energy_price`s: `influx query -org default -token <token> '
+import "experimental"
+from(bucket: "default")
+  |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+  |> filter(fn: (r) => r._measurement == "energy_price")'`

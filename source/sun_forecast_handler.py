@@ -95,8 +95,9 @@ class SunForecastHandler(LoggerMixin):
 
             self.database_handler.write_to_database(
                 [
-                    InfluxDBField("pv_estimate", float(timeslot["pv_estimate"] * 1000)),
+                    InfluxDBField("pv_estimate_in_watts", float(timeslot["pv_estimate"] * 1000)),
                     InfluxDBField("retrieval_timestamp", now.isoformat()),
+                    InfluxDBField("rooftop_id", rooftop_id),
                 ],
                 timestamp=timeslot_start,
             )

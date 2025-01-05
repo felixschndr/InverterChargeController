@@ -20,6 +20,8 @@ class TibberAPIHandler(LoggerMixin):
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
         self.maximum_threshold = 0.03  # in €
 
+        self.database_handler = DatabaseHandler()
+
     def get_next_price_minimum(self, first_iteration: bool = False) -> EnergyRate:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
@@ -295,9 +297,8 @@ class TibberAPIHandler(LoggerMixin):
 
     def write_energy_rates_to_database(self, energy_rates: list[EnergyRate]) -> None:
         self.log.debug("Writing prices to database...")
-        database_handler = DatabaseHandler()
 
         for energy_rate in energy_rates:
-            database_handler.write_to_database("energy_price", "price", energy_rate.rate * 100, energy_rate.timestamp)
-
-        database_handler.close_connection()
+            self.database_handler.write_to_database(
+                "energy_price", "price", energy_rate.rate * 100, energy_rate.timestamp
+            )

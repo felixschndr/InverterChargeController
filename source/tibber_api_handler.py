@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from database_handler import DatabaseHandler
+from database_handler import DatabaseHandler, InfluxDBField
 from energy_amount import EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
@@ -20,7 +20,7 @@ class TibberAPIHandler(LoggerMixin):
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
         self.maximum_threshold = 0.03  # in €
 
-        self.database_handler = DatabaseHandler()
+        self.database_handler = DatabaseHandler("energy_prices")
 
     def get_next_price_minimum(self, first_iteration: bool = False) -> EnergyRate:
         """
@@ -300,5 +300,5 @@ class TibberAPIHandler(LoggerMixin):
 
         for energy_rate in energy_rates:
             self.database_handler.write_to_database(
-                "energy_price", "price", energy_rate.rate * 100, energy_rate.timestamp
+                InfluxDBField("price", energy_rate.rate * 100), timestamp=energy_rate.timestamp
             )

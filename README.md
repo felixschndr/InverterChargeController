@@ -218,3 +218,5 @@ import "experimental"
 from(bucket: "default")
   |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
   |> filter(fn: (r) => r._measurement == "energy_price")'`
+- Create bucket: `influx bucket create -org default -token <token> --name default`
+- Delete bucket: `influx bucket delete -org default -token <token> --name default`

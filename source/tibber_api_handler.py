@@ -151,7 +151,7 @@ class TibberAPIHandler(LoggerMixin):
         for price in [*(prices_raw["today"]), *(prices_raw["tomorrow"])]:
             upcoming_energy_rates.append(
                 EnergyRate(
-                    rate=price["total"],
+                    rate=round(price["total"], 4),
                     timestamp=datetime.fromisoformat(price["startsAt"]),
                 )
             )

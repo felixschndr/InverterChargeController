@@ -213,10 +213,13 @@ It saves the following data:
 
 ## InfluxDB commands
 
-- See all `energy_price`s: `influx query -org default -token <token> '
-import "experimental"
-from(bucket: "default")
-  |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
-  |> filter(fn: (r) => r._measurement == "energy_price")'`
 - Create bucket: `influx bucket create -org default -token <token> --name default`
 - Delete bucket: `influx bucket delete -org default -token <token> --name default`
+- Retrieve all solar forecast values: `influx query -org default -token <token> 'from(bucket: "default")
+|> range(start: -1d)
+|> filter(fn: (r) => r._measurement == "sun_forecast")
+|> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")'`
+- Retrieve all energy prices: `influx query -org default -token <token> 'import "experimental"
+from(bucket: "default")
+|> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+|> filter(fn: (r) => r._measurement == "energy_prices")'`

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 import requests
-from database_handler import DatabaseHandler, InfluxDBField, InfluxDBTag
+from database_handler import DatabaseHandler, InfluxDBField
 from energy_amount import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from isodate import parse_duration
@@ -94,8 +94,10 @@ class SunForecastHandler(LoggerMixin):
             timeslot_start = timeslot_end - timeslot_duration
 
             self.database_handler.write_to_database(
-                InfluxDBField("pv_estimate", float(timeslot["pv_estimate"])),
-                tags=[InfluxDBTag("retrieval_timestamp", now.isoformat())],
+                [
+                    InfluxDBField("pv_estimate", float(timeslot["pv_estimate"] * 1000)),
+                    InfluxDBField("retrieval_timestamp", now.isoformat()),
+                ],
                 timestamp=timeslot_start,
             )
 
@@ -152,11 +154,3 @@ class SunForecastHandler(LoggerMixin):
             expected_solar_output += solar_forecast_for_rooftop
 
         return expected_solar_output
-
-
-if __name__ == "__main__":
-    s = SunForecastHandler()
-    f = InfluxDBField("pv_estimate", 23.52)
-    t = [InfluxDBTag("retrieval_timestamp", TimeHandler.get_time().isoformat())]
-    start = TimeHandler.get_time() + timedelta(hours=5)
-    s.database_handler.write_to_database(f, t, timestamp=start)

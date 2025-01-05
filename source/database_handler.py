@@ -9,19 +9,9 @@ from time_handler import TimeHandler
 
 
 @dataclasses.dataclass
-class InfluxDBComponent:  # TODO: Find better name
+class InfluxDBField:
     name: str
     value: float | str
-
-
-@dataclasses.dataclass
-class InfluxDBField(InfluxDBComponent):
-    pass
-
-
-@dataclasses.dataclass
-class InfluxDBTag(InfluxDBComponent):
-    pass
 
 
 class DatabaseHandler(LoggerMixin):
@@ -39,7 +29,7 @@ class DatabaseHandler(LoggerMixin):
         self.write_api = client.write_api(write_options=SYNCHRONOUS)
 
     def write_to_database(
-        self, field_to_insert: InfluxDBField, tags: list[InfluxDBTag] = None, timestamp: datetime = None
+        self, fields_to_insert: InfluxDBField | list[InfluxDBField], timestamp: datetime = None
     ) -> None:
         if timestamp is not None and timestamp.tzinfo is None:
             self.log.warning(f"Timestamp {timestamp} has no timezone information, adding it")
@@ -47,11 +37,13 @@ class DatabaseHandler(LoggerMixin):
         if timestamp is None:
             timestamp = datetime.now(tz=TimeHandler.get_timezone())
 
-        point = Point(self.measurement).field(field_to_insert.name, field_to_insert.value)
-        if tags is not None:
-            for tag in tags:
-                point = point.tag(tag.name, tag.value)
+        point = Point(self.measurement)
+        if type(fields_to_insert) is not list:
+            fields_to_insert = [fields_to_insert]
+        for field_to_insert in fields_to_insert:
+            point = point.field(field_to_insert.name, field_to_insert.value)
         point = point.time(timestamp)
+        # point = Point("sun_forecast").field("pv_estimate", 20.52).time(TimeHandler.get_time())
 
         self.log.trace(f"Writing to database: {point}")
         self.write_api.write(bucket=self.bucket, record=point)

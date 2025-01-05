@@ -21,7 +21,7 @@ class DatabaseHandler(LoggerMixin):
         self.write_api = client.write_api(write_options=SYNCHRONOUS)
 
     def write_to_database(self, measurement: str, field: str, value: float, timestamp: datetime = None) -> None:
-        if timestamp.tzinfo is None:
+        if timestamp is not None and timestamp.tzinfo is None:
             self.log.warning(f"Timestamp {timestamp} has no timezone information, adding it")
             timestamp = timestamp.replace(tzinfo=TimeHandler.get_timezone())
         if timestamp is None:

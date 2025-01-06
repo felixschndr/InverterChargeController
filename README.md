@@ -213,14 +213,26 @@ It saves the following data:
 
 ## InfluxDB commands
 
-- Create bucket: `influx bucket create -org default -token <token> --name default`
-- Delete bucket: `influx bucket delete -org default -token <token> --name default`
-- Retrieve all solar forecast values: `influx query -org default -token <token> 'import "experimental"
+- Create bucket: `influx bucket create -org default -token ${TOKEN} --name default`
+- Delete bucket: `influx bucket delete -org default -token ${TOKEN} --name default`
+- Retrieve all solar forecast values: `influx query -org default -token ${TOKEN} 'import "experimental"
 from(bucket: "default")
 |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
 |> filter(fn: (r) => r._measurement == "sun_forecast")
 |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")'`
-- Retrieve all energy prices: `influx query -org default -token <token> 'import "experimental"
+- Retrieve all energy prices: `influx query -org default -token ${TOKEN} 'import "experimental"
 from(bucket: "default")
 |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
 |> filter(fn: (r) => r._measurement == "energy_prices")'`
+- Retrieve all power data (semsportal): `influx query -org default -token ${TOKEN} '
+from(bucket: "default")
+|> range(start: 0, stop: now())
+|> filter(fn: (r) => r._measurement == "power")
+|> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")'`
+- Copy data from one measurement to another: `influx query -org default -token ${TOKEN} 'import "experimental"
+from(bucket: "default")
+  |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+  |> filter(fn: (r) => r._measurement == "<old_measurement>")
+  |> set(key: "_measurement", value: "<new_measurement>")
+  |> to(bucket: "default")'`
+- Delete data from one measurement: `influx delete --bucket default -org default -token ${TOKEN} --start='1970-01-01T00:00:00Z' --stop=$(date +"%Y-%m-%dT%H:%M:%SZ" -d "+2 days") --predicate '_measurement=<old_measurement>'`

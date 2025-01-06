@@ -75,6 +75,8 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
             try:
+                self.sems_portal_api_handler.write_values_to_database()
+
                 if first_iteration:
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False

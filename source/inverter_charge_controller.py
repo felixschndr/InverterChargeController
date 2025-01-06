@@ -1,3 +1,4 @@
+import os
 import socket
 from datetime import datetime, timedelta
 
@@ -18,6 +19,8 @@ from time_handler import TimeHandler
 
 
 class InverterChargeController(LoggerMixin):
+    LOCK_FILE_PATH = "/tmp/inverter_charge_controller.lock"  # nosec B108
+
     def __init__(self):
         super().__init__()
 
@@ -31,6 +34,30 @@ class InverterChargeController(LoggerMixin):
         self.absence_handler = AbsenceHandler()
 
     def start(self) -> None:
+        """
+        Starts the inverter charge controller process. Ensures that the process is not already running
+        by checking for the presence of a lock file. If the process is running, logs the error and exits.
+        Upon successful starting, creates and manages a lock file for the process to avoid multiple
+        instances. Also ensures cleanup of the lock file post execution.
+        """
+        if os.path.exists(self.LOCK_FILE_PATH):
+            self.log.error("Attempted to start the inverter charge controller, but it is already running.")
+            return
+
+        try:
+            with open(self.LOCK_FILE_PATH, "w") as lock_file:
+                lock_file.write(str(os.getpid()))
+            self.log.debug("Lock file created.")
+            self._start()
+        finally:
+            if not os.path.exists(self.LOCK_FILE_PATH):
+                self.log.error("Wanted to delete the lock file but it did not exist.")
+                return
+
+            os.remove(self.LOCK_FILE_PATH)
+            self.log.info("Lock file removed.")
+
+    def _start(self) -> None:
         """
         Starts the continuous running of the program and handles all exceptions possibly raised during execution.
          - Expected exceptions: Wait for some minutes and retry

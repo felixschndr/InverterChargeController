@@ -42,14 +42,14 @@ class SunForecastHandler(LoggerMixin):
     def retrieve_historic_data(self, rooftop_id: str) -> list[dict]:
         return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
 
-    def _get_debug_solar_output(self) -> EnergyAmount:
+    def get_debug_solar_output(self) -> EnergyAmount:
         """
-        Returns a sample debug value for solar energy output.
+        Returns a sample debug value for solar energy output. This value is also used where the API returns a 429
+        (Too Many Requests) error.
 
         Returns:
             EnergyAmount: A sample energy amount of 10,000 watt-hours.
         """
-        # We use a sample value for debugging the code since the API offers very limited call per day
         self.log.debug("Getting debug estimated solar output of today")
         return EnergyAmount(watt_hours=10000)
 

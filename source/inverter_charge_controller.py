@@ -2,6 +2,7 @@ import socket
 from datetime import datetime, timedelta
 
 import pause
+import requests.exceptions
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
 from energy_amount import EnergyAmount, EnergyRate
@@ -58,7 +59,10 @@ class InverterChargeController(LoggerMixin):
                     time_to_sleep_to = now.replace(hour=14, minute=0, second=0, microsecond=0)
                     if now > time_to_sleep_to:
                         time_to_sleep_to += timedelta(days=1)
-                    self.log.info(f"The price minimum has to re-checked --> Waiting until {time_to_sleep_to}...")
+                    self.log.info(
+                        f"The price minimum {next_price_minimum} has to re-checked "
+                        + f"--> Waiting until {time_to_sleep_to}..."
+                    )
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
@@ -110,12 +114,19 @@ class InverterChargeController(LoggerMixin):
                 "The price minimum has to be re-checked since it is at the end of a day and the price rates for tomorrow are unavailable"
             )
 
-        expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
-            timestamp_now, next_price_minimum.timestamp
-        )
-        self.log.info(
-            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
-        )
+        try:
+            expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
+                timestamp_now, next_price_minimum.timestamp
+            )
+            self.log.info(
+                f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
+            )
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code != 429:
+                raise e
+
+            self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
+            expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_debug_solar_output()
 
         if self.absence_handler.check_for_current_absence():
             self.log.info(

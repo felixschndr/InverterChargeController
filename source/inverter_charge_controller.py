@@ -1,6 +1,5 @@
 import os
 import socket
-import time
 from datetime import datetime, timedelta
 
 import pause
@@ -69,7 +68,6 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
             try:
-                time.sleep(100)
                 self.sems_portal_api_handler.write_values_to_database()
 
                 if first_iteration:
@@ -127,8 +125,11 @@ class InverterChargeController(LoggerMixin):
 
         timestamp_now = TimeHandler.get_time()
 
-        next_price_minimum, consecutive_energy_rate_is_cheap = self.tibber_api_handler.get_next_price_minimum()
-        self.log.info(f"The next price minimum is at {next_price_minimum}")
+        next_price_minimum, maximum_charging_duration = self.tibber_api_handler.get_next_price_minimum()
+        self.log.info(
+            f"The next price minimum is at {next_price_minimum} and it is feasible to charge for a "
+            + f"maximum of {maximum_charging_duration.seconds // 3600} hours"
+        )
 
         if next_price_minimum.rate > current_energy_rate:
             # Information is unused at the moment
@@ -199,7 +200,7 @@ class InverterChargeController(LoggerMixin):
         summary_of_energy_vales = {
             "timestamp now": str(timestamp_now),
             "next price minimum": str(next_price_minimum.timestamp),
-            "consecutive_energy_rate_is_cheap": consecutive_energy_rate_is_cheap,
+            "maximum_charging_duration": f"{maximum_charging_duration.seconds // 3600} hours",
             "expected power harvested till next minimum": expected_power_harvested_till_next_minimum,
             "expected energy usage till next minimum": expected_energy_usage_till_next_minimum,
             "current state of charge": current_state_of_charge,
@@ -233,7 +234,7 @@ class InverterChargeController(LoggerMixin):
         timestamp_starting_to_charge = TimeHandler.get_time()
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
-        self._charge_inverter(required_state_of_charge, consecutive_energy_rate_is_cheap)
+        self._charge_inverter(required_state_of_charge, maximum_charging_duration)
 
         timestamp_ending_to_charge = TimeHandler.get_time()
 
@@ -256,7 +257,7 @@ class InverterChargeController(LoggerMixin):
 
         return next_price_minimum
 
-    def _charge_inverter(self, target_state_of_charge: int, consecutive_energy_rate_is_cheap: bool) -> None:
+    def _charge_inverter(self, target_state_of_charge: int, maximum_charging_duration: timedelta) -> None:
         """
         Charges the inverter until a given state of charge is reached.
         Checks every few minutes the current state of charge and compares to the target value.
@@ -266,13 +267,13 @@ class InverterChargeController(LoggerMixin):
 
         Args:
             target_state_of_charge: The desired state of charge percentage to reach before stopping the charging process.
+            maximum_charging_duration: The maximum duration for which charging is feasible under given energy rate
+                constraints.
         """
         charging_progress_check_interval = timedelta(minutes=5)
         dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
-        maximum_end_charging_time = TimeHandler.get_time().replace(minute=0, second=0) + timedelta(hours=1)
-        if consecutive_energy_rate_is_cheap:
-            maximum_end_charging_time += timedelta(hours=1)
+        maximum_end_charging_time = TimeHandler.get_time().replace(minute=0, second=0) + maximum_charging_duration
 
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)

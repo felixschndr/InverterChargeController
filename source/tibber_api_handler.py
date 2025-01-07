@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from database_handler import DatabaseHandler, InfluxDBField
 from energy_amount import EnergyRate
@@ -22,7 +22,7 @@ class TibberAPIHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("energy_prices")
 
-    def get_next_price_minimum(self, first_iteration: bool = False) -> [EnergyRate, bool]:
+    def get_next_price_minimum(self, first_iteration: bool = False) -> [EnergyRate, timedelta]:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
@@ -43,14 +43,14 @@ class TibberAPIHandler(LoggerMixin):
         3. Filters out energy rates that are in the past.
         4. Gets energy rates up between the first and second maximum rate.
         5. Finds the minimum of the filtered energy rates.
+        6. Determines the maximum duration for which charging is feasible under given energy rate constraints.
 
         Args:
             first_iteration: A boolean flag indicating whether this is the first iteration of fetching upcoming prices.
 
         Returns:
             EnergyRate: The next price minimum energy rate.
-            bool: Whether the energy rate after the minimum is at most self.maximum_threshold more expensive than the
-            minimum. This is used to determine the maximum charging time.
+            timedelta: The maximum duration for which charging is feasible under given energy rate constraints.
         """
         self.log.debug("Finding the price minimum...")
         api_result = self._fetch_upcoming_prices_from_api()
@@ -80,50 +80,43 @@ class TibberAPIHandler(LoggerMixin):
         ):
             minimum_of_energy_rates.is_minimum_that_has_to_be_rechecked = True
 
-        energy_rate_after_minimum = self._get_energy_rate_after_minimum(minimum_of_energy_rates, upcoming_energy_rates)
-        energy_rate_after_minimum_is_below_threshold = self._is_consecutive_energy_rate_below_threshold(
-            minimum_of_energy_rates, energy_rate_after_minimum
+        maximum_charging_duration = self._calculate_maximum_charging_duration(
+            minimum_of_energy_rates, upcoming_energy_rates
         )
 
-        return minimum_of_energy_rates, energy_rate_after_minimum_is_below_threshold
+        return minimum_of_energy_rates, maximum_charging_duration
 
-    def _get_energy_rate_after_minimum(
+    def _calculate_maximum_charging_duration(
         self, minimum_of_energy_rates: EnergyRate, upcoming_energy_rates: list[EnergyRate]
-    ) -> EnergyRate:
+    ) -> timedelta:
         """
-        Determines the energy rate that immediately follows the minimum energy rate in the list of upcoming energy rates.
-        If the minimum energy rate is the last element in the list, the same minimum value is returned.
+        Calculates the maximum duration for which charging is feasible under given energy rate constraints.
+
+        This method computes the maximum charging duration based on the minimum energy rate within the list of upcoming
+        energy rates and self.maximum_threshold. This ensures that charging only continues while subsequent energy rates
+        remain within the allowed threshold of the minimum energy rate.
 
         Args:
-            minimum_of_energy_rates: The minimum energy rate in the list of energy rates.
-            upcoming_energy_rates: A list of energy rates where the minimum energy rate resides.
+            minimum_of_energy_rates: The energy rate which is considered as the minimum acceptable
+                rate for initiating or continuing charging.
+            upcoming_energy_rates: A list of energy rates representing projected energy pricing
+                in subsequent time periods.
 
         Returns:
-            The energy rate that comes directly after the provided minimum energy rate within the list, or the minimum
-            energy rate itself if it is the last one in the list.
+            A timedelta object representing the maximum charging duration under the given energy rate constraints.
         """
         index = upcoming_energy_rates.index(minimum_of_energy_rates)
-        if index + 1 < len(upcoming_energy_rates):
-            return upcoming_energy_rates[index + 1]
+        charging_duration = timedelta(hours=1)
+        if index + 1 >= len(upcoming_energy_rates):
+            return charging_duration
 
-        self.log.debug("Can't get the energy rate after the minimum since the minimum is the last one in the list")
-        return minimum_of_energy_rates
+        for energy_rate in upcoming_energy_rates[index + 1 :]:
+            if energy_rate.rate <= minimum_of_energy_rates.rate + self.maximum_threshold:
+                charging_duration += timedelta(hours=1)
+                continue
+            break
 
-    def _is_consecutive_energy_rate_below_threshold(
-        self, first_energy_rate: EnergyRate, second_energy_rate: EnergyRate
-    ) -> bool:
-        """
-        Checks if the difference between two consecutive energy rates is below the defined threshold.
-
-        Args:
-            first_energy_rate: The first energy rate object to compare.
-            second_energy_rate: The second energy rate object to compare.
-
-        Returns:
-            bool: True if the difference between the rates of the two energy rate objects is less than or
-            equal to the `maximum_threshold`, otherwise False.
-        """
-        return second_energy_rate.rate - first_energy_rate.rate <= self.maximum_threshold
+        return charging_duration
 
     @staticmethod
     def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:

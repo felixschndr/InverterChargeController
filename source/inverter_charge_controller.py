@@ -1,5 +1,6 @@
 import os
 import socket
+import time
 from datetime import datetime, timedelta
 
 import pause
@@ -44,18 +45,11 @@ class InverterChargeController(LoggerMixin):
             self.log.error("Attempted to start the inverter charge controller, but it is already running.")
             return
 
+        self._lock()
         try:
-            with open(self.LOCK_FILE_PATH, "w") as lock_file:
-                lock_file.write(str(os.getpid()))
-            self.log.debug("Lock file created.")
             self._start()
         finally:
-            if not os.path.exists(self.LOCK_FILE_PATH):
-                self.log.error("Wanted to delete the lock file but it did not exist.")
-                return
-
-            os.remove(self.LOCK_FILE_PATH)
-            self.log.info("Lock file removed.")
+            self.unlock()
 
     def _start(self) -> None:
         """
@@ -75,6 +69,7 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
             try:
+                time.sleep(100)
                 self.sems_portal_api_handler.write_values_to_database()
 
                 if first_iteration:
@@ -368,3 +363,15 @@ class InverterChargeController(LoggerMixin):
             f.write(
                 f"{timestamp_starting_to_charge.isoformat()}\t{timestamp_ending_to_charge.isoformat()}\t{int(energy_bought.watt_hours)}\n"
             )
+
+    def _lock(self) -> None:
+        with open(self.LOCK_FILE_PATH, "w") as lock_file:
+            lock_file.write(str(os.getpid()))
+        self.log.debug("Lock file created.")
+
+    def unlock(self) -> None:
+        if not os.path.exists(self.LOCK_FILE_PATH):
+            return
+
+        os.remove(self.LOCK_FILE_PATH)
+        self.log.info("Lock file removed.")

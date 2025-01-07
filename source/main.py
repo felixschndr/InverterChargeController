@@ -35,6 +35,7 @@ def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
     """
     logger = LoggerMixin()
     logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
+    inverter_charge_controller.unlock()
     exit(0)
 
 

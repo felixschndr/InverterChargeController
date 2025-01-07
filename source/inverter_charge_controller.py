@@ -78,7 +78,7 @@ class InverterChargeController(LoggerMixin):
                 self.sems_portal_api_handler.write_values_to_database()
 
                 if first_iteration:
-                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
+                    next_price_minimum, _ = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False
                 else:
                     next_price_minimum = self._do_iteration(next_price_minimum.rate)
@@ -94,7 +94,7 @@ class InverterChargeController(LoggerMixin):
                     )
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
-                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
+                    next_price_minimum, _ = self.tibber_api_handler.get_next_price_minimum(True)
 
                 self.log.info(f"The next price minimum is at {next_price_minimum.timestamp}. Waiting until then...")
 
@@ -132,10 +132,11 @@ class InverterChargeController(LoggerMixin):
 
         timestamp_now = TimeHandler.get_time()
 
-        next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
+        next_price_minimum, consecutive_energy_rate_is_cheap = self.tibber_api_handler.get_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
         if next_price_minimum.rate > current_energy_rate:
+            # Information is unused at the moment
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
 
         if next_price_minimum.is_minimum_that_has_to_be_rechecked:
@@ -203,6 +204,7 @@ class InverterChargeController(LoggerMixin):
         summary_of_energy_vales = {
             "timestamp now": str(timestamp_now),
             "next price minimum": str(next_price_minimum.timestamp),
+            "consecutive_energy_rate_is_cheap": consecutive_energy_rate_is_cheap,
             "expected power harvested till next minimum": expected_power_harvested_till_next_minimum,
             "expected energy usage till next minimum": expected_energy_usage_till_next_minimum,
             "current state of charge": current_state_of_charge,
@@ -232,20 +234,11 @@ class InverterChargeController(LoggerMixin):
         )
         self.log.info(f"Need to charge to {required_state_of_charge} %")
 
-        max_target_soc_environment_variable = "INVERTER_MAX_TARGET_SOC"
-        max_target_soc = int(EnvironmentVariableGetter.get(max_target_soc_environment_variable, 90))
-        if required_state_of_charge > max_target_soc:
-            self.log.info(
-                "The target state of charge is more than the maximum allowed charge set in the environment "
-                + f'("{max_target_soc_environment_variable}") --> Setting it to {max_target_soc} %'
-            )
-            required_state_of_charge = max_target_soc
-
         energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
         timestamp_starting_to_charge = TimeHandler.get_time()
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
-        self._charge_inverter(required_state_of_charge)
+        self._charge_inverter(required_state_of_charge, consecutive_energy_rate_is_cheap)
 
         timestamp_ending_to_charge = TimeHandler.get_time()
 
@@ -268,10 +261,13 @@ class InverterChargeController(LoggerMixin):
 
         return next_price_minimum
 
-    def _charge_inverter(self, target_state_of_charge: int) -> None:
+    def _charge_inverter(self, target_state_of_charge: int, consecutive_energy_rate_is_cheap: bool) -> None:
         """
         Charges the inverter until a given state of charge is reached.
         Checks every few minutes the current state of charge and compares to the target value.
+        Charges the inverter for a maximum of one hour. If consecutive_energy_rate_is_cheap is True it charges for a
+        maximum of two hours.
+        --> Stops when the target state of charge or the maximum charge time is reached (whichever comes first)
 
         Args:
             target_state_of_charge: The desired state of charge percentage to reach before stopping the charging process.
@@ -279,11 +275,17 @@ class InverterChargeController(LoggerMixin):
         charging_progress_check_interval = timedelta(minutes=5)
         dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
+        maximum_end_charging_time = TimeHandler.get_time().replace(minute=0, second=0) + timedelta(hours=1)
+        if consecutive_energy_rate_is_cheap:
+            maximum_end_charging_time += timedelta(hours=1)
+
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
 
         self.log.info(
-            f"Set the inverter to charge, the target state of charge is {target_state_of_charge} %. Checking the charging progress every {charging_progress_check_interval}..."
+            f"Set the inverter to charge, the target state of charge is {target_state_of_charge} %. "
+            + f"The maximum end charging time is {maximum_end_charging_time.strftime('%H:%M:%S')}. "
+            + f"Checking the charging progress every {charging_progress_check_interval}..."
         )
 
         error_counter = 0
@@ -322,6 +324,14 @@ class InverterChargeController(LoggerMixin):
             if current_state_of_charge >= target_state_of_charge:
                 self.log.info(
                     f"Charging finished ({current_state_of_charge} %) --> Setting the inverter back to normal mode"
+                )
+                self.inverter.set_operation_mode(OperationMode.GENERAL)
+                break
+
+            if TimeHandler.get_time() > maximum_end_charging_time:
+                self.log.info(
+                    f"The maximum end charging time of {maximum_end_charging_time} has been reached "
+                    + "--> Stopping the charging process"
                 )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break

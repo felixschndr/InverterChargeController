@@ -22,7 +22,7 @@ class TibberAPIHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("energy_prices")
 
-    def get_next_price_minimum(self, first_iteration: bool = False) -> EnergyRate:
+    def get_next_price_minimum(self, first_iteration: bool = False) -> [EnergyRate, bool]:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
@@ -49,6 +49,8 @@ class TibberAPIHandler(LoggerMixin):
 
         Returns:
             EnergyRate: The next price minimum energy rate.
+            bool: Whether the energy rate after the minimum is at most self.maximum_threshold more expensive than the
+            minimum. This is used to determine the maximum charging time.
         """
         self.log.debug("Finding the price minimum...")
         api_result = self._fetch_upcoming_prices_from_api()
@@ -78,7 +80,50 @@ class TibberAPIHandler(LoggerMixin):
         ):
             minimum_of_energy_rates.is_minimum_that_has_to_be_rechecked = True
 
+        energy_rate_after_minimum = self._get_energy_rate_after_minimum(minimum_of_energy_rates, upcoming_energy_rates)
+        energy_rate_after_minimum_is_below_threshold = self._is_consecutive_energy_rate_below_threshold(
+            minimum_of_energy_rates, energy_rate_after_minimum
+        )
+
+        return minimum_of_energy_rates, energy_rate_after_minimum_is_below_threshold
+
+    def _get_energy_rate_after_minimum(
+        self, minimum_of_energy_rates: EnergyRate, upcoming_energy_rates: list[EnergyRate]
+    ) -> EnergyRate:
+        """
+        Determines the energy rate that immediately follows the minimum energy rate in the list of upcoming energy rates.
+        If the minimum energy rate is the last element in the list, the same minimum value is returned.
+
+        Args:
+            minimum_of_energy_rates: The minimum energy rate in the list of energy rates.
+            upcoming_energy_rates: A list of energy rates where the minimum energy rate resides.
+
+        Returns:
+            The energy rate that comes directly after the provided minimum energy rate within the list, or the minimum
+            energy rate itself if it is the last one in the list.
+        """
+        index = upcoming_energy_rates.index(minimum_of_energy_rates)
+        if index + 1 < len(upcoming_energy_rates):
+            return upcoming_energy_rates[index + 1]
+
+        self.log.debug("Can't get the energy rate after the minimum since the minimum is the last one in the list")
         return minimum_of_energy_rates
+
+    def _is_consecutive_energy_rate_below_threshold(
+        self, first_energy_rate: EnergyRate, second_energy_rate: EnergyRate
+    ) -> bool:
+        """
+        Checks if the difference between two consecutive energy rates is below the defined threshold.
+
+        Args:
+            first_energy_rate: The first energy rate object to compare.
+            second_energy_rate: The second energy rate object to compare.
+
+        Returns:
+            bool: True if the difference between the rates of the two energy rate objects is less than or
+            equal to the `maximum_threshold`, otherwise False.
+        """
+        return second_energy_rate.rate - first_energy_rate.rate <= self.maximum_threshold
 
     @staticmethod
     def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:

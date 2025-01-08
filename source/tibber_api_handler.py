@@ -22,7 +22,7 @@ class TibberAPIHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("energy_prices")
 
-    def get_next_price_minimum(self, first_iteration: bool = False) -> [EnergyRate, timedelta]:
+    def get_next_price_minimum(self, first_iteration: bool = False) -> EnergyRate:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
@@ -50,7 +50,6 @@ class TibberAPIHandler(LoggerMixin):
 
         Returns:
             EnergyRate: The next price minimum energy rate.
-            timedelta: The maximum duration for which charging is feasible under given energy rate constraints.
         """
         self.log.debug("Finding the price minimum...")
         api_result = self._fetch_upcoming_prices_from_api()
@@ -78,13 +77,13 @@ class TibberAPIHandler(LoggerMixin):
         if self._check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
             minimum_of_energy_rates, upcoming_energy_rates
         ):
-            minimum_of_energy_rates.is_minimum_that_has_to_be_rechecked = True
+            minimum_of_energy_rates.has_to_be_rechecked = True
 
-        maximum_charging_duration = self._calculate_maximum_charging_duration(
+        minimum_of_energy_rates.maximum_charging_duration = self._calculate_maximum_charging_duration(
             minimum_of_energy_rates, upcoming_energy_rates
         )
 
-        return minimum_of_energy_rates, maximum_charging_duration
+        return minimum_of_energy_rates
 
     def _calculate_maximum_charging_duration(
         self, minimum_of_energy_rates: EnergyRate, upcoming_energy_rates: list[EnergyRate]

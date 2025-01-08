@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 @dataclass
@@ -69,7 +69,8 @@ class Power:
 class EnergyRate:
     rate: float
     timestamp: datetime
-    is_minimum_that_has_to_be_rechecked: bool = False
+    maximum_charging_duration: timedelta = timedelta(hours=1)
+    has_to_be_rechecked: bool = False
 
     def __repr__(self):
         return f"{self.rate} € at {self.timestamp}"
@@ -79,3 +80,9 @@ class EnergyRate:
 
     def __gt__(self, other: EnergyRate) -> bool:
         return self.rate > other.rate
+
+    def format_maximum_charging_duration(self) -> str:
+        charging_duration_in_hours = self.maximum_charging_duration.total_seconds() // 3600
+        if charging_duration_in_hours == 1:
+            return "1 hour"
+        return f"{charging_duration_in_hours} hours"

@@ -71,12 +71,12 @@ class InverterChargeController(LoggerMixin):
                 self.sems_portal_api_handler.write_values_to_database()
 
                 if first_iteration:
-                    next_price_minimum, _ = self.tibber_api_handler.get_next_price_minimum(first_iteration)
+                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False
                 else:
-                    next_price_minimum = self._do_iteration(next_price_minimum.rate)
+                    next_price_minimum = self._do_iteration(next_price_minimum)
 
-                if next_price_minimum.is_minimum_that_has_to_be_rechecked:
+                if next_price_minimum.has_to_be_rechecked:
                     now = TimeHandler.get_time()
                     time_to_sleep_to = now.replace(hour=14, minute=0, second=0, microsecond=0)
                     if now > time_to_sleep_to:
@@ -87,7 +87,7 @@ class InverterChargeController(LoggerMixin):
                     )
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
-                    next_price_minimum, _ = self.tibber_api_handler.get_next_price_minimum(True)
+                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
 
                 self.log.info(f"The next price minimum is at {next_price_minimum.timestamp}. Waiting until then...")
 
@@ -104,7 +104,7 @@ class InverterChargeController(LoggerMixin):
                 self.log.critical("Exiting now...")
                 exit(1)
 
-    def _do_iteration(self, current_energy_rate: float) -> EnergyRate:
+    def _do_iteration(self, current_energy_rate: EnergyRate) -> EnergyRate:
         """
         Computes the optimal charging strategy for an inverter until the next price minimum.
 
@@ -125,21 +125,15 @@ class InverterChargeController(LoggerMixin):
 
         timestamp_now = TimeHandler.get_time()
 
-        next_price_minimum, maximum_charging_duration = self.tibber_api_handler.get_next_price_minimum()
-        # FIXME: we are using next's minimum charging duration for this time
+        next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
         self.log.info(
             f"The next price minimum is at {next_price_minimum} and it is feasible to charge for a "
-            + f"maximum of {maximum_charging_duration.seconds // 3600} hour(s)"
+            + f"maximum of {current_energy_rate.format_maximum_charging_duration()}"
         )
 
-        if next_price_minimum.rate > current_energy_rate:
+        if next_price_minimum.rate > current_energy_rate.rate:
             # Information is unused at the moment
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
-
-        if next_price_minimum.is_minimum_that_has_to_be_rechecked:
-            self.log.info(
-                "The price minimum has to be re-checked since it is at the end of a day and the price rates for tomorrow are unavailable"
-            )
 
         try:
             expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
@@ -169,10 +163,11 @@ class InverterChargeController(LoggerMixin):
                 timestamp_now, next_price_minimum.timestamp
             )
 
-        if next_price_minimum.is_minimum_that_has_to_be_rechecked:
+        if next_price_minimum.has_to_be_rechecked:
             power_usage_increase_factor = 20
             self.log.info(
-                "Since the real price minimum is unknown at the moment the expected power usage "
+                "The price minimum has to be re-checked since it is at the end of a day and the price rates for "
+                + "tomorrow are unavailable --> The expected power usage "
                 + f"({expected_energy_usage_till_next_minimum}) is increased by {power_usage_increase_factor} %"
             )
             expected_energy_usage_till_next_minimum += expected_energy_usage_till_next_minimum * (
@@ -199,15 +194,15 @@ class InverterChargeController(LoggerMixin):
 
         summary_of_energy_vales = {
             "timestamp now": str(timestamp_now),
-            "next price minimum": str(next_price_minimum.timestamp),
-            "maximum_charging_duration": f"{maximum_charging_duration.seconds // 3600} hours",
+            "next price minimum": next_price_minimum,
+            "minimum_has_to_be_rechecked": next_price_minimum.has_to_be_rechecked,
+            "maximum charging duration": current_energy_rate.format_maximum_charging_duration(),
             "expected power harvested till next minimum": expected_power_harvested_till_next_minimum,
             "expected energy usage till next minimum": expected_energy_usage_till_next_minimum,
             "current state of charge": current_state_of_charge,
             "current energy in battery": current_energy_in_battery,
             "target min state of charge": target_min_state_of_charge,
             "energy to be in battery when reaching next minimum": energy_to_be_in_battery_when_reaching_next_minimum,
-            "minimum_has_to_be_rechecked": next_price_minimum.is_minimum_that_has_to_be_rechecked,
         }
         self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
@@ -234,7 +229,7 @@ class InverterChargeController(LoggerMixin):
         timestamp_starting_to_charge = TimeHandler.get_time()
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
-        self._charge_inverter(required_state_of_charge, maximum_charging_duration)
+        self._charge_inverter(required_state_of_charge, current_energy_rate.maximum_charging_duration)
 
         timestamp_ending_to_charge = TimeHandler.get_time()
 

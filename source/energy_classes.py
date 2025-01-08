@@ -73,7 +73,7 @@ class EnergyRate:
     has_to_be_rechecked: bool = False
 
     def __repr__(self):
-        return f"{self.rate} € at {self.timestamp}"
+        return f"{self.rate} ct/kWh at {self.timestamp}"
 
     def __lt__(self, other: EnergyRate) -> bool:
         return self.rate < other.rate

@@ -68,8 +68,6 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=10)
         while True:
             try:
-                self.sems_portal_api_handler.write_values_to_database()
-
                 if first_iteration:
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False
@@ -88,6 +86,8 @@ class InverterChargeController(LoggerMixin):
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
+
+                self.sems_portal_api_handler.write_values_to_database()
 
                 self.log.info(f"The next price minimum is at {next_price_minimum.timestamp}. Waiting until then...")
 

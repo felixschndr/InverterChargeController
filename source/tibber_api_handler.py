@@ -10,7 +10,7 @@ from time_handler import TimeHandler
 
 
 class TibberAPIHandler(LoggerMixin):
-    MAXIMUM_THRESHOLD = 0.03  # in €
+    MAXIMUM_THRESHOLD = 3  # in cents/kWh
 
     def __init__(self):
         super().__init__()
@@ -190,7 +190,7 @@ class TibberAPIHandler(LoggerMixin):
         for price in [*(prices_raw["today"]), *(prices_raw["tomorrow"])]:
             upcoming_energy_rates.append(
                 EnergyRate(
-                    rate=round(price["total"], 4),
+                    rate=round(price["total"] * 100, 2),
                     timestamp=datetime.fromisoformat(price["startsAt"]),
                 )
             )
@@ -341,5 +341,5 @@ class TibberAPIHandler(LoggerMixin):
 
         for energy_rate in energy_rates:
             self.database_handler.write_to_database(
-                InfluxDBField("price", energy_rate.rate * 100), timestamp=energy_rate.timestamp
+                InfluxDBField("price", energy_rate.rate), timestamp=energy_rate.timestamp
             )

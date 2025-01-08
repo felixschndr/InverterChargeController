@@ -3,7 +3,6 @@ import socket
 from datetime import datetime, timedelta
 
 import pause
-import requests.exceptions
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
 from energy_classes import EnergyAmount, EnergyRate
@@ -135,15 +134,9 @@ class InverterChargeController(LoggerMixin):
             # Information is unused at the moment
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
 
-        try:
-            expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
-                timestamp_now, next_price_minimum.timestamp
-            )
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code != 429:
-                raise e
-            self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
-            expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_debug_solar_output()
+        expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
+            timestamp_now, next_price_minimum.timestamp
+        )
         self.log.info(
             f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
         )

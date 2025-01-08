@@ -17,6 +17,8 @@ def log_solar_forecast(log_as_review: bool = False) -> None:
     end = now.replace(hour=23, minute=0, second=0, microsecond=0)
     if log_as_review:
         end -= timedelta(minutes=2)
+    else:
+        start += timedelta(minutes=2)
 
     solar_output_today = sun_forecast_handler.get_solar_output_in_timeframe(start, end)
     if log_as_review:

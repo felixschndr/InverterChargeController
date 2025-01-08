@@ -2,7 +2,7 @@
 Description = "Timer: Software that logs the amount of solar output of the day (in the evening)"
 
 [Timer]
-OnCalendar=Mon..Sun 23:05
+OnCalendar=Mon..Sun 23:00
 RandomizedDelaySec=0
 Persistent=true
 

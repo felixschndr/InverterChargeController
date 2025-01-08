@@ -126,9 +126,10 @@ class InverterChargeController(LoggerMixin):
         timestamp_now = TimeHandler.get_time()
 
         next_price_minimum, maximum_charging_duration = self.tibber_api_handler.get_next_price_minimum()
+        # FIXME: we are using next's minimum charging duration for this time
         self.log.info(
             f"The next price minimum is at {next_price_minimum} and it is feasible to charge for a "
-            + f"maximum of {maximum_charging_duration.seconds // 3600} hours"
+            + f"maximum of {maximum_charging_duration.seconds // 3600} hour(s)"
         )
 
         if next_price_minimum.rate > current_energy_rate:
@@ -144,15 +145,14 @@ class InverterChargeController(LoggerMixin):
             expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
                 timestamp_now, next_price_minimum.timestamp
             )
-            self.log.info(
-                f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
-            )
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 429:
                 raise e
-
             self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
             expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_debug_solar_output()
+        self.log.info(
+            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
+        )
 
         if self.absence_handler.check_for_current_absence():
             self.log.info(
@@ -280,7 +280,7 @@ class InverterChargeController(LoggerMixin):
 
         self.log.info(
             f"Set the inverter to charge, the target state of charge is {target_state_of_charge} %. "
-            + f"The maximum end charging time is {maximum_end_charging_time.strftime('%H:%M:%S')}. "
+            + f"End of charging is {maximum_end_charging_time.strftime('%H:%M:%S')} at the latest. "
             + f"Checking the charging progress every {charging_progress_check_interval}..."
         )
 
@@ -327,7 +327,7 @@ class InverterChargeController(LoggerMixin):
             if TimeHandler.get_time() > maximum_end_charging_time:
                 self.log.info(
                     f"The maximum end charging time of {maximum_end_charging_time} has been reached "
-                    + "--> Stopping the charging process"
+                    + f"--> Stopping the charging process. The battery is at {current_state_of_charge} %"
                 )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
@@ -368,11 +368,11 @@ class InverterChargeController(LoggerMixin):
     def _lock(self) -> None:
         with open(self.LOCK_FILE_PATH, "w") as lock_file:
             lock_file.write(str(os.getpid()))
-        self.log.debug("Lock file created.")
+        self.log.debug("Lock file created")
 
     def unlock(self) -> None:
         if not os.path.exists(self.LOCK_FILE_PATH):
             return
 
         os.remove(self.LOCK_FILE_PATH)
-        self.log.info("Lock file removed.")
+        self.log.debug("Lock file removed")

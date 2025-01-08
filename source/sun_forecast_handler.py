@@ -76,14 +76,16 @@ class SunForecastHandler(LoggerMixin):
         """
         solar_data = []
 
+        # TODO: Check the logik here
         now = TimeHandler.get_time().replace(second=0, microsecond=0) - timedelta(
             seconds=1
         )  # Account for execution times of the program
+        self.log.debug(f"Time values: {timestamp_start}, {timestamp_start}, {now}")
         if timestamp_start >= now or timestamp_end >= now:
-            self.log.trace("Need to retrieve forecast data")
+            self.log.debug("Need to retrieve forecast data")
             solar_data += self.retrieve_solar_forecast_data(rooftop_id)
         if timestamp_start <= now:
-            self.log.trace("Need to retrieve historic data")
+            self.log.debug("Need to retrieve historic data")
             solar_data += self.retrieve_historic_data(rooftop_id)
         solar_data.sort(key=lambda x: x["period_end"])
 

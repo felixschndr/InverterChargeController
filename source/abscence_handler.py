@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from energy_amount import EnergyAmount, Power
+from energy_classes import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 from time_handler import TimeHandler

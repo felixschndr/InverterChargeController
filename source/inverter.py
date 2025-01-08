@@ -1,7 +1,7 @@
 import asyncio
 
 import goodwe
-from energy_amount import EnergyAmount
+from energy_classes import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe.et import OperationMode
 from logger import LoggerMixin

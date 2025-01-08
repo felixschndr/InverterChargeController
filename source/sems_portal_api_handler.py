@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 
 import requests
 from database_handler import DatabaseHandler, InfluxDBField
-from energy_amount import EnergyAmount, Power
+from energy_classes import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 from time_handler import TimeHandler

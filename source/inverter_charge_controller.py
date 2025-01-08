@@ -6,7 +6,7 @@ import pause
 import requests.exceptions
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
-from energy_amount import EnergyAmount, EnergyRate
+from energy_classes import EnergyAmount, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode, RequestFailedException
 from inverter import Inverter

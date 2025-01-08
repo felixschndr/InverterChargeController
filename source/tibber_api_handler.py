@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from database_handler import DatabaseHandler, InfluxDBField
-from energy_amount import EnergyRate
+from energy_classes import EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport

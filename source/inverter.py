@@ -53,10 +53,6 @@ class Inverter(LoggerMixin):
         Raises:
             RuntimeError: If the operation mode could not be set successfully.
         """
-        if EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True):
-            self.log.info(f"Would set the inverter to {mode.name} but dry run is enabled")
-            return
-
         if self.device is None:
             self.connect()
 

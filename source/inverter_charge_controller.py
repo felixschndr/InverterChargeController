@@ -266,7 +266,6 @@ class InverterChargeController(LoggerMixin):
                 constraints.
         """
         charging_progress_check_interval = timedelta(minutes=5)
-        dry_run = EnvironmentVariableGetter.get(name_of_variable="DRY_RUN", default_value=True)
 
         maximum_end_charging_time = TimeHandler.get_time().replace(minute=0, second=0) + maximum_charging_duration
 
@@ -305,12 +304,6 @@ class InverterChargeController(LoggerMixin):
                 self.log.warning(f"Waiting for {charging_progress_check_interval} to try again...")
                 error_counter += 1
                 continue
-
-            if dry_run:
-                self.log.debug(
-                    f"Assuming state of charge is {target_state_of_charge} % (actually it is {current_state_of_charge} %) since dry run is enabled"
-                )
-                current_state_of_charge = target_state_of_charge
 
             if current_state_of_charge >= target_state_of_charge:
                 self.log.info(

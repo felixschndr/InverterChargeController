@@ -227,10 +227,17 @@ from(bucket: "default")
 |> range(start: 0, stop: now())
 |> filter(fn: (r) => r._measurement == "power")
 |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")'`
+- Retrieve all power buy data: `influx query -org default -token ${TOKEN} '
+from(bucket: "default")
+|> range(start: 0, stop: now())
+|> filter(fn: (r) => r._measurement == "power_buy")
+|> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")'`
 - Copy data from one measurement to another: `influx query -org default -token ${TOKEN} 'import "experimental"
 from(bucket: "default")
   |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
   |> filter(fn: (r) => r._measurement == "<old_measurement>")
   |> set(key: "_measurement", value: "<new_measurement>")
   |> to(bucket: "default")'`
-- Delete data from one measurement: `influx delete --bucket default -org default -token ${TOKEN} --start='1970-01-01T00:00:00Z' --stop=$(date +"%Y-%m-%dT%H:%M:%SZ" -d "+2 days") --predicate '_measurement=<old_measurement>'`
+- Delete data from one measurement: `influx delete --bucket default -org default -token ${TOKEN} \
+--start='1970-01-01T00:00:00Z' --stop=$(date +"%Y-%m-%dT%H:%M:%SZ" -d "+2 days") \
+--predicate '_measurement=<old_measurement>'`

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pause
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
+from database_handler import DatabaseHandler, InfluxDBField
 from energy_classes import EnergyAmount, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import OperationMode, RequestFailedException
@@ -31,6 +32,7 @@ class InverterChargeController(LoggerMixin):
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
         self.absence_handler = AbsenceHandler()
+        self.database_handler = DatabaseHandler("power_buy")
 
     def start(self) -> None:
         """
@@ -239,7 +241,7 @@ class InverterChargeController(LoggerMixin):
         )
         self.log.info(f"Bought {energy_bought} to charge the battery")
 
-        self._write_energy_buy_statistics_to_file(
+        self._write_energy_buy_statistics_to_database(
             timestamp_starting_to_charge, timestamp_ending_to_charge, energy_bought
         )
 
@@ -323,6 +325,21 @@ class InverterChargeController(LoggerMixin):
         timestamp_starting_to_charge: datetime,
         timestamp_ending_to_charge: datetime,
     ) -> EnergyAmount:
+        """
+        Calculates the total amount of energy bought during a charging session.
+
+        This method determines the energy purchased based on whether the charging session occurred on a single day or
+        spanned across two consecutive days. It uses the SEMS portal API to fetch the amount of energy purchased for the
+        different days and computes the total difference.
+
+        Args:
+            energy_bought_before_charging: Energy amount recorded before charging started.
+            timestamp_starting_to_charge: Datetime object representing when the charging started.
+            timestamp_ending_to_charge: Datetime object representing when the charging ended.
+
+        Returns:
+            EnergyAmount: The total energy bought during the charging session.
+        """
         if timestamp_starting_to_charge.date() == timestamp_ending_to_charge.date():
             energy_bought_today_after_charging = self.sems_portal_api_handler.get_energy_buy()
             self.log.debug(
@@ -337,21 +354,38 @@ class InverterChargeController(LoggerMixin):
         )
         return energy_bought_today_after_charging + energy_bought_yesterday
 
-    def _write_energy_buy_statistics_to_file(
+    def _write_energy_buy_statistics_to_database(
         self, timestamp_starting_to_charge: datetime, timestamp_ending_to_charge: datetime, energy_bought: EnergyAmount
     ) -> None:
-        filename = super().directory_of_logs + "/energy_buy.log"
-        with open(filename, "a") as f:
-            f.write(
-                f"{timestamp_starting_to_charge.isoformat()}\t{timestamp_ending_to_charge.isoformat()}\t{int(energy_bought.watt_hours)}\n"
-            )
+        """
+        Writes the amount of energy bought and the corresponding start and end timestamps into the database.
+
+        Args:
+            timestamp_starting_to_charge: Datetime object representing when the charging started.
+            timestamp_ending_to_charge: Datetime object representing when the charging ended.
+            energy_bought: EnergyAmount object containing the amount of energy (in watt-hours) purchased.
+        """
+        self.log.debug("Writing statistics of power buy to database")
+        self.database_handler.write_to_database(
+            [
+                InfluxDBField("amount_of_power_bought", energy_bought.watt_hours),
+                InfluxDBField("timestamp_starting_to_charge", timestamp_starting_to_charge.isoformat()),
+                InfluxDBField("timestamp_ending_to_charge", timestamp_ending_to_charge.isoformat()),
+            ]
+        )
 
     def _lock(self) -> None:
+        """
+        Writes the current process ID to a lock file to indicate the process is active.
+        """
         with open(self.LOCK_FILE_PATH, "w") as lock_file:
             lock_file.write(str(os.getpid()))
         self.log.debug("Lock file created")
 
     def unlock(self) -> None:
+        """
+        Removes the lock file if it exists and thus unlocking the process.
+        """
         if not os.path.exists(self.LOCK_FILE_PATH):
             return
 

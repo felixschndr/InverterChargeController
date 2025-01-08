@@ -10,6 +10,8 @@ from time_handler import TimeHandler
 
 
 class TibberAPIHandler(LoggerMixin):
+    MAXIMUM_THRESHOLD = 0.03  # in €
+
     def __init__(self):
         super().__init__()
 
@@ -18,7 +20,6 @@ class TibberAPIHandler(LoggerMixin):
             headers={"Authorization": EnvironmentVariableGetter.get("TIBBER_API_TOKEN")},
         )
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
-        self.maximum_threshold = 0.03  # in €
 
         self.database_handler = DatabaseHandler("energy_prices")
 
@@ -30,7 +31,7 @@ class TibberAPIHandler(LoggerMixin):
         Looking at the prices trends, it can be seen that the optimal time to charge is the minimum between the first
         maximum and the subsequent maximum.
 
-        A maximum is set to only be a maximum if the price is at least self.maximum_threshold € higher than the minimum
+        A maximum is set to only be a maximum if the price is at least MAXIMUM_THRESHOLD € higher than the minimum
         found until this point. This is done since sometimes there is a downward sloping trend in which there are one or
         two rates that are not smaller than the ones before but instead just a little higher (about 0.5-1.5 cents).
         Without this threshold these values would be interpreted as maximums (that there are not).
@@ -85,14 +86,15 @@ class TibberAPIHandler(LoggerMixin):
 
         return minimum_of_energy_rates
 
+    @staticmethod
     def _calculate_maximum_charging_duration(
-        self, minimum_of_energy_rates: EnergyRate, upcoming_energy_rates: list[EnergyRate]
+        minimum_of_energy_rates: EnergyRate, upcoming_energy_rates: list[EnergyRate]
     ) -> timedelta:
         """
         Calculates the maximum duration for which charging is feasible under given energy rate constraints.
 
         This method computes the maximum charging duration based on the minimum energy rate within the list of upcoming
-        energy rates and self.maximum_threshold. This ensures that charging only continues while subsequent energy rates
+        energy rates and MAXIMUM_THRESHOLD. This ensures that charging only continues while subsequent energy rates
         remain within the allowed threshold of the minimum energy rate.
 
         Args:
@@ -110,7 +112,7 @@ class TibberAPIHandler(LoggerMixin):
             return charging_duration
 
         for energy_rate in upcoming_energy_rates[index + 1 :]:
-            if energy_rate.rate <= minimum_of_energy_rates.rate + self.maximum_threshold:
+            if energy_rate.rate <= minimum_of_energy_rates.rate + TibberAPIHandler.MAXIMUM_THRESHOLD:
                 charging_duration += timedelta(hours=1)
                 continue
             break
@@ -248,8 +250,9 @@ class TibberAPIHandler(LoggerMixin):
 
         return energy_rates_between_first_and_second_maximum
 
+    @staticmethod
     def _find_energy_rates_till_first_maximum(
-        self, upcoming_energy_rates: list[EnergyRate], first_run: bool = False
+        upcoming_energy_rates: list[EnergyRate], first_run: bool = False
     ) -> list[EnergyRate]:
         last_energy_rate = minimum_energy_rate_found_until_now = upcoming_energy_rates[0]
         last_energy_rate_was_maximum = False
@@ -261,7 +264,8 @@ class TibberAPIHandler(LoggerMixin):
 
             if current_energy_rate > last_energy_rate and (
                 first_run
-                or current_energy_rate.rate > minimum_energy_rate_found_until_now.rate + self.maximum_threshold
+                or current_energy_rate.rate
+                > minimum_energy_rate_found_until_now.rate + TibberAPIHandler.MAXIMUM_THRESHOLD
             ):
                 last_energy_rate_was_maximum = True
 

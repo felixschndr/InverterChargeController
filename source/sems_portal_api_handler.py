@@ -303,8 +303,11 @@ class SemsPortalApiHandler(LoggerMixin):
                             "state_of_charge_in_percent",
                             self._get_value_of_line_by_line_index_and_time_key(lines, 4, time_key),
                         ),
-                    ],
-                    timestamp,
+                        InfluxDBField(
+                            "timestamp",
+                            timestamp.isoformat(),
+                        ),
+                    ]
                 )
 
     @staticmethod
@@ -328,3 +331,8 @@ class SemsPortalApiHandler(LoggerMixin):
             int: The integer representation of the value ('y') corresponding to the provided time key.
         """
         return int([line for line in lines[line_index]["xy"] if line["x"] == time_key][0]["y"])
+
+
+if __name__ == "__main__":
+    sems_portal_api_handler = SemsPortalApiHandler()
+    sems_portal_api_handler.write_values_to_database()

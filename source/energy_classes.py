@@ -82,7 +82,7 @@ class EnergyRate:
         return self.rate > other.rate
 
     def format_maximum_charging_duration(self) -> str:
-        charging_duration_in_hours = self.maximum_charging_duration.total_seconds() // 3600
+        charging_duration_in_hours = int(self.maximum_charging_duration.total_seconds() // 3600)
         if charging_duration_in_hours == 1:
             return "1 hour"
         return f"{charging_duration_in_hours} hours"

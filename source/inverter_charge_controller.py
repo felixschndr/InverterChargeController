@@ -58,7 +58,8 @@ class InverterChargeController(LoggerMixin):
          - Unexpected exceptions: Exit with status code 1
 
         This method indefinitely repeats a sequence of operations until an unrecoverable error occurs.
-        On the first iteration, it performs a special initialization operation to determine the next scheduled execution time.
+        On the first iteration, it performs a special initialization operation to determine the next scheduled execution
+        time.
         On subsequent iterations, it performs a standard operation to determine the next scheduled execution time.
 
         Raises:
@@ -82,7 +83,7 @@ class InverterChargeController(LoggerMixin):
                         time_to_sleep_to += timedelta(days=1)
                     self.log.info(
                         f"The price minimum {next_price_minimum} has to re-checked "
-                        + f"--> Waiting until {time_to_sleep_to}..."
+                        f"--> Waiting until {time_to_sleep_to}..."
                     )
                     pause.until(time_to_sleep_to)
                     self.log.info("Waking up since the the price minimum has to re-checked")
@@ -127,10 +128,7 @@ class InverterChargeController(LoggerMixin):
         timestamp_now = TimeHandler.get_time()
 
         next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
-        self.log.info(
-            f"The next price minimum is at {next_price_minimum} and it is feasible to charge for a "
-            + f"maximum of {current_energy_rate.format_maximum_charging_duration()}"
-        )
+        self.log.info(f"The next price minimum is at {next_price_minimum}")
 
         if next_price_minimum.rate > current_energy_rate.rate:
             # Information is unused at the moment
@@ -140,12 +138,14 @@ class InverterChargeController(LoggerMixin):
             timestamp_now, next_price_minimum.timestamp
         )
         self.log.info(
-            f"The expected energy harvested by the sun till the next price minimum is {expected_power_harvested_till_next_minimum}"
+            f"The expected energy harvested by the sun till the next price minimum is "
+            f"{expected_power_harvested_till_next_minimum}"
         )
 
         if self.absence_handler.check_for_current_absence():
             self.log.info(
-                "Currently there is an absence, using the power consumption configured in the environment as the basis for calculation"
+                "Currently there is an absence, using the power consumption configured in the environment as the "
+                "basis for calculation"
             )
             expected_energy_usage_till_next_minimum = self.absence_handler.calculate_power_usage_for_absence(
                 timestamp_now, next_price_minimum.timestamp
@@ -162,8 +162,8 @@ class InverterChargeController(LoggerMixin):
             power_usage_increase_factor = 20
             self.log.info(
                 "The price minimum has to be re-checked since it is at the end of a day and the price rates for "
-                + "tomorrow are unavailable --> The expected power usage "
-                + f"({expected_energy_usage_till_next_minimum}) is increased by {power_usage_increase_factor} %"
+                "tomorrow are unavailable --> The expected power usage "
+                f"({expected_energy_usage_till_next_minimum}) is increased by {power_usage_increase_factor} %"
             )
             expected_energy_usage_till_next_minimum += expected_energy_usage_till_next_minimum * (
                 power_usage_increase_factor / 100
@@ -184,7 +184,8 @@ class InverterChargeController(LoggerMixin):
             self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(target_min_state_of_charge)
         )
         self.log.info(
-            f"The battery shall contain {energy_to_be_in_battery_when_reaching_next_minimum} ({target_min_state_of_charge} %) when reaching the next minimum"
+            f"The battery shall contain {energy_to_be_in_battery_when_reaching_next_minimum} "
+            f"({target_min_state_of_charge} %) when reaching the next minimum"
         )
 
         summary_of_energy_vales = {
@@ -230,7 +231,8 @@ class InverterChargeController(LoggerMixin):
 
         duration_to_wait_for_semsportal_update = timedelta(minutes=10)
         self.log.info(
-            f"Sleeping for {duration_to_wait_for_semsportal_update} to let the SEMS Portal update its power consumption data..."
+            f"Sleeping for {duration_to_wait_for_semsportal_update} to let the SEMS Portal update its power "
+            "consumption data..."
         )
         pause.seconds(duration_to_wait_for_semsportal_update.total_seconds())
 
@@ -269,20 +271,23 @@ class InverterChargeController(LoggerMixin):
 
         self.log.info(
             f"Set the inverter to charge, the target state of charge is {target_state_of_charge} %. "
-            + f"End of charging is {maximum_end_charging_time.strftime('%H:%M:%S')} at the latest. "
-            + f"Checking the charging progress every {charging_progress_check_interval}..."
+            f"End of charging is {maximum_end_charging_time.strftime('%H:%M:%S')} at the latest. "
+            f"Checking the charging progress every {charging_progress_check_interval}..."
         )
 
         error_counter = 0
         while True:
             if error_counter == 3:
                 self.log.error(
-                    f"An error occurred {error_counter} times while trying to get the current state of charge --> Stopping the charging process"
+                    f"An error occurred {error_counter} times while trying to get the current state of charge"
+                    f"--> Stopping the charging process"
                 )
                 # Can't set the mode of the inverter as it is unresponsive
                 break
 
-            pause.seconds(charging_progress_check_interval.total_seconds())
+            # Account for program execution times, this way the check happens at 05:00 and does not add up delays
+            # (minor cosmetics)
+            pause.seconds(charging_progress_check_interval.total_seconds() - TimeHandler.get_time().second)
 
             try:
                 if self.inverter.get_operation_mode() != OperationMode.ECO_CHARGE:
@@ -310,13 +315,14 @@ class InverterChargeController(LoggerMixin):
             if TimeHandler.get_time() > maximum_end_charging_time:
                 self.log.info(
                     f"The maximum end charging time of {maximum_end_charging_time} has been reached "
-                    + f"--> Stopping the charging process. The battery is at {current_state_of_charge} %"
+                    f"--> Stopping the charging process. The battery is at {current_state_of_charge} %"
                 )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
 
             self.log.debug(
-                f"Charging is still ongoing (current: {current_state_of_charge} %, target: >= {target_state_of_charge} %) --> Waiting for another {charging_progress_check_interval}..."
+                f"Charging is still ongoing (current: {current_state_of_charge} %, target: >= {target_state_of_charge} "
+                f"%) --> Waiting for another {charging_progress_check_interval}..."
             )
 
     def _calculate_amount_of_energy_bought(
@@ -343,14 +349,17 @@ class InverterChargeController(LoggerMixin):
         if timestamp_starting_to_charge.date() == timestamp_ending_to_charge.date():
             energy_bought_today_after_charging = self.sems_portal_api_handler.get_energy_buy()
             self.log.debug(
-                f"It is till the same day since starting to charge, the amount of energy bought after charging is {energy_bought_today_after_charging}"
+                f"It is till the same day since starting to charge, the amount of energy bought after charging is "
+                f"{energy_bought_today_after_charging}"
             )
             return energy_bought_today_after_charging - energy_bought_before_charging
 
         energy_bought_today_after_charging = self.sems_portal_api_handler.get_energy_buy()
         energy_bought_yesterday = self.sems_portal_api_handler.get_energy_buy(1) - energy_bought_before_charging
         self.log.debug(
-            f"It is the next day since starting to charge, the amount of energy bought after charging (today) is {energy_bought_today_after_charging}, the amount of energy bought after charging (yesterday) is {energy_bought_yesterday}"
+            f"It is the next day since starting to charge, the amount of energy bought after charging (today) is "
+            f"{energy_bought_today_after_charging}, the amount of energy bought after charging (yesterday) is "
+            f"{energy_bought_yesterday}"
         )
         return energy_bought_today_after_charging + energy_bought_yesterday
 

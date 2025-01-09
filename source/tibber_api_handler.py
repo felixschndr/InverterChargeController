@@ -62,7 +62,7 @@ class TibberAPIHandler(LoggerMixin):
         ):
             self.log.info(
                 "This is the first time finding the minimum prices and the prices are currently on a decline. "
-                + "Thus the next price minimum is considered (instead of the one after the first maximum)."
+                "Thus the next price minimum is considered (instead of the one after the first maximum)."
             )
             energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
                 upcoming_energy_rates

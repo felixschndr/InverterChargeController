@@ -106,8 +106,8 @@ class SunForecastHandler(LoggerMixin):
             )
             self.log.trace(
                 f"There is an estimated power generation of {power_in_timeslot} "
-                + f"from {max(timeslot_start, timestamp_start)} to {min(timeslot_end, timestamp_end)}, thus producing "
-                + f"{energy_produced_in_timeslot} in that timeframe"
+                f"from {max(timeslot_start, timestamp_start)} to {min(timeslot_end, timestamp_end)}, thus producing "
+                f"{energy_produced_in_timeslot} in that timeframe"
             )
             expected_solar_output += energy_produced_in_timeslot
 

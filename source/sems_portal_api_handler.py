@@ -186,9 +186,13 @@ class SemsPortalApiHandler(LoggerMixin):
         Returns:
             An instance of EnergyAmount representing the energy bought.
         """
-        self.log.debug(f"Determining the amount of energy bought {days_in_past} days ago")
-
-        self.login()
+        if days_in_past == 0:
+            timeframe_as_string = "today (until now)"
+        elif days_in_past == 1:
+            timeframe_as_string = "yesterday"
+        else:
+            timeframe_as_string = f"{days_in_past} days ago"
+        self.log.debug(f"Determining the amount of energy bought {timeframe_as_string}")
 
         api_response = self._retrieve_energy_consumption_data()
         lines = api_response["data"]["lines"]

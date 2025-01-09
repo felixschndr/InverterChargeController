@@ -65,7 +65,7 @@ class SunForecastHandler(LoggerMixin):
             solar_data: A list of dictionaries containing information about solar data timeslots. Each dictionary must
                 include "period" (duration of the timeslot), "period_end" (end time of the timeslot in ISO 8601 format),
                 and "pv_estimate" (estimated power generation in kilowatts for the timeslot).
-                        timestamp_start: Start of the desired timeframe for solar energy calculation.
+            timestamp_start: Start of the desired timeframe for solar energy calculation.
             timestamp_end: End of the desired timeframe for solar energy calculation.
             rooftop_id: The identifier of the rooftop installation associated with the solar data.
                 Must only be provided if write_to_database is True.
@@ -88,10 +88,10 @@ class SunForecastHandler(LoggerMixin):
                 self.database_handler.write_to_database(
                     [
                         InfluxDBField("pv_estimate_in_watts", float(timeslot["pv_estimate"] * 1000)),
+                        InfluxDBField("forecast_timestamp", timeslot_start.isoformat()),
                         InfluxDBField("retrieval_timestamp", now),
                         InfluxDBField("rooftop_id", rooftop_id),
-                    ],
-                    timestamp=timeslot_start,
+                    ]
                 )
 
             overlap = TimeHandler.calculate_overlap_between_time_frames(
@@ -208,3 +208,10 @@ class SunForecastHandler(LoggerMixin):
         return self._calculate_energy_produced_in_timeframe(
             sample_data, timestamp_start, timestamp_end, write_to_database=False
         )
+
+
+if __name__ == "__main__":
+    s = SunForecastHandler()
+    start = TimeHandler.get_time() + timedelta(hours=1)
+    ende = start + timedelta(hours=5)
+    s.get_solar_output_in_timeframe(start, ende)

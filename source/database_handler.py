@@ -35,8 +35,6 @@ class DatabaseHandler(LoggerMixin):
         if timestamp is not None and timestamp.tzinfo is None:
             self.log.warning(f"Timestamp {timestamp} has no timezone information, adding it")
             timestamp = timestamp.replace(tzinfo=TimeHandler.get_timezone())
-        if timestamp is None:
-            timestamp = datetime.now(tz=TimeHandler.get_timezone())
 
         point = Point(self.measurement)
         if type(fields_to_insert) is not list:

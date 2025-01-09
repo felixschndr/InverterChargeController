@@ -213,24 +213,93 @@ It saves the following data:
 
 - Create bucket: `influx bucket create -org default -token ${INFLUXDB_TOKEN} --name default`
 - Delete bucket: `influx bucket delete -org default -token ${INFLUXDB_TOKEN} --name default`
-- Retrieve all solar forecast values: `influx query -org default -token ${INFLUXDB_TOKEN} 'import "experimental"
-from(bucket: "default")
-|> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
-|> filter(fn: (r) => r._measurement == "sun_forecast")
-|> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")'`
-- Retrieve all energy prices: `influx query -org default -token ${INFLUXDB_TOKEN} 'import "experimental"
-from(bucket: "default")
-|> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
-|> filter(fn: (r) => r._measurement == "energy_prices")'`
-- Retrieve all power data (semsportal): `influx query -org default -token ${INFLUXDB_TOKEN} '
-from(bucket: "default")
-|> range(start: 0, stop: now())
-|> filter(fn: (r) => r._measurement == "power")
-|> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")'`
-- Copy data from one measurement to another: `influx query -org default -token ${INFLUXDB_TOKEN} 'import "experimental"
-from(bucket: "default")
-  |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
-  |> filter(fn: (r) => r._measurement == "<old_measurement>")
-  |> set(key: "_measurement", value: "<new_measurement>")
-  |> to(bucket: "default")'`
-- Delete data from one measurement: `influx delete --bucket default -org default -token ${INFLUXDB_TOKEN} --start='1970-01-01T00:00:00Z' --stop=$(date +"%Y-%m-%dT%H:%M:%SZ" -d "+2 days") --predicate '_measurement=<old_measurement>'`
+- Retrieve all solar forecast values:
+   ```
+   influx query -org default -token ${INFLUXDB_TOKEN} \
+   '
+   import "experimental"
+   from(bucket: "default")
+     |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+     |> filter(fn: (r) => r._measurement == "solar_forecast")
+     |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+   '
+   ```
+- Retrieve all energy prices:
+   ```
+   influx query -org default -token ${INFLUXDB_TOKEN} \
+   '
+   import "experimental"
+   from(bucket: "default")
+     |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+     |> filter(fn: (r) => r._measurement == "energy_prices")
+     |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+   '
+   ```
+- Retrieve all power data (semsportal): 
+   ```
+   influx query -org default -token ${INFLUXDB_TOKEN} \
+   '
+   from(bucket: "default")
+     |> range(start: 0, stop: now())
+     |> filter(fn: (r) => r._measurement == "power")
+     |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+   '
+   ```
+- Retrieve all power buy data: 
+   ```
+   influx query -org default -token ${INFLUXDB_TOKEN} \
+   '
+   from(bucket: "default")
+     |> range(start: 0, stop: now())
+     |> filter(fn: (r) => r._measurement == "power_buy")
+     |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+   '
+   ```
+- Rename a field within the same measurement: 
+   ```
+   influx query -org default -token ${INFLUXDB_TOKEN} \
+   '
+   import "experimental"
+   from(bucket: "default")
+     |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+     |> filter(fn: (r) => r._measurement == "power")
+     |> map(fn: (r) => ({
+       _time: r._time,
+       _value: if exists r.<old_field_name> then r.<old_field_name> else r._value,
+       <new_field_name>: r.<old_field_name>,
+       _field: "<new_field_name>"
+     }))
+     |> drop(columns: ["<old_field_name>"])
+     |> to(bucket: "default", org: "default")
+   '
+   ```
+- Copy values of `_time` into a new field within the same measurement:
+   ```
+   influx query -org default -token ${INFLUXDB_TOKEN} \
+   '
+   import "experimental"
+   from(bucket: "default")
+     |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+     |> filter(fn: (r) => r._measurement == "<measurement_to_copy>")
+     |> map(fn: (r) => ({ _time: r._time, _value: r._value, <new_field_name>: r._time }))
+     |> to(bucket: "default", org: "default")
+   '
+   ```
+- Copy data from one measurement to another:
+   ```
+   influx query -org default -token ${INFLUXDB_TOKEN} \
+   '
+   import "experimental"
+   from(bucket: "default")
+     |> range(start: 0, stop: experimental.addDuration(d: 2d, to: now()))
+     |> filter(fn: (r) => r._measurement == "<old_measurement>")
+     |> set(key: "_measurement", value: "<new_measurement>")
+     |> to(bucket: "default")
+   '
+   ```
+- Delete data from one measurement: 
+   ```
+   influx delete --bucket default -org default -token ${INFLUXDB_TOKEN} \
+   --start='1970-01-01T00:00:00Z' --stop=$(date +"%Y-%m-%dT%H:%M:%SZ" -d "+2 days") \
+   --predicate '_measurement=<old_measurement>'
+   ```

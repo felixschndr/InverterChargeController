@@ -341,5 +341,8 @@ class TibberAPIHandler(LoggerMixin):
 
         for energy_rate in energy_rates:
             self.database_handler.write_to_database(
-                InfluxDBField("price", energy_rate.rate), timestamp=energy_rate.timestamp
+                [
+                    InfluxDBField("price", energy_rate.rate),
+                    InfluxDBField("rate_start_timestamp", energy_rate.timestamp.isoformat()),
+                ]
             )

@@ -284,20 +284,24 @@ class SemsPortalApiHandler(LoggerMixin):
                 self.database_handler.write_to_database(
                     [
                         InfluxDBField(
-                            "solar_generation", self._get_value_of_line_by_line_index_and_time_key(lines, 0, time_key)
+                            "solar_generation_in_watts",
+                            self._get_value_of_line_by_line_index_and_time_key(lines, 0, time_key),
                         ),
                         InfluxDBField(
-                            "battery_charge",
+                            "battery_charge_in_watts",
                             self._get_value_of_line_by_line_index_and_time_key(lines, 1, time_key) * -1,
                         ),
                         InfluxDBField(
-                            "grid_usage", self._get_value_of_line_by_line_index_and_time_key(lines, 2, time_key) * -1
+                            "grid_usage_in_watts",
+                            self._get_value_of_line_by_line_index_and_time_key(lines, 2, time_key) * -1,
                         ),
                         InfluxDBField(
-                            "power_usage", self._get_value_of_line_by_line_index_and_time_key(lines, 3, time_key)
+                            "power_usage_in_watts",
+                            self._get_value_of_line_by_line_index_and_time_key(lines, 3, time_key),
                         ),
                         InfluxDBField(
-                            "state_of_charge", self._get_value_of_line_by_line_index_and_time_key(lines, 4, time_key)
+                            "state_of_charge_in_percent",
+                            self._get_value_of_line_by_line_index_and_time_key(lines, 4, time_key),
                         ),
                     ],
                     timestamp,

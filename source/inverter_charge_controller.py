@@ -377,7 +377,7 @@ class InverterChargeController(LoggerMixin):
         self.log.debug("Writing statistics of power buy to database")
         self.database_handler.write_to_database(
             [
-                InfluxDBField("amount_of_power_bought", energy_bought.watt_hours),
+                InfluxDBField("amount_of_power_bought_in_watt_hours", energy_bought.watt_hours),
                 InfluxDBField("timestamp_starting_to_charge", timestamp_starting_to_charge.isoformat()),
                 InfluxDBField("timestamp_ending_to_charge", timestamp_ending_to_charge.isoformat()),
             ]

@@ -17,7 +17,7 @@ class SunForecastHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-        self.database_handler = DatabaseHandler("sun_forecast")
+        self.database_handler = DatabaseHandler("solar_forecast")
 
     def _retrieve_data_from_api(self, rooftop_id: str, path: str) -> list[dict]:
         """
@@ -130,11 +130,7 @@ class SunForecastHandler(LoggerMixin):
         """
         solar_data = []
 
-        # TODO: Check the logic here
-        now = TimeHandler.get_time().replace(second=0, microsecond=0) - timedelta(
-            seconds=1
-        )  # Account for execution times of the program
-        self.log.debug(f"Time values: {timestamp_start}, {timestamp_end}, {now}")
+        now = TimeHandler.get_time().replace(second=0, microsecond=0) - timedelta(seconds=1)
         if timestamp_start >= now or timestamp_end >= now:
             self.log.debug("Need to retrieve forecast data")
             solar_data += self.retrieve_solar_forecast_data(rooftop_id)
@@ -208,10 +204,3 @@ class SunForecastHandler(LoggerMixin):
         return self._calculate_energy_produced_in_timeframe(
             sample_data, timestamp_start, timestamp_end, write_to_database=False
         )
-
-
-if __name__ == "__main__":
-    s = SunForecastHandler()
-    start = TimeHandler.get_time() + timedelta(hours=1)
-    ende = start + timedelta(hours=5)
-    s.get_solar_output_in_timeframe(start, ende)

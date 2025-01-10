@@ -24,7 +24,8 @@ class InverterChargeController(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-        self.log.info("Starting application")
+        started_by_systemd = " by systemd" if "INVOCATION_ID" in os.environ else ""
+        self.log.info(f"Starting application{started_by_systemd}")
 
         self.timezone = TimeHandler.get_timezone()
         self.sems_portal_api_handler = SemsPortalApiHandler()

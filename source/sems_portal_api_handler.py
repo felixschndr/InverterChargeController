@@ -332,7 +332,30 @@ class SemsPortalApiHandler(LoggerMixin):
         """
         return int([line for line in lines[line_index]["xy"] if line["x"] == time_key][0]["y"])
 
+    def get_battery_capacity(self) -> EnergyAmount:
+        """
+        Retrieves the battery capacity from the SEMSPORTAL API.
 
-if __name__ == "__main__":
-    sems_portal_api_handler = SemsPortalApiHandler()
-    sems_portal_api_handler.write_values_to_database()
+        Returns:
+            EnergyAmount: The battery capacity retrieved from the SEMSPORTAL API.
+        """
+        self.login()
+
+        self.log.debug("Crawling the SEMSPORTAL API for the capacity of the battery...")
+
+        url = "https://eu.semsportal.com/api/v3/PowerStation/GetPlantDetailByPowerstationId"
+        headers = {
+            "Content-Type": "application/json",
+            "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
+        }
+        payload = {
+            "powerStationId": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
+        }
+
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        response.raise_for_status()
+        response = response.json()
+
+        self.log.trace(f"Retrieved data: {response}")
+
+        return EnergyAmount.from_kilo_watt_hours(response["data"]["info"]["battery_capacity"])

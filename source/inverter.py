@@ -5,6 +5,7 @@ from energy_classes import EnergyAmount
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe.et import OperationMode
 from logger import LoggerMixin
+from sems_portal_api_handler import SemsPortalApiHandler
 
 
 class Inverter(LoggerMixin):
@@ -14,7 +15,8 @@ class Inverter(LoggerMixin):
         self.device = None
 
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
-        self.battery_capacity = EnergyAmount(float(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
+        sems_portal_api_handler = SemsPortalApiHandler()
+        self.battery_capacity = sems_portal_api_handler.get_battery_capacity()
 
     def connect(self) -> None:
         """

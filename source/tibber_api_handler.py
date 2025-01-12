@@ -337,9 +337,24 @@ class TibberAPIHandler(LoggerMixin):
         return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable
 
     def write_energy_rates_to_database(self, energy_rates: list[EnergyRate]) -> None:
+        """
+        Writes the list of energy rates to the database while avoiding duplication of already existing data.
+
+        For each energy rate, it checks if the rate's timestamp is newer than the most recently saved timestamp in the
+        database. Only energy rates with a newer timestamp are written to the database.
+
+        Args:
+            list[EnergyRate]: A list of EnergyRate objects to be written to the database.
+        """
         self.log.debug("Writing prices to database...")
 
+        newest_saved_energy_rate = self.database_handler.get_newest_value_of_measurement("rate_start_timestamp")
+        self.log.trace(f"Newest saved energy rate is from {newest_saved_energy_rate}")
         for energy_rate in energy_rates:
+            if energy_rate.timestamp <= newest_saved_energy_rate:
+                self.log.trace(f"Skipping energy rate {energy_rate} as it is already saved in the database")
+                continue
+
             self.database_handler.write_to_database(
                 [
                     InfluxDBField("price", energy_rate.rate),

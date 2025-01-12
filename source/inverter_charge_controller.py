@@ -126,6 +126,8 @@ class InverterChargeController(LoggerMixin):
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
         )
 
+        self.inverter.update_battery_capacity()
+
         timestamp_now = TimeHandler.get_time()
 
         next_price_minimum = self.tibber_api_handler.get_next_price_minimum()

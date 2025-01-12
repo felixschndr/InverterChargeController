@@ -13,10 +13,23 @@ class Inverter(LoggerMixin):
         super().__init__()
 
         self.device = None
-
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
-        sems_portal_api_handler = SemsPortalApiHandler()
-        self.battery_capacity = sems_portal_api_handler.get_battery_capacity()
+
+        self.sems_portal_api_handler = SemsPortalApiHandler()
+        self.battery_capacity = None
+        self.update_battery_capacity()
+
+    def update_battery_capacity(self) -> None:
+        battery_capacity = self.sems_portal_api_handler.get_battery_capacity()
+
+        if self.battery_capacity is None:
+            self.log.info(f"The battery capacity is {battery_capacity}")
+            self.battery_capacity = battery_capacity
+            return
+
+        if battery_capacity != self.battery_capacity:
+            self.log.info(f"The battery capacity was updated from {self.battery_capacity} to {battery_capacity}")
+            self.battery_capacity = battery_capacity
 
     def connect(self) -> None:
         """

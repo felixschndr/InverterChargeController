@@ -117,7 +117,6 @@ When the current time is a price minimum, the program wakes up and does the foll
    ```
 4. Create an `.env` and fill in your values
    ```bash
-   cp .env.example .env
    vi .env
    ```
 
@@ -143,6 +142,7 @@ When the current time is a price minimum, the program wakes up and does the foll
 
    All the environment variables are read in every time they are used.
    As a consequence, the program does **not** have to be restarted when they are altered.
+   If a `.env.override` exists values of the `.env` are overwritten.
 
 ### Running
 #### Manually
@@ -165,7 +165,6 @@ cd app/
 python -m venv .venv
 source .venv/bin/activate
 poetry install
-cp .env.example .env
 vi .env
 chown -R <username>: app/
 ```

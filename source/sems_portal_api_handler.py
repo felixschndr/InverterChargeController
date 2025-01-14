@@ -265,14 +265,28 @@ class SemsPortalApiHandler(LoggerMixin):
 
     def write_values_to_database(self) -> None:
         """
-        Writes energy-related metrics to the database for the last three days.
+        Writes power data values to the database.
 
-        This method retrieves and processes energy data for the past three days, including solar generation, battery
-        discharge, grid feed, power usage and state of charge. It writes the resulting records to the database.
+        This method retrieves power data for the specified number of days starting from the most recently saved
+        timestamp in the database. It calculates the required range of days to fetch the data and processes each day's
+        data in reverse chronological order. It ensures that only new values, not yet saved in the database, are
+        inserted. The method retrieves and processes data fields including solar generation, battery charge, grid usage,
+        grid feed, power usage, state of charge, and timestamp, and writes them into the database.
         """
-        self.log.debug("Writing values to database...")
+        newest_value_saved_timestamp = self.database_handler.get_newest_value_of_measurement("timestamp")
+        self.log.trace(f"Newest value saved in the database is from {newest_value_saved_timestamp}")
+        newest_value_saved_date = newest_value_saved_timestamp.date()
+
         today = date.today()
-        for days_in_past in range(3):
+        days_since_newest_value = (today - newest_value_saved_date).days
+        maximum_fetch_days = 31
+        if days_since_newest_value > maximum_fetch_days:
+            days_since_newest_value = maximum_fetch_days
+
+        days_since_newest_value += 1  # Since range starts at 0 and does not include the end
+        self.log.debug(f"Writing values to database for the last {days_since_newest_value} day(s)")
+
+        for days_in_past in range(days_since_newest_value):
             date_to_crawl = today - timedelta(days=days_in_past)
             data = self._retrieve_power_data(date_to_crawl)
             lines = data["data"]["lines"]
@@ -281,6 +295,10 @@ class SemsPortalApiHandler(LoggerMixin):
             for time_key in time_keys:
                 timestamp = datetime.combine(date_to_crawl, datetime.strptime(time_key, "%H:%M").time())
                 timestamp = timestamp.replace(tzinfo=TimeHandler.get_timezone())
+                if timestamp <= newest_value_saved_timestamp:
+                    self.log.trace(f"Skipping values of {timestamp} as they are already saved in the database")
+                    continue
+
                 self.database_handler.write_to_database(
                     [
                         InfluxDBField(

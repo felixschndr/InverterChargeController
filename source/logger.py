@@ -6,6 +6,24 @@ from logging.handlers import RotatingFileHandler
 from environment_variable_getter import EnvironmentVariableGetter
 
 
+class RotatingFileHandlerWithPermissions(RotatingFileHandler):
+    """
+    A RotatingFileHandler subclass with custom file permissions.
+
+    This class extends the functionality of RotatingFileHandler to include setting
+    specific permissions for the rotated log files. It ensures that after a log file is
+    rolled over, all users have the permissions to read and write to it.
+    """
+
+    def doRollover(self) -> None:
+        super().doRollover()
+        self.set_permissions(self.baseFilename)
+
+    @staticmethod
+    def set_permissions(file_path: str) -> None:
+        os.chmod(file_path, 0o666)  # nosec: B103
+
+
 class LoggerMixin:
     """
     A mixin to set up and manage logging for a class.
@@ -49,7 +67,7 @@ class LoggerMixin:
             datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
 
-        file_handler = RotatingFileHandler(
+        file_handler = RotatingFileHandlerWithPermissions(
             os.path.join(self._directory_of_logs, "app.log"),
             maxBytes=1024 * 1024,
             backupCount=7,

@@ -97,14 +97,16 @@ class InverterChargeController(LoggerMixin):
                 self._write_newlines_to_log_file()
                 pause.until(next_price_minimum.timestamp)
 
-            except (ClientError, RequestException, socket.gaierror, RequestFailedException, TimeoutError) as e:
-                self.log.exception(f"An exception occurred while trying to fetch data from a different system: {e}")
-                self.log.warning(f"Waiting for {duration_to_wait_in_cause_of_error} to try again...")
+            except (ClientError, RequestException, socket.gaierror, RequestFailedException, TimeoutError):
+                self.log.warning(
+                    f"An exception occurred while trying to fetch data from a different system. "
+                    f"Waiting for {duration_to_wait_in_cause_of_error} to try again...",
+                    exc_info=True,
+                )
                 pause.seconds(duration_to_wait_in_cause_of_error.total_seconds())
 
-            except Exception as e:
-                self.log.exception(f"An unexpected error occurred: {e}")
-                self.log.critical("Exiting now...")
+            except Exception:
+                self.log.critical("An unexpected error occurred. Exiting now...", exc_info=True)
                 exit(1)
 
     def _do_iteration(self, current_energy_rate: EnergyRate) -> EnergyRate:

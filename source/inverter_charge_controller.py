@@ -1,5 +1,6 @@
 import os
 import socket
+import sys
 from datetime import datetime, timedelta
 
 import pause
@@ -107,7 +108,7 @@ class InverterChargeController(LoggerMixin):
 
             except Exception:
                 self.log.critical("An unexpected error occurred. Exiting now...", exc_info=True)
-                exit(1)
+                sys.exit(1)
 
     def _do_iteration(self, current_energy_rate: EnergyRate) -> EnergyRate:
         """

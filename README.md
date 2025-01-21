@@ -193,20 +193,6 @@ You can use the [inverter script](./inverter) to control the inverter manually o
 The logs of the application are stored in `<path to repository>/logs/`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved.
 See also the environment variables `DIRECTORY_OF_LOGS` and `LOGLEVEL`.
 
-#### Only log the solar forecast
-
-If you pass in `--solar-forecast` as an argument to `main.py` the programm just logs the expected solar forecast of the day.
-
-This can also be used to log the solar prediction after the sun has set to see how far off the solar prediction was and get a sense of how good the predication was (→ not as a *forecast* but as a *review*). To correctly display the log message use `--solar-review` in this case.
-
-#### Monitor solar forecast prediction and power buy
-
-You can monitor how far the prediction of the solar forecast was off and how much power was bought with the script [solar_forecast_logger.sh](solar_forecast_logger.sh).
-
-It saves the following data:
-- `<directory> of logs>/power_buy.log`: `<timestamp of start of charging>\t<timestamp of end of charging>\t<power bought in Wh>`
-- `<directory> of logs>/solar_forecast_difference.log`: `<date>\t<prediction at start of day in Wh>\t<prediction at end of day in Wh>`
-
 ## InfluxDB commands
 
 - Create bucket: `influx bucket create -org default -token ${INFLUXDB_TOKEN} --name default`

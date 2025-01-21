@@ -13,7 +13,7 @@ fi
 
 ###### Search for errors ######
 current_date=$(date '+%Y-%m-%d')
-search_pattern="ERROR|WARNING|CRITICAL"
+search_pattern="ERROR|CRITICAL"
 temp_output=$(mktemp)
 
 grep -A10 -n "${current_date}" "${logfile}" | grep -A10 -E "${search_pattern}" > "${temp_output}"

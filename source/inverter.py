@@ -18,6 +18,8 @@ class Inverter(LoggerMixin):
 
         self.sems_portal_api_handler = SemsPortalApiHandler()
         self.battery_capacity = None
+        # We have to pull the battery capacity at startup since there are functions here that require it which are
+        # called when using the bash script to control the inverter manually
         self.update_battery_capacity()
 
     @property

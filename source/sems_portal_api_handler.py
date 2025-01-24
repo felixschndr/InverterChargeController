@@ -376,4 +376,12 @@ class SemsPortalApiHandler(LoggerMixin):
 
         self.log.trace(f"Retrieved data: {response}")
 
-        return EnergyAmount.from_kilo_watt_hours(response["data"]["info"]["battery_capacity"])
+        try:
+            return EnergyAmount.from_kilo_watt_hours(response["data"]["info"]["battery_capacity"])
+        except (KeyError, TypeError):
+            # This is not that bad as we pull the battery capacity every iteration
+            # If this is the first time after starting we don't even use the value
+            self.log.warning(
+                "Unable to retrieve battery capacity from SEMSPORTAL API, using a default value", exc_info=True
+            )
+            return EnergyAmount.from_kilo_watt_hours(10)

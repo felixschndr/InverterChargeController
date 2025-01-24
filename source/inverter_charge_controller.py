@@ -9,7 +9,7 @@ from aiohttp import ClientError
 from database_handler import DatabaseHandler, InfluxDBField
 from energy_classes import EnergyAmount, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
-from goodwe import OperationMode, RequestFailedException
+from goodwe import InverterError, OperationMode
 from inverter import Inverter
 from logger import LoggerMixin
 from requests.exceptions import RequestException
@@ -98,7 +98,7 @@ class InverterChargeController(LoggerMixin):
                 self._write_newlines_to_log_file()
                 pause.until(next_price_minimum.timestamp)
 
-            except (ClientError, RequestException, socket.gaierror, RequestFailedException, TimeoutError):
+            except (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError):
                 self.log.warning(
                     f"An exception occurred while trying to fetch data from a different system. "
                     f"Waiting for {duration_to_wait_in_cause_of_error} to try again...",
@@ -305,7 +305,7 @@ class InverterChargeController(LoggerMixin):
                 current_state_of_charge = self.inverter.get_state_of_charge()
 
                 error_counter = 0
-            except RequestFailedException as e:
+            except InverterError as e:
                 self.log.exception(f"An exception occurred while trying to fetch the current state of charge: {e}")
                 self.log.warning(f"Waiting for {charging_progress_check_interval} to try again...")
                 error_counter += 1

@@ -32,8 +32,8 @@ if [[ ${1} == "--status" ]]; then
 	python3 - << EOF
 ${inverter_setup_code}
 try:
-	mode = inverter.get_operation_mode().name
-	soc = inverter.get_state_of_charge()
+	mode = inverter.get_operation_mode(True).name
+	soc = inverter.get_state_of_charge(True)
 	print(f"SoC: {soc} %\nmode: {mode}")
 except Exception as e:
 	inverter.log.exception(e)
@@ -51,7 +51,7 @@ if [[ ${1} == "--mode" ]]; then
 	python3 - << EOF
 ${inverter_setup_code}
 try:
-	last_mode = inverter.get_operation_mode().name
+	last_mode = inverter.get_operation_mode(True).name
 	inverter.set_operation_mode(OperationMode.${2})
 	print(f"last mode: {last_mode}\nnew mode: ${2}")
 except Exception as e:

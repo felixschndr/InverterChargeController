@@ -61,16 +61,20 @@ class Inverter(LoggerMixin):
             self.log.info(f"The battery capacity was updated from {self.battery_capacity} to {battery_capacity}")
             self.battery_capacity = battery_capacity
 
-    def get_operation_mode(self) -> OperationMode:
+    def get_operation_mode(self, log_new_mode: bool = False) -> OperationMode:
         """
         Gets the current operation mode of the device.
+
+        Args:
+            log_new_mode (bool): Whether to log the current operation mode. Default is False.
 
         Returns:
             OperationMode: The current operation mode of the device.
         """
         self.log.debug("Getting current operation mode...")
         operation_mode = asyncio.run(self.device.get_operation_mode())
-        self.log.info(f"The current Operation mode is {operation_mode.name}")
+        if log_new_mode:
+            self.log.info(f"The current Operation mode is {operation_mode.name}")
         return operation_mode
 
     def set_operation_mode(self, mode: OperationMode) -> None:
@@ -128,9 +132,12 @@ class Inverter(LoggerMixin):
             return 100
         return state_of_charge
 
-    def get_state_of_charge(self) -> int:
+    def get_state_of_charge(self, log_state_of_charge: bool = False) -> int:
         """
         Gets the current state of charge of the device's battery.
+
+        Args:
+            log_state_of_charge (bool): Whether to log the state of charge information. Default is False.
 
         Returns:
             int: The current state of charge in percentage.
@@ -138,4 +145,6 @@ class Inverter(LoggerMixin):
         self.log.debug("Getting current state of charge...")
         runtime_data = asyncio.run(self.device.read_runtime_data())
         state_of_charge = runtime_data["battery_soc"]
+        if log_state_of_charge:
+            self.log.info(f"The current state of charge is {state_of_charge} %")
         return state_of_charge

@@ -6,6 +6,6 @@ select = A,B,C,E,F,W,T4,B9
 suppress-non-returning = true
 kwargs-ignore-function-pattern-extend = (options|load_only)$
 per-file-ignores =
-    tests/*:ANN001,ANN201, ANN401
+    inverter:E402
 extend-exclude =
     .venv/

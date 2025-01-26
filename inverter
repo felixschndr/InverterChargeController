@@ -1,78 +1,89 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3.11
 
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+import getpass
+import glob
+import os
+import sys
 
-source "${SCRIPT_DIR}"/.venv/bin/activate
-cd "${SCRIPT_DIR}"/source || exit 1
 
-read -r -d '' inverter_setup_code <<EOF
-from logger import LoggerMixin
+def setup() -> None:
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    venv_path = os.path.join(script_dir, ".venv")
+    source_path = os.path.join(script_dir, "source")
+
+    if not os.path.exists(venv_path):
+        print("Error: Virtual environment does not exist.")
+        sys.exit(1)
+
+    possible_site_packages = glob.glob(os.path.join(venv_path, "lib", "python*", "site-packages"))
+    if not possible_site_packages:
+        print("Error: Could not find site-packages in the virtual environment.")
+        sys.exit(1)
+
+    if not os.path.exists(source_path):
+        print("Error: Source directory does not exist.")
+        sys.exit(1)
+
+    sys.path.append(source_path)
+    sys.path.append(possible_site_packages[0])
+
+
+def print_help_and_exit() -> None:
+    print("This script allows you to interact with the inverter.")
+    print("")
+    print("You have to supply one of the following arguments:")
+    print(" --status                    Get the current state of charge and operation mode of the inverter")
+    print(" --mode {GENERAL,ECO_CHARGE} Set the operation mode of the inverter")
+    print(" --tibber                    Fetches, displays the tibber rates and writes them to the database")
+    print("")
+    print("It uses all the variables defined in the .env file")
+    sys.exit(1)
+
+
+if len(sys.argv) < 2 or sys.argv[1] not in ["--status", "--mode", "--tibber"]:
+    print_help_and_exit()
+if sys.argv[1] == "--mode" and (len(sys.argv) != 3 or sys.argv[2] not in ["GENERAL", "ECO_CHARGE"]):
+    print('Unsupported mode, valid modes are "GENERAL" and "ECO_CHARGE"\n')
+    print_help_and_exit()
+
+setup()
+
 from goodwe.et import OperationMode
 from inverter import Inverter
-
-LoggerMixin().log.info("Inverter is manually controlled by the user ${USER}")
-
-inverter = Inverter(True)
-EOF
-
-
-if [[ ! ${1} =~ ^(--status|--mode|--tibber)$ ]]; then
-	echo "This script allows you to interact with the inverter."
-	echo ""
-	echo "You have to supply one of the following arguments:"
-	echo " --status                    Get the current state of charge and operation mode of the inverter"
-	echo " --mode {GENERAL,ECO_CHARGE} Set the operation mode of the inverter"
-	echo " --tibber                    Fetches, displays the tibber rates and writes them to the database"
-	echo ""
-	echo "It uses the all the variables defined in the .env file"
-	exit 1
-fi
-
-if [[ ${1} == "--status" ]]; then
-	python3 - << EOF
-${inverter_setup_code}
-try:
-	mode = inverter.get_operation_mode(True).name
-	soc = inverter.get_state_of_charge(True)
-	print(f"SoC: {soc} %\nmode: {mode}")
-except Exception as e:
-	inverter.log.exception(e)
-	exit(1)
-EOF
-	exit $?
-fi
-
-if [[ ${1} == "--mode" ]]; then
-	if [[ ! ${2} =~ ^(GENERAL|ECO_CHARGE)$ ]]; then
-		echo "Unsupported mode, valid modes are \"GENERAL\" and \"ECO_CHARGE\""
-		exit 1
-	fi
-
-	python3 - << EOF
-${inverter_setup_code}
-try:
-	last_mode = inverter.get_operation_mode(True).name
-	inverter.set_operation_mode(OperationMode.${2})
-	print(f"last mode: {last_mode}\nnew mode: ${2}")
-except Exception as e:
-	inverter.log.exception(e)
-	exit(1)
-EOF
-	exit $?
-fi
-
-if [[ ${1} == "--tibber" ]]; then
-	python3 - << EOF
+from logger import LoggerMixin
 from tibber_api_handler import TibberAPIHandler
-try:
-	tibber_api_handler = TibberAPIHandler()
-	api_result = tibber_api_handler._fetch_upcoming_prices_from_api()
-	all_energy_rates = tibber_api_handler._extract_energy_rates_from_api_response(api_result)
-	tibber_api_handler._remove_energy_rates_from_the_past(all_energy_rates)
-	tibber_api_handler.write_energy_rates_to_database(all_energy_rates)
-except Exception as e:
-	tibber_api_handler.log.exception(e)
-	exit(1)
-EOF
-	exit $?
-fi
+
+logger = LoggerMixin()
+logger.log.info(f"Inverter is manually controlled by the user {getpass.getuser()}: {sys.argv}")
+
+if sys.argv[1] == "--status":
+    try:
+        inverter = Inverter(True)
+        soc = inverter.get_state_of_charge(True)
+        mode = inverter.get_operation_mode(True).name
+        print(f"SoC: {soc} %\nmode: {mode}")
+    except Exception as e:
+        logger.log.exception(e)
+        sys.exit(1)
+
+if sys.argv[1] == "--mode":
+    try:
+        new_mode = OperationMode[sys.argv[2]]
+        inverter = Inverter(True)
+        last_mode = inverter.get_operation_mode(True).name
+        inverter.set_operation_mode(new_mode)
+        print(f"last mode: {last_mode}\nnew mode: {new_mode.name}")
+    except Exception as e:
+        logger.log.exception(e)
+        sys.exit(1)
+
+if sys.argv[1] == "--tibber":
+    try:
+        tibber_api_handler = TibberAPIHandler()
+        api_result = tibber_api_handler._fetch_upcoming_prices_from_api()
+        all_energy_rates = tibber_api_handler._extract_energy_rates_from_api_response(api_result)
+        tibber_api_handler._remove_energy_rates_from_the_past(all_energy_rates)
+        tibber_api_handler.write_energy_rates_to_database(all_energy_rates)
+    except Exception as e:
+        logger.log.exception(e)
+        exit(1)

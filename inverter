@@ -5,12 +5,14 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 source "${SCRIPT_DIR}"/.venv/bin/activate
 cd "${SCRIPT_DIR}"/source || exit 1
 
-read -r -d '' inverter_setup_code <<'EOF'
+read -r -d '' inverter_setup_code <<EOF
+from logger import LoggerMixin
 from goodwe.et import OperationMode
 from inverter import Inverter
 
-inverter = Inverter()
-inverter.log.info("Inverter is manually controlled by a user")
+LoggerMixin().log.info("Inverter is manually controlled by the user ${USER}")
+
+inverter = Inverter(True)
 EOF
 
 

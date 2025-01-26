@@ -10,13 +10,19 @@ from sems_portal_api_handler import SemsPortalApiHandler
 
 
 class Inverter(LoggerMixin):
-    def __init__(self):
+    def __init__(self, controlled_by_bash_script: bool = False):
         super().__init__()
 
         self._device = None
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
 
         self.sems_portal_api_handler = SemsPortalApiHandler()
+
+        # Add a notice to the loggers name to make to easier to identify actions taken by a user manually
+        if controlled_by_bash_script:
+            self.log.name += " USER"
+            self.sems_portal_api_handler.log.name += " USER"
+
         self.battery_capacity = None
         # We have to pull the battery capacity at startup since there are functions here that require it which are
         # called when using the bash script to control the inverter manually

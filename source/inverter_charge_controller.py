@@ -235,7 +235,7 @@ class InverterChargeController(LoggerMixin):
 
         timestamp_ending_to_charge = TimeHandler.get_time()
 
-        duration_to_wait_for_semsportal_update = timedelta(minutes=10)
+        duration_to_wait_for_semsportal_update = timedelta(minutes=20)
         self.log.info(
             f"Sleeping for {duration_to_wait_for_semsportal_update} to let the SEMS Portal update its power "
             "consumption data..."

@@ -69,7 +69,7 @@ class InverterChargeController(LoggerMixin):
         """
         first_iteration = True
         next_price_minimum = None
-        duration_to_wait_in_cause_of_error = timedelta(minutes=10)
+        duration_to_wait_in_cause_of_error = timedelta(minutes=2, seconds=30)
         while True:
             try:
                 if first_iteration:

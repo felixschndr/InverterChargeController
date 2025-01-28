@@ -298,16 +298,19 @@ class InverterChargeController(LoggerMixin):
             try:
                 if self.inverter.get_operation_mode() != OperationMode.ECO_CHARGE:
                     self.log.warning(
-                        "The operation mode of the inverter changed from the user --> Stopping the charging progress"
+                        "The operation mode of the inverter was changed by the user --> Stopping the charging progress"
                     )
                     break
 
                 current_state_of_charge = self.inverter.get_state_of_charge()
 
                 error_counter = 0
-            except InverterError as e:
-                self.log.exception(f"An exception occurred while trying to fetch the current state of charge: {e}")
-                self.log.warning(f"Waiting for {charging_progress_check_interval} to try again...")
+            except InverterError:
+                self.log.warning(
+                    f"An exception occurred while trying to fetch the current state of charge. "
+                    f"Waiting for {charging_progress_check_interval} to try again...",
+                    exc_info=True,
+                )
                 error_counter += 1
                 continue
 

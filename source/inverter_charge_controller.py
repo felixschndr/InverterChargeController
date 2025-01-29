@@ -2,6 +2,7 @@ import os
 import socket
 import sys
 from datetime import datetime, timedelta
+from typing import Any, Optional
 
 import pause
 from abscence_handler import AbsenceHandler
@@ -35,6 +36,12 @@ class InverterChargeController(LoggerMixin):
         self.tibber_api_handler = TibberAPIHandler()
         self.absence_handler = AbsenceHandler()
         self.database_handler = DatabaseHandler("power_buy")
+
+        # This is a dict which saves the values of a certain operations such as the upcoming energy rates, the
+        # expected power harvested by the sun or the expected power usage
+        # This way if one of the requests to an external system fails (e.g. no Internet access) the prior requests don't
+        # have to be made again. This is especially important for the very limited API calls to the sun forecast API.
+        self.iteration_cache = {}
 
     def start(self) -> None:
         """
@@ -128,53 +135,28 @@ class InverterChargeController(LoggerMixin):
         self.log.info(
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
         )
-
-        self.inverter.update_battery_capacity()
-
         timestamp_now = TimeHandler.get_time()
 
-        next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
+        self._update_battery_capacity()
+
+        next_price_minimum = self._get_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
         if next_price_minimum.rate > current_energy_rate.rate:
             # Information is unused at the moment
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
 
-        expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
-            timestamp_now, next_price_minimum.timestamp
+        expected_power_harvested_till_next_minimum = self._get_expected_power_harvested_till_next_minimum(
+            timestamp_now, next_price_minimum
         )
         self.log.info(
             f"The expected energy harvested by the sun till the next price minimum is "
             f"{expected_power_harvested_till_next_minimum}"
         )
 
-        if self.absence_handler.check_for_current_absence():
-            self.log.info(
-                "Currently there is an absence, using the power consumption configured in the environment as the "
-                "basis for calculation"
-            )
-            expected_energy_usage_till_next_minimum = self.absence_handler.calculate_power_usage_for_absence(
-                timestamp_now, next_price_minimum.timestamp
-            )
-        else:
-            self.log.info(
-                "Currently there is no absence, using last week's power consumption data as the basis for calculation"
-            )
-            expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.estimate_energy_usage_in_timeframe(
-                timestamp_now, next_price_minimum.timestamp
-            )
-
-        if next_price_minimum.has_to_be_rechecked:
-            power_usage_increase_factor = 20
-            self.log.info(
-                "The price minimum has to be re-checked since it is at the end of a day and the price rates for "
-                "tomorrow are unavailable --> The expected power usage "
-                f"({expected_energy_usage_till_next_minimum}) is increased by {power_usage_increase_factor} %"
-            )
-            expected_energy_usage_till_next_minimum += expected_energy_usage_till_next_minimum * (
-                power_usage_increase_factor / 100
-            )
-
+        expected_energy_usage_till_next_minimum = self._get_expected_energy_usage_till_next_minimum(
+            timestamp_now, next_price_minimum
+        )
         self.log.info(
             f"The total expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum}"
         )
@@ -216,6 +198,7 @@ class InverterChargeController(LoggerMixin):
         )
         if excess_energy.watt_hours > 0:
             self.log.info(f"There is {excess_energy} of excess energy, thus there is no need to charge")
+            self.iteration_cache = {}
             return next_price_minimum
 
         missing_energy = excess_energy * -1
@@ -253,6 +236,7 @@ class InverterChargeController(LoggerMixin):
             timestamp_starting_to_charge, timestamp_ending_to_charge, energy_bought
         )
 
+        self.iteration_cache = {}
         return next_price_minimum
 
     def _charge_inverter(self, target_state_of_charge: int, maximum_charging_duration: timedelta) -> None:
@@ -391,6 +375,85 @@ class InverterChargeController(LoggerMixin):
                 InfluxDBField("timestamp_ending_to_charge", timestamp_ending_to_charge.isoformat()),
             ]
         )
+
+    def _update_battery_capacity(self) -> None:
+        cache_key = "battery_capacity_updated"
+        if self._get_value_from_cache_if_exists(cache_key):
+            return
+
+        self.inverter.update_battery_capacity()
+        self._set_cache_key(cache_key, True)
+
+    def _get_next_price_minimum(self) -> EnergyRate:
+        cache_key = "next_price_minimum"
+        next_price_minimum = self._get_value_from_cache_if_exists(cache_key)
+        if next_price_minimum:
+            return next_price_minimum
+
+        next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
+        self._set_cache_key(cache_key, next_price_minimum)
+        return next_price_minimum
+
+    def _get_expected_power_harvested_till_next_minimum(
+        self, timestamp_now: datetime, next_price_minimum: EnergyRate
+    ) -> EnergyAmount:
+        cache_key = "expected_power_harvested_till_next_minimum"
+        expected_power_harvested_till_next_minimum = self._get_value_from_cache_if_exists(cache_key)
+        if expected_power_harvested_till_next_minimum:
+            return expected_power_harvested_till_next_minimum
+
+        expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
+            timestamp_now, next_price_minimum.timestamp
+        )
+        self._set_cache_key(cache_key, expected_power_harvested_till_next_minimum)
+        return expected_power_harvested_till_next_minimum
+
+    def _get_expected_energy_usage_till_next_minimum(
+        self, timestamp_now: datetime, next_price_minimum: EnergyRate
+    ) -> EnergyAmount:
+        cache_key = "expected_energy_usage_till_next_minimum"
+        expected_energy_usage_till_next_minimum = self._get_value_from_cache_if_exists(cache_key)
+        if expected_energy_usage_till_next_minimum:
+            return expected_energy_usage_till_next_minimum
+
+        if self.absence_handler.check_for_current_absence():
+            self.log.info(
+                "Currently there is an absence, using the power consumption configured in the environment as the "
+                "basis for calculation"
+            )
+            expected_energy_usage_till_next_minimum = self.absence_handler.calculate_power_usage_for_absence(
+                timestamp_now, next_price_minimum.timestamp
+            )
+        else:
+            self.log.info(
+                "Currently there is no absence, using last week's power consumption data as the basis for calculation"
+            )
+            expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.estimate_energy_usage_in_timeframe(
+                timestamp_now, next_price_minimum.timestamp
+            )
+
+        if next_price_minimum.has_to_be_rechecked:
+            power_usage_increase_factor = 25
+            self.log.info(
+                "The price minimum has to be re-checked since it is at the end of a day and the price rates for "
+                "tomorrow are unavailable --> The expected power usage "
+                f"({expected_energy_usage_till_next_minimum}) is increased by {power_usage_increase_factor} %"
+            )
+            expected_energy_usage_till_next_minimum += expected_energy_usage_till_next_minimum * (
+                power_usage_increase_factor / 100
+            )
+
+        self._set_cache_key(cache_key, expected_energy_usage_till_next_minimum)
+        return expected_energy_usage_till_next_minimum
+
+    def _get_value_from_cache_if_exists(self, cache_key: str) -> Optional[Any]:
+        if cache_key not in self.iteration_cache.keys():
+            return None
+        self.log.debug(f"Cache hit for: {cache_key}")
+        return self.iteration_cache[cache_key]
+
+    def _set_cache_key(self, cache_key: str, value: Any) -> None:
+        self.iteration_cache[cache_key] = value
 
     def _lock(self) -> None:
         """

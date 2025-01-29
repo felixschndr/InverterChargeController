@@ -349,6 +349,9 @@ class TibberAPIHandler(LoggerMixin):
         self.log.debug("Writing prices to database...")
 
         newest_saved_energy_rate = self.database_handler.get_newest_value_of_measurement("rate_start_timestamp")
+        if newest_saved_energy_rate is None:
+            return
+
         self.log.trace(f"Newest saved energy rate is from {newest_saved_energy_rate}")
         for energy_rate in energy_rates:
             if energy_rate.timestamp <= newest_saved_energy_rate:

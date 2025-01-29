@@ -274,6 +274,9 @@ class SemsPortalApiHandler(LoggerMixin):
         grid feed, power usage, state of charge, and timestamp, and writes them into the database.
         """
         newest_value_saved_timestamp = self.database_handler.get_newest_value_of_measurement("timestamp")
+        if newest_value_saved_timestamp is None:
+            return
+
         self.log.trace(f"Newest value saved in the database is from {newest_value_saved_timestamp}")
         newest_value_saved_date = newest_value_saved_timestamp.date()
 

@@ -1,5 +1,6 @@
 import dataclasses
 from datetime import datetime
+from typing import Optional
 
 from environment_variable_getter import EnvironmentVariableGetter
 from influxdb_client import InfluxDBClient, Point
@@ -40,10 +41,10 @@ class DatabaseHandler(LoggerMixin):
         self.log.trace(f"Writing to database: {point}")
         try:
             self.write_api.write(bucket=self.bucket, record=point)
-        except NewConnectionError as e:
-            self.log.warning(f"Connection to database failed (ignoring): {str(e)}")
+        except NewConnectionError:
+            self.log.warning("Connection to database failed (ignoring)", exc_info=True)
 
-    def get_newest_value_of_measurement(self, field_to_sort_by: str) -> datetime:
+    def get_newest_value_of_measurement(self, field_to_sort_by: str) -> Optional[datetime]:
         """
         Gets the newest value of the specified measurement by sorting based on a given field and processes the query
         result to return the corresponding timestamp. If no results are found, it returns the epoch timestamp.
@@ -63,7 +64,12 @@ class DatabaseHandler(LoggerMixin):
         |> sort(columns: ["{field_to_sort_by}"], desc: true)
         |> limit(n: 1)
         """
-        result = self.query_api.query(query)
+        try:
+            result = self.query_api.query(query)
+        except NewConnectionError:
+            self.log.warning("Connection to database failed (ignoring)", exc_info=True)
+            return None
+
         if len(result) == 0:
             return datetime.fromtimestamp(0, tz=TimeHandler.get_timezone())
 

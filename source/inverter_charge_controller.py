@@ -210,6 +210,14 @@ class InverterChargeController(LoggerMixin):
         )
         self.log.info(f"Need to charge to {required_state_of_charge} %")
 
+        max_target_soc = int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 95))
+        if required_state_of_charge > max_target_soc:
+            self.log.info(
+                "The target state of charge is more than the maximum allowed charge set in the environment "
+                f"--> Setting it to {max_target_soc} %"
+            )
+            required_state_of_charge = max_target_soc
+
         energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
         timestamp_starting_to_charge = TimeHandler.get_time()
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")

@@ -4,7 +4,6 @@
 source .env
 log_directory=${DIRECTORY_OF_LOGS:-logs/}
 logfile=${log_directory}/app.log
-sender="chrctrl"
 
 if [[ -z ${ERROR_MAIL_ADDRESS} ]]; then
 	echo "The \"ERROR_MAIL_ADDRESS\" is not set!"
@@ -17,13 +16,13 @@ search_pattern="ERROR|CRITICAL"
 temp_output=$(mktemp)
 
 grep -A10 -n "${current_date}" "${logfile}" | grep -A10 -E "${search_pattern}" > "${temp_output}"
-if [[ $(wc -l < "${temp_output}") != 0 ]] || ! systemctl is-active --quiet ${sender}; then
-	if ! systemctl is-active --quiet ${sender}; then
+if [[ $(wc -l < "${temp_output}") != 0 ]] || ! pgrep -f "/home/chrctrl/app/source/main.py" >/dev/null; then
+	if ! pgrep -f "/home/chrctrl/app/source/main.py" >/dev/null; then
 		subject="Der InverterChargeController laeuft nicht"
 	else
 		subject="Fehler beim InverterChargeController"
 	fi
- 	mail -r "${sender}" -s "${subject}" "${ERROR_MAIL_ADDRESS}" < "${temp_output}"
+ 	mail -r "chrctrl" -s "${subject}" "${ERROR_MAIL_ADDRESS}" < "${temp_output}"
 fi
 
 ###### Cleanup ######

@@ -54,6 +54,7 @@ from logger import LoggerMixin
 from tibber_api_handler import TibberAPIHandler
 
 logger = LoggerMixin()
+logger.write_newlines_to_log_file()
 logger.log.info(f"Inverter is manually controlled by the user {getpass.getuser()}: {sys.argv}")
 
 if sys.argv[1] == "--status":

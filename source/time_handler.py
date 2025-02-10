@@ -97,8 +97,12 @@ class TimeHandler:
         return tz.gettz()
 
     @staticmethod
-    def get_time() -> datetime:
-        return datetime.now(tz=(TimeHandler.get_timezone()))
+    def get_time(sanitize_seconds: bool = False) -> datetime:
+        timestamp = datetime.now(tz=(TimeHandler.get_timezone())).replace(microsecond=0)
+        if not sanitize_seconds:
+            return timestamp
+        else:
+            return timestamp.replace(second=0)
 
     @staticmethod
     def get_date() -> date:

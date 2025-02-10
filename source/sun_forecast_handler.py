@@ -130,7 +130,7 @@ class SunForecastHandler(LoggerMixin):
         """
         solar_data = []
 
-        now = TimeHandler.get_time().replace(second=0, microsecond=0) - timedelta(seconds=1)
+        now = TimeHandler.get_time(sanitize_seconds=True) - timedelta(seconds=1)
         if timestamp_start >= now or timestamp_end >= now:
             self.log.debug("Need to retrieve forecast data")
             solar_data += self.retrieve_solar_forecast_data(rooftop_id)
@@ -288,7 +288,7 @@ class SunForecastHandler(LoggerMixin):
 
     @staticmethod
     def _get_debug_solar_data(timeslot_duration: timedelta) -> list[dict]:
-        current_replace_timestamp = TimeHandler.get_time().replace(minute=0, second=0)
+        current_replace_timestamp = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0)
         sample_data_path = os.path.join(Path(__file__).parent.parent, "sample_solar_forecast.json")
         with open(sample_data_path, "r") as file:
             sample_data = json.load(file)["forecasts"]

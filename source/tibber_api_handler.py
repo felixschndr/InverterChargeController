@@ -194,8 +194,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             A list of EnergyRate objects that have timestamps in the future relative to the beginning of the current hour.
         """
-        current_time = TimeHandler.get_time()
-        beginning_of_current_hour = current_time.replace(minute=0, second=0, microsecond=0)
+        beginning_of_current_hour = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0)
 
         upcoming_energy_rates = [
             energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > beginning_of_current_hour

@@ -87,8 +87,8 @@ class InverterChargeController(LoggerMixin):
                     next_price_minimum = self._do_iteration(next_price_minimum)
 
                 if next_price_minimum.has_to_be_rechecked:
-                    now = TimeHandler.get_time()
-                    time_to_sleep_to = now.replace(hour=14, minute=0, second=0, microsecond=0)
+                    now = TimeHandler.get_time(sanitize_seconds=True)
+                    time_to_sleep_to = now.replace(hour=14, minute=0)
                     if now > time_to_sleep_to:
                         time_to_sleep_to += timedelta(days=1)
                     self.log.info(
@@ -255,7 +255,9 @@ class InverterChargeController(LoggerMixin):
         """
         charging_progress_check_interval = timedelta(minutes=5)
 
-        maximum_end_charging_time = TimeHandler.get_time().replace(minute=0, second=0) + maximum_charging_duration
+        maximum_end_charging_time = (
+            TimeHandler.get_time(sanitize_seconds=True).replace(minute=0) + maximum_charging_duration
+        )
 
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)

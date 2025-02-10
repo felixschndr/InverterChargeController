@@ -142,6 +142,12 @@ class InverterChargeController(LoggerMixin):
         next_price_minimum = self._get_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
+        self.tibber_api_handler.set_maximum_charging_duration_of_current_energy_rate(current_energy_rate)
+        self.log.info(
+            f"The maximum charging duration of the current energy rate is "
+            f"{current_energy_rate.maximum_charging_duration}"
+        )
+
         if next_price_minimum.rate > current_energy_rate.rate:
             # Information is unused at the moment
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
@@ -249,16 +255,18 @@ class InverterChargeController(LoggerMixin):
 
     def _charge_inverter(self, target_state_of_charge: int, maximum_charging_duration: timedelta) -> None:
         """
-        Charges the inverter until a given state of charge is reached.
-        Checks every few minutes the current state of charge and compares to the target value.
-        Charges the inverter for a maximum of one hour. If consecutive_energy_rate_is_cheap is True it charges for a
-        maximum of two hours.
-        --> Stops when the target state of charge or the maximum charge time is reached (whichever comes first)
+        Charges the inverter battery to the target state of charge within a specified maximum charging duration.
+        Monitors the charging progress at regular intervals and stops the charging process if specific conditions are
+        met:
+         - Charging limit reached
+         - Maximum charging duration reached (at this point the energy prices would be to high to charge)
+         - The state of the inverter was changed manually
+         - Too many errors occurred while trying to communicate with the inverter
 
         Args:
-            target_state_of_charge: The desired state of charge percentage to reach before stopping the charging process.
-            maximum_charging_duration: The maximum duration for which charging is feasible under given energy rate
-                constraints.
+            target_state_of_charge: The desired battery state of charge percentage to reach during the
+                charging process.
+            maximum_charging_duration: The maximum duration allowed for the charging process to complete.
         """
         charging_progress_check_interval = timedelta(minutes=5)
 

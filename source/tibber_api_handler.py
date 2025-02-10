@@ -23,6 +23,8 @@ class TibberAPIHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("energy_prices")
 
+        self.upcoming_energy_rates_cache = []
+
     def get_next_price_minimum(self, first_iteration: bool = False) -> EnergyRate:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
@@ -57,6 +59,7 @@ class TibberAPIHandler(LoggerMixin):
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
         self.write_energy_rates_to_database(all_energy_rates)
         upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
+        self.upcoming_energy_rates_cache = upcoming_energy_rates
         if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
             upcoming_energy_rates
         ):
@@ -80,44 +83,29 @@ class TibberAPIHandler(LoggerMixin):
         ):
             minimum_of_energy_rates.has_to_be_rechecked = True
 
-        minimum_of_energy_rates.maximum_charging_duration = self._calculate_maximum_charging_duration(
-            minimum_of_energy_rates, upcoming_energy_rates
-        )
-
         return minimum_of_energy_rates
 
-    @staticmethod
-    def _calculate_maximum_charging_duration(
-        minimum_of_energy_rates: EnergyRate, upcoming_energy_rates: list[EnergyRate]
-    ) -> timedelta:
+    def set_maximum_charging_duration_of_current_energy_rate(self, current_energy_rate: EnergyRate) -> None:
         """
-        Calculates the maximum duration for which charging is feasible under given energy rate constraints.
+        It takes the current energy rate from the InverterChargeController and compares it against the upcoming energy
+        rates. It then calculates and sets the maximum possible charging duration based on the comparison of the current
+        price and the consecutive ones.
 
-        This method computes the maximum charging duration based on the minimum energy rate within the list of upcoming
-        energy rates and MAXIMUM_THRESHOLD. This ensures that charging only continues while subsequent energy rates
-        remain within the allowed threshold of the minimum energy rate.
+        We have to provide the current energy rate as the upcoming energy rates (which are saved as an instance
+        variable) only include the **upcoming** energy rates and not the current one.
 
         Args:
-            minimum_of_energy_rates: The energy rate which is considered as the minimum acceptable
-                rate for initiating or continuing charging.
-            upcoming_energy_rates: A list of energy rates representing projected energy pricing
-                in subsequent time periods.
-
-        Returns:
-            A timedelta object representing the maximum charging duration under the given energy rate constraints.
+            current_energy_rate (EnergyRate): The current energy rate for comparison against upcoming energy rates.
         """
-        index = upcoming_energy_rates.index(minimum_of_energy_rates)
         charging_duration = timedelta(hours=1)
-        if index + 1 >= len(upcoming_energy_rates):
-            return charging_duration
 
-        for energy_rate in upcoming_energy_rates[index + 1 :]:
-            if energy_rate.rate <= minimum_of_energy_rates.rate + TibberAPIHandler.MAXIMUM_THRESHOLD:
+        for energy_rate in self.upcoming_energy_rates_cache:
+            if energy_rate.rate <= current_energy_rate.rate + TibberAPIHandler.MAXIMUM_THRESHOLD:
                 charging_duration += timedelta(hours=1)
-                continue
-            break
+            else:
+                break
 
-        return charging_duration
+        current_energy_rate.maximum_charging_duration = charging_duration
 
     @staticmethod
     def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:
@@ -168,8 +156,6 @@ class TibberAPIHandler(LoggerMixin):
             }
         """
         )
-        # Note: Sometimes we only get the prices for today from the tibber api and the prices for tomorrow stay empty
-        # I guess they are not determined yet...?
         self.log.debug("Crawling the Tibber API for the electricity prices")
         response = self.client.execute(query)
         self.log.trace(f"Retrieved data: {response}")

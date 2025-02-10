@@ -79,6 +79,7 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=2, seconds=30)
         while True:
             try:
+                self.write_newlines_to_log_file()
                 if first_iteration:
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False
@@ -102,7 +103,6 @@ class InverterChargeController(LoggerMixin):
 
                 self.log.info(f"The next price minimum is at {next_price_minimum.timestamp}. Waiting until then...")
 
-                self._write_newlines_to_log_file()
                 pause.until(next_price_minimum.timestamp)
 
             except (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError):

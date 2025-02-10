@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 
 from dateutil.tz import tz, tzfile
 
@@ -31,66 +31,6 @@ class TimeHandler:
             return overlap_end - overlap_start
         else:
             return timedelta(seconds=0)
-
-    @staticmethod
-    def calculate_day_night_duration(
-        timestamp_start: datetime, timestamp_end: datetime, day_start: time, night_start: time
-    ) -> tuple[timedelta, timedelta]:
-        """
-        Calculates the total duration of daytime and nighttime within a given timeframe.
-
-        This method divides the timeframe between `timestamp_start` and `timestamp_end` into daytime and nighttime
-        based on the provided day and night start times.
-
-        Example:
-            timestamp_start=04:00 AM
-            timestamp_end=10:00 PM
-            day_start=06:00 AM
-            night_start=06:00 PM
-
-            duration of daytime = 12 hours
-            duration of nighttime = 2 hours + 4 hours = 6 hours
-
-        Args:
-            timestamp_start: The starting timestamp of the timeframe to be analyzed.
-            timestamp_end: The ending timestamp of the timeframe to be analyzed.
-            day_start: The time of day when daytime begins.
-            night_start: The time of day when nighttime begins.
-
-        Returns:
-            A tuple containing the total duration of daytime and the total duration of nighttime.
-        """
-        duration_day = timedelta(seconds=0)
-        duration_night = timedelta(seconds=0)
-
-        timezone = TimeHandler.get_timezone()
-
-        current_time = timestamp_start
-
-        while current_time < timestamp_end:
-            # Calculate day and night start timestamp depending on the current time
-            day_start_time = datetime.combine(current_time.date(), day_start, tzinfo=timezone)
-            night_start_time = datetime.combine(current_time.date(), night_start, tzinfo=timezone)
-            next_day_start_time = day_start_time + timedelta(days=1)
-
-            if current_time < day_start_time or current_time >= night_start_time:
-                # Duration of the night
-                if current_time < day_start_time:
-                    night_end = min(day_start_time, timestamp_end)
-                else:
-                    night_end = min(next_day_start_time, timestamp_end)
-                slot_duration = night_end - current_time
-                duration_night += slot_duration
-                current_time = night_end
-
-            else:
-                # Duration of the day
-                day_end = min(night_start_time, timestamp_end)
-                slot_duration = day_end - current_time
-                duration_day += slot_duration
-                current_time = day_end
-
-        return duration_day, duration_night
 
     @staticmethod
     def get_timezone() -> tzfile:

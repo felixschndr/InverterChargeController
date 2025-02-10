@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 
 import requests
 from database_handler import DatabaseHandler, InfluxDBField
@@ -57,21 +57,21 @@ class SemsPortalApiHandler(LoggerMixin):
 
         self.log.trace("Login successful")
 
-    def get_average_energy_consumption_per_day(self) -> EnergyAmount:
+    def get_average_power_consumption(self) -> Power:
         """
-        Retrieves energy consumption data, extracts the relevant data, and computes the average power consumption per day.
+        Calculates the average power consumption from the average of the energy usage data of the last week.
 
         Returns:
-            EnergyAmount: An object containing the average energy consumption per day.
+            Power: An instance of the `Power` class, representing the average power consumption at any time.
         """
         self.log.debug("Determining average energy consumption per day")
 
         api_response = self._retrieve_energy_consumption_data()
         consumption_data = self._extract_energy_usage_data_of_response(api_response)
-        average_consumption_per_day = sum([consumption.watt_hours for consumption in consumption_data]) / len(
-            consumption_data
+        average_energy_usage_per_day = EnergyAmount(
+            sum([consumption.watt_hours for consumption in consumption_data]) / len(consumption_data)
         )
-        return EnergyAmount(watt_hours=average_consumption_per_day)
+        return Power(watts=average_energy_usage_per_day.watt_seconds / (60 * 60 * 24))
 
     def _retrieve_power_data(self, date_to_crawl: date) -> dict:
         """
@@ -201,67 +201,6 @@ class SemsPortalApiHandler(LoggerMixin):
             self.log.debug(f"Buy line is {buy_line}, days in past: {days_in_past}")
 
         return EnergyAmount.from_kilo_watt_hours(buy_line["xy"][-1 - days_in_past]["y"])
-
-    def estimate_energy_usage_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
-        """
-        This method estimates the energy usage between the provided start and end timestamps by considering
-        different energy consumption rates during the day and night. The day is defined as starting at 6:00 AM
-        and ending at 6:00 PM, while the night includes the remaining hours.
-
-        It follows these steps:
-        1. Retrieve the energy usage factors for day and night from environment variables.
-        2. Calculate the total durations of day and night within the given timeframe.
-        3. Get the average daily energy consumption.
-        4. Calculate the average power consumption (in Watts) for the day.
-        5. Compute energy usage during the day and night separately by multiplying the average power consumption with
-            the duration of the respective time frame.
-        6. Return the total estimated energy usage by summing the day and night values.
-
-        Similar to SunForecastHandler.get_solar_output_in_timeframe().
-
-        Args:
-            timestamp_start: The start time of the period for which energy consumption is to be calculated.
-            timestamp_end: The end time of the period for which energy consumption is to be calculated.
-
-        Returns:
-            EnergyAmount: The estimated total energy usage within the given timeframe.
-        """
-        day_start = time(6, 0)
-        night_start = time(18, 0)
-        factor_energy_usage_during_the_day = float(EnvironmentVariableGetter.get("POWER_USAGE_FACTOR", 0.6))
-        factor_energy_usage_during_the_night = 1 - factor_energy_usage_during_the_day
-
-        if not 0 <= factor_energy_usage_during_the_day <= 1:
-            raise ValueError(
-                f'The "POWER_USAGE_FACTOR" has to be between 0 and 1 (actual: {factor_energy_usage_during_the_day})!'
-            )
-
-        self.log.debug(f"Getting estimated energy usage between {timestamp_start} and {timestamp_end}")
-
-        day_duration, night_duration = TimeHandler.calculate_day_night_duration(
-            timestamp_start, timestamp_end, day_start, night_start
-        )
-        self.log.debug(
-            f"The time between the given timeframe is split across {day_duration} of daytime and {night_duration} of nighttime"
-        )
-
-        energy_usage_of_today = self.get_average_energy_consumption_per_day()
-        self.log.debug(f"Expected energy usage of the day is {energy_usage_of_today}")
-
-        average_power_consumption = Power(watts=energy_usage_of_today.watt_seconds / (60 * 60 * 24))
-        self.log.debug(f"Average power consumption today is {average_power_consumption}")
-
-        energy_usage_during_the_day = EnergyAmount.from_watt_seconds(
-            average_power_consumption.watts * day_duration.total_seconds() * 2 * factor_energy_usage_during_the_day
-        )
-        energy_usage_during_the_night = EnergyAmount.from_watt_seconds(
-            average_power_consumption.watts * night_duration.total_seconds() * 2 * factor_energy_usage_during_the_night
-        )
-        self.log.info(
-            f"Energy usage during daytime is expected to be {energy_usage_during_the_day}, energy usage during nighttime is expected to be {energy_usage_during_the_night}"
-        )
-
-        return energy_usage_during_the_day + energy_usage_during_the_night
 
     def write_values_to_database(self) -> None:
         """

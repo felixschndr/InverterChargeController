@@ -8,7 +8,7 @@ import pause
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
 from database_handler import DatabaseHandler, InfluxDBField
-from energy_classes import EnergyAmount, EnergyRate, Power
+from energy_classes import EnergyAmount, EnergyRate
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import InverterError, OperationMode
 from inverter import Inverter
@@ -48,7 +48,7 @@ class InverterChargeController(LoggerMixin):
         Starts the inverter charge controller process. Ensures that the process is not already running
         by checking for the presence of a lock file. If the process is running, logs the error and exits.
         Upon successful starting, creates and manages a lock file for the process to avoid multiple
-        instances. Also ensures cleanup of the lock file post execution.
+        instances. It Also ensures cleanup of the lock file post execution.
         """
         if os.path.exists(self.LOCK_FILE_PATH):
             self.log.error("Attempted to start the inverter charge controller, but it is already running.")
@@ -157,9 +157,12 @@ class InverterChargeController(LoggerMixin):
             current_state_of_charge
         )
         self.log.info(f"The battery is currently holds {current_energy_in_battery} ({current_state_of_charge} %)")
+
+        average_power_consumption = self.sems_portal_api_handler.get_average_power_consumption()
+
         minimum_of_energy_saved_in_battery_until_next_price_minimum = (
             self.sun_forecast_handler.calculate_minimum_of_energy_saved_in_battery_until_next_price_minimum(
-                next_price_minimum.timestamp, Power(150), current_energy_in_battery
+                next_price_minimum.timestamp, average_power_consumption, current_energy_in_battery
             )
         )
 

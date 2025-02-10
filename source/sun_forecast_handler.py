@@ -46,98 +46,6 @@ class SunForecastHandler(LoggerMixin):
     def retrieve_historic_data(self, rooftop_id: str) -> list[dict]:
         return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
 
-    def get_solar_output_in_timeframe_for_rooftop(
-        self, timestamp_start: datetime, timestamp_end: datetime, rooftop_id: str
-    ) -> EnergyAmount:
-        """
-        Calculates the solar energy output within a specified timeframe for a given rooftop. It retrieves historical
-        solar data if the timeframe includes past periods and forecast data for future periods.
-
-        Args:
-            timestamp_start: Start of the desired timeframe for solar energy calculation.
-            timestamp_end: End of the desired timeframe for solar energy calculation.
-            rooftop_id: The unique identifier of the rooftop for which the solar energy output needs to be calculated.
-
-        Returns:
-            EnergyAmount: The aggregated solar output from the specified rooftop within the given timeframe.
-        """
-        solar_data = []
-
-        now = TimeHandler.get_time(sanitize_seconds=True) - timedelta(seconds=1)
-        if timestamp_start >= now or timestamp_end >= now:
-            self.log.debug("Need to retrieve forecast data")
-            solar_data += self.retrieve_solar_forecast_data(rooftop_id)
-        if timestamp_start <= now:
-            self.log.debug("Need to retrieve historic data")
-            solar_data += self.retrieve_historic_data(rooftop_id)
-        solar_data.sort(key=lambda x: x["period_end"])
-
-        return self._calculate_energy_produced_in_timeframe(solar_data, timestamp_start, timestamp_end, rooftop_id)
-
-    def get_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
-        """
-        Calculates the estimated solar output over a specified time frame by aggregating the solar output from one or
-        two rooftop solar installations.I t iteratively fetches solar output for each rooftop and aggregates the
-        result into a single value.
-
-        Args:
-            timestamp_start: Start of the desired timeframe for solar energy calculation.
-            timestamp_end: End of the desired timeframe for solar energy calculation.
-
-        Returns:
-            EnergyAmount: The aggregated solar output from all specified rooftops within the given timeframe.
-        """
-        try:
-            expected_solar_output = EnergyAmount(0)
-            rooftop_ids = [EnvironmentVariableGetter.get("ROOFTOP_ID_1")]
-            rooftop_id_2 = EnvironmentVariableGetter.get("ROOFTOP_ID_2", None)
-            if rooftop_id_2 is not None:
-                rooftop_ids.append(rooftop_id_2)
-
-            for rooftop_id in rooftop_ids:
-                self.log.debug(f'Getting the estimated solar output for rooftop "{rooftop_id}"')
-                solar_forecast_for_rooftop = self.get_solar_output_in_timeframe_for_rooftop(
-                    timestamp_start, timestamp_end, rooftop_id
-                )
-                self.log.debug(f'The expected solar output for rooftop "{rooftop_id}" is {solar_forecast_for_rooftop}')
-                expected_solar_output += solar_forecast_for_rooftop
-
-            return expected_solar_output
-
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code != 429:
-                raise e
-            self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
-            return self._get_debug_solar_output_in_timeframe(timestamp_start, timestamp_end)
-
-    def _get_debug_solar_output_in_timeframe(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
-        """
-        Fetches the solar energy production for a specified timeframe using sample solar
-        forecast data from disk. The function adjusts the provided time range to use data from a
-        predetermined day and calculates the energy produced in the adjusted timeframe.
-        The results are not stored in any database.
-
-        This value is also used when the API returns a 429 (Too Many Requests) error.
-
-        Args:
-            timestamp_start: Start of the desired timeframe for solar energy calculation.
-            timestamp_end: End of the desired timeframe for solar energy calculation.
-
-        Returns:
-            EnergyAmount: The aggregated solar output from all specified rooftops within the given timeframe.
-        """
-
-        sample_data_path = os.path.join(Path(__file__).parent.parent, "sample_solar_forecast.json")
-        with open(sample_data_path, "r") as file:
-            sample_data = json.load(file)["forecasts"]
-        duration = timestamp_end - timestamp_start
-        timestamp_start = timestamp_start.replace(year=2025, month=1, day=6)
-        timestamp_end = timestamp_start + duration
-
-        return self._calculate_energy_produced_in_timeframe(
-            sample_data, timestamp_start, timestamp_end, write_to_database=False
-        )
-
     def calculate_minimum_of_energy_saved_in_battery_until_next_price_minimum(
         self,
         next_price_minimum_timestamp: datetime,
@@ -147,7 +55,15 @@ class SunForecastHandler(LoggerMixin):
         if EnvironmentVariableGetter.get("USE_DEBUG_SOLAR_OUTPUT", False):
             solar_data = self._get_debug_solar_data()
         else:
-            solar_data = self.retrieve_solar_forecast_data(EnvironmentVariableGetter.get("ROOFTOP_ID_1"))
+            try:
+                # TODO: Aggregate the two rooftops
+                # TODO: Write values to DB
+                solar_data = self.retrieve_solar_forecast_data(EnvironmentVariableGetter.get("ROOFTOP_ID_1"))
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code != 429:
+                    raise e
+                self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
+                solar_data = self._get_debug_solar_data()
 
         now = TimeHandler.get_time()
         current_timeframe_start = now
@@ -250,3 +166,13 @@ class SunForecastHandler(LoggerMixin):
             timeslot["period_end"] = current_replace_timestamp.isoformat()
             current_replace_timestamp += self.timeslot_duration
         return sample_data
+
+
+if __name__ == "__main__":
+    handler = SunForecastHandler()
+    next_price_minimum_timestamp = (TimeHandler.get_time() + timedelta(hours=12)).replace(minute=0, second=0)
+    print(
+        handler.calculate_minimum_of_energy_saved_in_battery_until_next_price_minimum(
+            next_price_minimum_timestamp, Power(150), EnergyAmount(4000)
+        )
+    )

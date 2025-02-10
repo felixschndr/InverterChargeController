@@ -14,26 +14,33 @@ class EnergyAmount:
     def __repr__(self):
         return self.__str__()
 
-    def __add__(self, other: EnergyAmount | int | float) -> EnergyAmount:
+    def __add__(self, other: EnergyAmount | int | float) -> EnergyAmount | None:
         if isinstance(other, EnergyAmount):
             return EnergyAmount(self.watt_hours + other.watt_hours)
         if isinstance(other, int) or isinstance(other, float):
             return EnergyAmount(self.watt_hours + other)
         self._raise_type_error("+", other)
 
-    def __sub__(self, other: EnergyAmount | int | float) -> EnergyAmount:
+    def __sub__(self, other: EnergyAmount | int | float) -> EnergyAmount | None:
         if isinstance(other, EnergyAmount):
             return EnergyAmount(self.watt_hours - other.watt_hours)
         if isinstance(other, int) or isinstance(other, float):
             return EnergyAmount(self.watt_hours - other)
         self._raise_type_error("-", other)
 
-    def __mul__(self, other: EnergyAmount | int | float) -> EnergyAmount:
+    def __mul__(self, other: EnergyAmount | int | float) -> EnergyAmount | None:
         if isinstance(other, EnergyAmount):
             return EnergyAmount(self.watt_hours * other.watt_hours)
         if isinstance(other, int) or isinstance(other, float):
             return EnergyAmount(self.watt_hours * other)
         self._raise_type_error("*", other)
+
+    def __lt__(self, other: EnergyAmount | int | float) -> bool | None:
+        if isinstance(other, EnergyAmount):
+            return self.watt_hours < other.watt_hours
+        if isinstance(other, int) or isinstance(other, float):
+            return self.watt_hours < other
+        self._raise_type_error("<", other)
 
     def _raise_type_error(self, operation: str, other: object) -> None:
         raise TypeError(

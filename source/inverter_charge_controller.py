@@ -137,8 +137,6 @@ class InverterChargeController(LoggerMixin):
         )
         timestamp_now = TimeHandler.get_time()
 
-        self._update_battery_capacity()
-
         next_price_minimum = self._get_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
 
@@ -381,14 +379,6 @@ class InverterChargeController(LoggerMixin):
                 InfluxDBField("timestamp_ending_to_charge", timestamp_ending_to_charge.isoformat()),
             ]
         )
-
-    def _update_battery_capacity(self) -> None:
-        cache_key = "battery_capacity_updated"
-        if self._get_value_from_cache_if_exists(cache_key):
-            return
-
-        self.inverter.update_battery_capacity()
-        self._set_cache_key(cache_key, True)
 
     def _get_next_price_minimum(self) -> EnergyRate:
         cache_key = "next_price_minimum"

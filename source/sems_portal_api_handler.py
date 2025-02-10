@@ -291,39 +291,3 @@ class SemsPortalApiHandler(LoggerMixin):
             int: The integer representation of the value ('y') corresponding to the provided time key.
         """
         return int([line for line in lines[line_index]["xy"] if line["x"] == time_key][0]["y"])
-
-    def get_battery_capacity(self) -> EnergyAmount:
-        """
-        Retrieves the battery capacity from the SEMSPORTAL API.
-
-        Returns:
-            EnergyAmount: The battery capacity retrieved from the SEMSPORTAL API.
-        """
-        self.login()
-
-        self.log.debug("Crawling the SEMSPORTAL API for the capacity of the battery...")
-
-        url = "https://eu.semsportal.com/api/v3/PowerStation/GetPlantDetailByPowerstationId"
-        headers = {
-            "Content-Type": "application/json",
-            "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
-        }
-        payload = {
-            "powerStationId": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
-        }
-
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
-        response.raise_for_status()
-        response = response.json()
-
-        self.log.trace(f"Retrieved data: {response}")
-
-        try:
-            return EnergyAmount.from_kilo_watt_hours(response["data"]["info"]["battery_capacity"])
-        except (KeyError, TypeError):
-            # This is not that bad as we pull the battery capacity every iteration
-            # If this is the first time after starting we don't even use the value
-            self.log.warning(
-                "Unable to retrieve battery capacity from SEMSPORTAL API, using a default value", exc_info=True
-            )
-            return EnergyAmount.from_kilo_watt_hours(10)

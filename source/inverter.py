@@ -15,6 +15,7 @@ class Inverter(LoggerMixin):
 
         self._device = None
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
+        self.battery_capacity = EnergyAmount(float(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
 
         self.sems_portal_api_handler = SemsPortalApiHandler()
 
@@ -22,11 +23,6 @@ class Inverter(LoggerMixin):
         if controlled_by_bash_script:
             self.log.name += " USER"
             self.sems_portal_api_handler.log.name += " USER"
-
-        self.battery_capacity = None
-        # We have to pull the battery capacity at startup since there are functions here that require it which are
-        # called when using the bash script to control the inverter manually
-        self.update_battery_capacity()
 
     @property
     def device(self) -> GoodweInverter:
@@ -43,23 +39,6 @@ class Inverter(LoggerMixin):
             self.log.info("Successfully connected to inverter")
 
         return self._device
-
-    def update_battery_capacity(self) -> None:
-        """
-        Updates the battery capacity by retrieving the value using the SemsPortalApiHandler and comparing it
-        against the current stored capacity. Logs information about the current and updated battery
-        capacity if changes occur.
-        """
-        battery_capacity = self.sems_portal_api_handler.get_battery_capacity()
-
-        if self.battery_capacity is None:
-            self.log.info(f"The battery capacity is {battery_capacity}")
-            self.battery_capacity = battery_capacity
-            return
-
-        if battery_capacity != self.battery_capacity:
-            self.log.info(f"The battery capacity was updated from {self.battery_capacity} to {battery_capacity}")
-            self.battery_capacity = battery_capacity
 
     def get_operation_mode(self, log_new_mode: bool = False) -> OperationMode:
         """

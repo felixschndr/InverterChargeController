@@ -204,3 +204,95 @@ class SunForecastHandler(LoggerMixin):
         return self._calculate_energy_produced_in_timeframe(
             sample_data, timestamp_start, timestamp_end, write_to_database=False
         )
+
+    def calculate_minimum_of_energy_saved_in_battery_until_next_price_minimum(
+        self,
+        next_price_minimum_timestamp: datetime,
+        average_power_usage: Power,
+        starting_energy_in_battery: EnergyAmount,
+    ) -> EnergyAmount:
+        default_timeslot_duration = timedelta(minutes=30)
+
+        if EnvironmentVariableGetter.get("USE_DEBUG_SOLAR_OUTPUT", False):
+            solar_data = self._get_debug_solar_data(default_timeslot_duration)
+        else:
+            solar_data = self.retrieve_solar_forecast_data(EnvironmentVariableGetter.get("ROOFTOP_ID_1"))
+
+        current_slot_energy_in_battery = starting_energy_in_battery
+        minimum_of_energy_saved_in_the_battery = starting_energy_in_battery
+        now = TimeHandler.get_time()
+        current_slot_start = now
+
+        first_run = True
+        while True:
+            if first_run:
+                next_half_hour = now.replace(minute=30, second=0)
+                if now.minute >= 30:
+                    next_half_hour += default_timeslot_duration
+                timeslot_duration = next_half_hour - current_slot_start
+                current_slot_end = current_slot_start + timeslot_duration
+                first_run = False
+            else:
+                timeslot_duration = default_timeslot_duration
+                current_slot_end = current_slot_start + timeslot_duration
+
+            power_usage_during_slot = EnergyAmount.from_watt_seconds(
+                average_power_usage.watts * timeslot_duration.total_seconds()
+            )
+            power_generation_during_slot = self.get_solar_forecast_in_timeslot(
+                current_slot_start, current_slot_end, timeslot_duration, solar_data
+            )
+            current_slot_energy_in_battery = (
+                current_slot_energy_in_battery - power_usage_during_slot + power_generation_during_slot
+            )
+
+            if current_slot_energy_in_battery < minimum_of_energy_saved_in_the_battery:
+                log_text = "This is a new minimum in the amount of energy stored. "
+                minimum_of_energy_saved_in_the_battery = current_slot_energy_in_battery
+            else:
+                log_text = ""
+            self.log.trace(
+                f"The estimated energy saved in the battery at {current_slot_end} is {current_slot_energy_in_battery}. "
+                f"{log_text}"
+                f"The expected power usage during this slot is {power_usage_during_slot}. "
+                f"The expected power generation during this slot is {power_generation_during_slot}. "
+            )
+            current_slot_start += timeslot_duration
+
+            if current_slot_start > next_price_minimum_timestamp:
+                break
+
+        return minimum_of_energy_saved_in_the_battery
+
+    @staticmethod
+    def get_solar_forecast_in_timeslot(
+        timestamp_start: datetime, timestamp_end: datetime, timeslot_duration: timedelta, solar_data: list[dict]
+    ) -> EnergyAmount:
+        expected_solar_output = EnergyAmount(0)
+        for timeslot in solar_data:
+            timeslot_end = datetime.fromisoformat(timeslot["period_end"]).astimezone()
+            timeslot_start = timeslot_end - timeslot_duration
+
+            overlap = TimeHandler.calculate_overlap_between_time_frames(
+                timestamp_start, timestamp_end, timeslot_start, timeslot_end
+            )
+            if overlap.total_seconds() == 0:
+                continue
+
+            power_in_timeslot = Power.from_kilo_watts(timeslot["pv_estimate"])
+            energy_produced_in_timeslot = EnergyAmount.from_watt_seconds(
+                power_in_timeslot.watts * overlap.total_seconds()
+            )
+            expected_solar_output += energy_produced_in_timeslot
+        return expected_solar_output
+
+    @staticmethod
+    def _get_debug_solar_data(timeslot_duration: timedelta) -> list[dict]:
+        current_replace_timestamp = TimeHandler.get_time().replace(minute=0, second=0)
+        sample_data_path = os.path.join(Path(__file__).parent.parent, "sample_solar_forecast.json")
+        with open(sample_data_path, "r") as file:
+            sample_data = json.load(file)["forecasts"]
+        for timeslot in sample_data:
+            timeslot["period_end"] = current_replace_timestamp.isoformat()
+            current_replace_timestamp += timeslot_duration
+        return sample_data

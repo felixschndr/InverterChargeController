@@ -5,7 +5,7 @@ from pathlib import Path
 
 import requests
 from database_handler import DatabaseHandler
-from energy_classes import EnergyAmount, Power
+from energy_classes import EnergyAmount, Power, StateOfCharge
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 from time_handler import TimeHandler
@@ -46,12 +46,12 @@ class SunForecastHandler(LoggerMixin):
     def retrieve_historic_data(self, rooftop_id: str) -> list[dict]:
         return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
 
-    def calculate_minimum_of_energy_saved_in_battery_until_next_price_minimum(
+    def calculate_minimum_of_soc_until_next_price_minimum(
         self,
         next_price_minimum_timestamp: datetime,
         average_power_usage: Power,
-        starting_energy_in_battery: EnergyAmount,
-    ) -> EnergyAmount:
+        starting_soc: StateOfCharge,
+    ) -> StateOfCharge:
         if EnvironmentVariableGetter.get("USE_DEBUG_SOLAR_OUTPUT", False):
             solar_data = self._get_debug_solar_data()
         else:
@@ -67,8 +67,8 @@ class SunForecastHandler(LoggerMixin):
 
         now = TimeHandler.get_time()
         current_timeframe_start = now
-        energy_saved_in_the_battery_after_current_timeframe = starting_energy_in_battery
-        minimum_of_energy_saved_in_the_battery = starting_energy_in_battery
+        soc_after_current_timeframe = starting_soc
+        minimum_soc = starting_soc
 
         first_iteration = True
         while True:
@@ -89,20 +89,18 @@ class SunForecastHandler(LoggerMixin):
             power_generation_during_timeframe = self._calculate_energy_produced_in_timeframe(
                 current_timeframe_start, timeslot_duration, solar_data
             )
-            energy_saved_in_the_battery_after_current_timeframe = (
-                energy_saved_in_the_battery_after_current_timeframe
-                - power_usage_during_timeframe
-                + power_generation_during_timeframe
+            soc_after_current_timeframe = StateOfCharge(
+                soc_after_current_timeframe.absolute - power_usage_during_timeframe + power_generation_during_timeframe
             )
 
-            if energy_saved_in_the_battery_after_current_timeframe < minimum_of_energy_saved_in_the_battery:
+            if soc_after_current_timeframe < minimum_soc:
                 log_text = "This is a new minimum in the amount of energy stored. "
-                minimum_of_energy_saved_in_the_battery = energy_saved_in_the_battery_after_current_timeframe
+                minimum_soc = soc_after_current_timeframe
             else:
                 log_text = ""
             self.log.trace(
                 f"The estimated energy saved in the battery at {current_timeframe_end} is "
-                f"{energy_saved_in_the_battery_after_current_timeframe}. "
+                f"{soc_after_current_timeframe}. "
                 f"{log_text}"
                 f"The expected power usage during this slot is {power_usage_during_timeframe}. "
                 f"The expected power generation during this slot is {power_generation_during_timeframe}. "
@@ -112,7 +110,7 @@ class SunForecastHandler(LoggerMixin):
             if current_timeframe_start > next_price_minimum_timestamp:
                 break
 
-        return minimum_of_energy_saved_in_the_battery
+        return minimum_soc
 
     @staticmethod
     def _calculate_energy_usage_in_timeframe(
@@ -172,7 +170,7 @@ if __name__ == "__main__":
     handler = SunForecastHandler()
     next_price_minimum_timestamp = (TimeHandler.get_time() + timedelta(hours=12)).replace(minute=0, second=0)
     print(
-        handler.calculate_minimum_of_energy_saved_in_battery_until_next_price_minimum(
+        handler.calculate_minimum_of_soc_until_next_price_minimum(
             next_price_minimum_timestamp, Power(150), EnergyAmount(4000)
         )
     )

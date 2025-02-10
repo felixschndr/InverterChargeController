@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from environment_variable_getter import EnvironmentVariableGetter
+
 
 @dataclass
 class EnergyAmount:
@@ -41,6 +43,20 @@ class EnergyAmount:
         if isinstance(other, int) or isinstance(other, float):
             return self.watt_hours < other
         self._raise_type_error("<", other)
+
+    def __gt__(self, other: EnergyAmount | int | float) -> bool | None:
+        if isinstance(other, EnergyAmount):
+            return self.watt_hours > other.watt_hours
+        if isinstance(other, int) or isinstance(other, float):
+            return self.watt_hours > other
+        self._raise_type_error(">", other)
+
+    def __ge__(self, other: EnergyAmount | int | float) -> bool | None:
+        if isinstance(other, EnergyAmount):
+            return self.watt_hours >= other.watt_hours
+        if isinstance(other, int) or isinstance(other, float):
+            return self.watt_hours >= other
+        self._raise_type_error(">=", other)
 
     def _raise_type_error(self, operation: str, other: object) -> None:
         raise TypeError(
@@ -93,3 +109,44 @@ class EnergyRate:
         if charging_duration_in_hours == 1:
             return "1 hour"
         return f"{charging_duration_in_hours} hours"
+
+
+battery_capacity = EnergyAmount(int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
+
+
+@dataclass
+class StateOfCharge:
+    absolute: EnergyAmount
+
+    def __post_init__(self):
+        if self.absolute.watt_hours > battery_capacity.watt_hours:
+            raise ValueError(
+                f"The absolute value of the state of charge cannot be greater than the battery capacity: "
+                f"{self.absolute.watt_hours} > {battery_capacity.watt_hours}"
+            )
+
+    def __repr__(self):
+        return f"{self.in_percentage:.2f} % ({self.absolute})"
+
+    def __add__(self, other: StateOfCharge) -> StateOfCharge:
+        return StateOfCharge(self.absolute + other.absolute)
+
+    def __sub__(self, other: StateOfCharge) -> StateOfCharge:
+        return StateOfCharge(self.absolute - other.absolute)
+
+    def __lt__(self, other: StateOfCharge) -> bool:
+        return self.absolute < other.absolute
+
+    def __gt__(self, other: StateOfCharge) -> bool:
+        return self.absolute > other.absolute
+
+    def __ge__(self, other: StateOfCharge) -> bool:
+        return self.absolute >= other.absolute
+
+    @property
+    def in_percentage(self) -> int:
+        return int(self.absolute.watt_hours / battery_capacity.watt_hours * 100)
+
+    @staticmethod
+    def from_percentage(percentage: float) -> StateOfCharge:
+        return StateOfCharge(absolute=EnergyAmount(battery_capacity.watt_hours * percentage / 100))

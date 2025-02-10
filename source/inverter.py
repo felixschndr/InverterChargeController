@@ -1,7 +1,7 @@
 import asyncio
 
 import goodwe
-from energy_classes import EnergyAmount
+from energy_classes import EnergyAmount, StateOfCharge
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import inverter as GoodweInverter
 from goodwe.et import OperationMode
@@ -15,7 +15,7 @@ class Inverter(LoggerMixin):
 
         self._device = None
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
-        self.battery_capacity = EnergyAmount(float(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
+        self.battery_capacity = EnergyAmount(int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
 
         self.sems_portal_api_handler = SemsPortalApiHandler()
 
@@ -97,21 +97,7 @@ class Inverter(LoggerMixin):
         """
         return self.battery_capacity * (state_of_charge / 100)
 
-    def calculate_state_of_charge_from_energy_amount(self, energy_amount: EnergyAmount) -> int:
-        """
-        Args:
-            energy_amount: An instance of EnergyAmount.
-
-        Returns:
-            int: The state of charge of the inverter depending on the battery size as a percentage, capped at 100%.
-        """
-        state_of_charge = int(energy_amount.watt_hours / self.battery_capacity.watt_hours * 100)
-        if state_of_charge > 100:
-            self.log.info(f"The calculated state of charge is {state_of_charge} %, capping it at 100 %")
-            return 100
-        return state_of_charge
-
-    def get_state_of_charge(self, log_state_of_charge: bool = False) -> int:
+    def get_state_of_charge(self, log_state_of_charge: bool = False) -> StateOfCharge:
         """
         Gets the current state of charge of the device's battery.
 
@@ -119,11 +105,11 @@ class Inverter(LoggerMixin):
             log_state_of_charge (bool): Whether to log the state of charge information. Default is False.
 
         Returns:
-            int: The current state of charge in percentage.
+            StateOfCharge: The current state of charge of the battery.
         """
         self.log.debug("Getting current state of charge...")
         runtime_data = asyncio.run(self.device.read_runtime_data())
-        state_of_charge = runtime_data["battery_soc"]
+        state_of_charge = StateOfCharge.from_percentage(runtime_data["battery_soc"])
         if log_state_of_charge:
             self.log.info(f"The current state of charge is {state_of_charge} %")
         return state_of_charge

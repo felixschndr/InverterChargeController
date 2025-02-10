@@ -62,7 +62,7 @@ if sys.argv[1] == "--status":
         inverter = Inverter(True)
         soc = inverter.get_state_of_charge(True)
         mode = inverter.get_operation_mode(True).name
-        print(f"SoC: {soc} %\nmode: {mode}")
+        print(f"SoC: {soc}\nmode: {mode}")
     except Exception as e:
         logger.log.exception(e)
         sys.exit(1)

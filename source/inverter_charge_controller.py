@@ -147,7 +147,7 @@ class InverterChargeController(LoggerMixin):
             f"{current_energy_rate.maximum_charging_duration}"
         )
 
-        if next_price_minimum.rate > current_energy_rate.rate:
+        if next_price_minimum > current_energy_rate:
             # Information is unused at the moment
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
 

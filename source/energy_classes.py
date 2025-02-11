@@ -13,52 +13,23 @@ class EnergyAmount:
     def __repr__(self):
         return f"{int(self.watt_hours)} Wh"
 
-    def __add__(self, other: EnergyAmount | int | float) -> EnergyAmount | None:
-        if isinstance(other, EnergyAmount):
-            return EnergyAmount(self.watt_hours + other.watt_hours)
-        if isinstance(other, int) or isinstance(other, float):
-            return EnergyAmount(self.watt_hours + other)
-        self._raise_type_error("+", other)
+    def __add__(self, other: EnergyAmount) -> EnergyAmount:
+        return EnergyAmount(self.watt_hours + other.watt_hours)
 
-    def __sub__(self, other: EnergyAmount | int | float) -> EnergyAmount | None:
-        if isinstance(other, EnergyAmount):
-            return EnergyAmount(self.watt_hours - other.watt_hours)
-        if isinstance(other, int) or isinstance(other, float):
-            return EnergyAmount(self.watt_hours - other)
-        self._raise_type_error("-", other)
+    def __sub__(self, other: EnergyAmount) -> EnergyAmount:
+        return EnergyAmount(self.watt_hours - other.watt_hours)
 
-    def __mul__(self, other: EnergyAmount | int | float) -> EnergyAmount | None:
-        if isinstance(other, EnergyAmount):
-            return EnergyAmount(self.watt_hours * other.watt_hours)
-        if isinstance(other, int) or isinstance(other, float):
-            return EnergyAmount(self.watt_hours * other)
-        self._raise_type_error("*", other)
+    def __mul__(self, other: float) -> EnergyAmount:
+        return EnergyAmount(self.watt_hours * other)
 
-    def __lt__(self, other: EnergyAmount | int | float) -> bool | None:
-        if isinstance(other, EnergyAmount):
-            return self.watt_hours < other.watt_hours
-        if isinstance(other, int) or isinstance(other, float):
-            return self.watt_hours < other
-        self._raise_type_error("<", other)
+    def __lt__(self, other: EnergyAmount) -> bool:
+        return self.watt_hours < other.watt_hours
 
-    def __gt__(self, other: EnergyAmount | int | float) -> bool | None:
-        if isinstance(other, EnergyAmount):
-            return self.watt_hours > other.watt_hours
-        if isinstance(other, int) or isinstance(other, float):
-            return self.watt_hours > other
-        self._raise_type_error(">", other)
+    def __gt__(self, other: EnergyAmount) -> bool:
+        return self.watt_hours > other.watt_hours
 
-    def __ge__(self, other: EnergyAmount | int | float) -> bool | None:
-        if isinstance(other, EnergyAmount):
-            return self.watt_hours >= other.watt_hours
-        if isinstance(other, int) or isinstance(other, float):
-            return self.watt_hours >= other
-        self._raise_type_error(">=", other)
-
-    def _raise_type_error(self, operation: str, other: object) -> None:
-        raise TypeError(
-            f"unsupported operand type(s) for {operation}: '{self.__class__.__name__}' and '{type(other)}'"
-        )
+    def __ge__(self, other: EnergyAmount) -> bool:
+        return self.watt_hours >= other.watt_hours
 
     @property
     def watt_seconds(self) -> float:
@@ -79,6 +50,9 @@ class Power:
 
     def __str__(self):
         return f"{int(self.watts)} W"
+
+    def __iadd__(self, other: Power) -> Power:
+        return Power(self.watts + other.watts)
 
     @staticmethod
     def from_kilo_watts(kilo_watts: float) -> Power:

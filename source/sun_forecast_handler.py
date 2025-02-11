@@ -20,79 +20,6 @@ class SunForecastHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("solar_forecast")
 
-    def _retrieve_data_from_api(self, rooftop_id: str, path: str) -> list[dict]:
-        """
-        Retrieves data from the Solcast API for a given rooftop site and data path.
-
-        Args:
-            rooftop_id (str): The unique identifier for the rooftop site.
-            path (str): The specific data path to retrieve from the API.
-
-        Returns:
-            list[dict]: A list of dictionaries containing the retrieved data.
-        """
-        api_base_url = "https://api.solcast.com.au/rooftop_sites/{0}/{1}?format=json"
-        url = api_base_url.format(rooftop_id, path)
-        headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
-        response = requests.get(url, timeout=5, headers=headers)
-        response.raise_for_status()
-
-        data = response.json()
-        self.log.trace(f"Retrieved data: {data}")
-        return data[path]
-
-    def retrieve_forecast_data(self, rooftop_id: str) -> list[dict]:
-        return self._retrieve_data_from_api(rooftop_id, "forecasts")
-
-    def retrieve_historic_data(self, rooftop_id: str) -> list[dict]:
-        return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
-
-    def retrieve_solar_data(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, float]:
-        rooftop_ids = [EnvironmentVariableGetter.get("ROOFTOP_ID_1")]
-        rooftop_id_2 = EnvironmentVariableGetter.get("ROOFTOP_ID_2", None)
-        if rooftop_id_2 is not None:
-            rooftop_ids.append(rooftop_id_2)
-
-        need_to_retrieve_historic_data = False
-        need_to_retrieve_forecast_data = False
-        now = TimeHandler.get_time(sanitize_seconds=True)
-        now_minus_offset = now - timedelta(seconds=1)
-        if timeframe_start >= now_minus_offset or timeframe_end >= now_minus_offset:
-            self.log.debug("Need to retrieve forecast data")
-            need_to_retrieve_forecast_data = True
-        if timeframe_start <= now_minus_offset:
-            self.log.debug("Need to retrieve historic data")
-            need_to_retrieve_historic_data = True
-
-        solar_data = {}
-
-        for rooftop_id in rooftop_ids:
-            data_for_rooftop = []
-            if need_to_retrieve_historic_data:
-                data_for_rooftop += self.retrieve_historic_data(rooftop_id)
-            if need_to_retrieve_forecast_data:
-                data_for_rooftop += self.retrieve_forecast_data(rooftop_id)
-            period_duration = parse_duration(data_for_rooftop[0]["period"])
-            for timeslot in data_for_rooftop:
-                period_start = (
-                    datetime.fromisoformat(timeslot["period_end"]).astimezone() - period_duration
-                ).isoformat()
-                if timeslot[period_start] not in solar_data.keys():
-                    solar_data[timeslot[period_start]] = timeslot["pv_estimate"]
-                else:
-                    solar_data[timeslot[period_start]] += timeslot["pv_estimate"]
-
-                self.database_handler.write_to_database(
-                    [
-                        InfluxDBField("pv_estimate_in_watts", float(timeslot["pv_estimate"] * 1000)),
-                        InfluxDBField("forecast_timestamp", period_start),
-                        InfluxDBField("retrieval_timestamp", now.isoformat()),
-                        InfluxDBField("rooftop_id", rooftop_id),
-                    ]
-                )
-
-        return solar_data
-
     def calculate_minimum_of_soc_and_power_generation_in_timeframe(
         self,
         timeframe_start: datetime,
@@ -100,16 +27,23 @@ class SunForecastHandler(LoggerMixin):
         average_power_usage: Power,
         starting_soc: StateOfCharge,
     ) -> tuple[StateOfCharge, EnergyAmount]:
-        if EnvironmentVariableGetter.get("USE_DEBUG_SOLAR_OUTPUT", False):
-            solar_data = self._get_debug_solar_data()
-        else:
-            try:
-                solar_data = self.retrieve_solar_data(timeframe_start, timeframe_end)
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code != 429:
-                    raise e
-                self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
-                solar_data = self._get_debug_solar_data()
+        """
+        Calculates the minimum state of charge (SOC) and total power generation within a specified timeframe,
+        considering average power usage and initial SOC. This function uses solar data and iteratively computes power
+        usage and generation for subintervals within the timeframe.
+
+        Args:
+            timeframe_start: The starting timestamp of the timeframe.
+            timeframe_end: The ending timestamp of the timeframe.
+            average_power_usage: The average power consumption over the timeframe.
+            starting_soc: The battery's state of charge at the beginning of the timeframe.
+
+        Returns:
+            A tuple containing:
+                - The minimum state of charge observed during the timeframe.
+                - The total amount of power generated within the timeframe.
+        """
+        solar_data = self.retrieve_solar_data(timeframe_start, timeframe_end)
 
         current_timeframe_start = timeframe_start
         soc_after_current_timeframe = starting_soc
@@ -134,7 +68,7 @@ class SunForecastHandler(LoggerMixin):
                 current_timeframe_start, current_timeframe_duration, average_power_usage
             )
             total_power_usage += power_usage_during_timeframe
-            power_generation_during_timeframe = self._calculate_energy_produced_in_timeframe(
+            power_generation_during_timeframe = self._get_energy_produced_in_timeframe_from_solar_data(
                 current_timeframe_end, current_timeframe_duration, solar_data
             )
             total_power_generation += power_generation_during_timeframe
@@ -166,10 +100,172 @@ class SunForecastHandler(LoggerMixin):
         )
         return minimum_soc, total_power_generation
 
+    def retrieve_solar_data(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, Power]:
+        """
+        Retrieves solar data for a specified timeframe either from the solar forecast API or a debug solar output
+        depending on the configuration and API response.
+
+        If the environment variable "USE_DEBUG_SOLAR_OUTPUT" is set to True, or in the case of an HTTP 429 error
+        (too many requests) from the solar forecast API, the method falls back to using a debug solar data output.
+
+        Args:
+            timeframe_start: Start date and time of the timeframe for which solar data is requested.
+            timeframe_end: End date and time of the timeframe for which solar data is requested.
+
+        Returns:
+            A dictionary where keys represent specific times and values represent the forecasted power at those times.
+
+        Raises:
+            requests.exceptions.HTTPError: Raised if an HTTP error other than 429 occurs while fetching solar data from
+                the API.
+        """
+        if EnvironmentVariableGetter.get("USE_DEBUG_SOLAR_OUTPUT", False):
+            return self._get_debug_solar_data()
+
+        try:
+            return self.retrieve_solar_data_from_api(timeframe_start, timeframe_end)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code != 429:
+                raise e
+            self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
+            return self._get_debug_solar_data()
+
+    def retrieve_solar_data_from_api(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, Power]:
+        """
+        Retrieves solar data from an API over a specified timeframe. The function collects photovoltaic forecasts and/or
+        historic data for multiple rooftops, processes the data into a dictionary mapping timestamps to cumulative power
+        values, and writes relevant data to a database.
+
+        Args:
+            timeframe_start (datetime): The start of the timeframe for which to retrieve solar data.
+            timeframe_end (datetime): The end of the timeframe for which to retrieve solar data.
+
+        Returns:
+            dict[str, Power]: A dictionary where keys represent timestamps (as ISO format strings) and  values are Power
+             objects corresponding to the cumulative power generation.
+        """
+        rooftop_ids = self._get_rooftop_ids()
+
+        need_to_retrieve_forecast_data, need_to_retrieve_historic_data = self._need_to_retrieve_data(
+            timeframe_start, timeframe_end
+        )
+
+        solar_data = {}
+
+        now = TimeHandler.get_time().isoformat()
+        for rooftop_id in rooftop_ids:
+            data_for_rooftop = []
+            if need_to_retrieve_historic_data:
+                data_for_rooftop += self.retrieve_historic_data_from_api(rooftop_id)
+            if need_to_retrieve_forecast_data:
+                data_for_rooftop += self.retrieve_forecast_data_from_api(rooftop_id)
+            period_duration = parse_duration(data_for_rooftop[0]["period"])
+            for timeslot in data_for_rooftop:
+                period_start = (
+                    datetime.fromisoformat(timeslot["period_end"]).astimezone() - period_duration
+                ).isoformat()
+                if timeslot[period_start] not in solar_data.keys():
+                    solar_data[timeslot[period_start]] = Power.from_kilo_watts(timeslot["pv_estimate"])
+                else:
+                    solar_data[timeslot[period_start]] += Power.from_kilo_watts(timeslot["pv_estimate"])
+
+                self.database_handler.write_to_database(
+                    [
+                        InfluxDBField("pv_estimate_in_watts", float(timeslot["pv_estimate"] * 1000)),
+                        InfluxDBField("forecast_timestamp", period_start),
+                        InfluxDBField("retrieval_timestamp", now),
+                        InfluxDBField("rooftop_id", rooftop_id),
+                    ]
+                )
+
+        return solar_data
+
+    def retrieve_forecast_data_from_api(self, rooftop_id: str) -> list[dict]:
+        return self._retrieve_data_from_api(rooftop_id, "forecasts")
+
+    def retrieve_historic_data_from_api(self, rooftop_id: str) -> list[dict]:
+        return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
+
+    def _retrieve_data_from_api(self, rooftop_id: str, path: str) -> list[dict]:
+        """
+        Retrieves data from the Solcast API for a given rooftop site and data path.
+
+        Args:
+            rooftop_id (str): The unique identifier for the rooftop site.
+            path (str): The specific data path to retrieve from the API.
+
+        Returns:
+            list[dict]: A list of dictionaries containing the retrieved data.
+        """
+        api_base_url = "https://api.solcast.com.au/rooftop_sites/{0}/{1}?format=json"
+        url = api_base_url.format(rooftop_id, path)
+        headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
+        response = requests.get(url, timeout=5, headers=headers)
+        response.raise_for_status()
+
+        data = response.json()
+        self.log.trace(f"Retrieved data: {data}")
+        return data[path]
+
+    @staticmethod
+    def _get_rooftop_ids() -> list[str]:
+        """
+        This static method retrieves rooftop IDs defined in environment variables and returns them as a list
+
+        Returns:
+            list[str]: A list containing one or two rooftop IDs retrieved from the environment variables.
+        """
+        rooftop_ids = [EnvironmentVariableGetter.get("ROOFTOP_ID_1")]
+        rooftop_id_2 = EnvironmentVariableGetter.get("ROOFTOP_ID_2", None)
+        if rooftop_id_2 is not None:
+            rooftop_ids.append(rooftop_id_2)
+        return rooftop_ids
+
+    def _need_to_retrieve_data(self, timeframe_start: datetime, timeframe_end: datetime) -> tuple[bool, bool]:
+        """
+        This method evaluates whether either historic data or forecast data needs to be retrieved based on the given
+        start and end timeframes in comparison to the current time.
+
+        Args:
+            timeframe_start (datetime): The start of the timeframe for evaluation.
+            timeframe_end (datetime): The end of the timeframe for evaluation.
+
+        Returns:
+            tuple[bool, bool]: A tuple containing two boolean values:
+                - The first boolean indicates whether retrieval of forecast data is required.
+                - The second boolean indicates whether retrieval of historic data is required.
+        """
+        need_to_retrieve_historic_data = False
+        need_to_retrieve_forecast_data = False
+        now_minus_offset = TimeHandler.get_time(sanitize_seconds=True) - timedelta(seconds=1)
+        if timeframe_start >= now_minus_offset or timeframe_end >= now_minus_offset:
+            self.log.debug("Need to retrieve forecast data")
+            need_to_retrieve_forecast_data = True
+        if timeframe_start <= now_minus_offset:
+            self.log.debug("Need to retrieve historic data")
+            need_to_retrieve_historic_data = True
+        return need_to_retrieve_forecast_data, need_to_retrieve_historic_data
+
     @staticmethod
     def _calculate_energy_usage_in_timeframe(
         timeframe_start: datetime, timeframe_duration: timedelta, average_power_consumption: Power
     ) -> EnergyAmount:
+        """
+        Calculates the energy usage within a specific timeframe considering day and night power usage factors.
+
+        The method calculates the energy consumption based on the specified start time, duration of the timeframe, and
+        the average power consumption. It applies different power usage factors for daytime and nighttime, depending on
+        the given timeframe.
+
+        Args:
+            timeframe_start (datetime): The starting datetime of the timeframe for which the energy usage needs to be
+                calculated.
+            timeframe_duration (timedelta): The duration of the timeframe for which the energy usage is to be calculated.
+            average_power_consumption (Power): The average power consumption during the specified timeframe.
+
+        Returns:
+            EnergyAmount: The calculated energy usage in the provided timeframe.
+        """
         day_start = time(6, 0)
         night_start = time(18, 0)
         factor_energy_usage_during_the_day = float(EnvironmentVariableGetter.get("POWER_USAGE_FACTOR", 0.6))
@@ -187,14 +283,55 @@ class SunForecastHandler(LoggerMixin):
             return average_power_usage * factor_energy_usage_during_the_day
         return average_power_usage * factor_energy_usage_during_the_night
 
-    @staticmethod
-    def _calculate_energy_produced_in_timeframe(
-        timeframe_end: datetime, timeframe_duration: timedelta, solar_data: dict[str, float]
+    def _get_energy_produced_in_timeframe_from_solar_data(
+        self, timeframe_end: datetime, timeframe_duration: timedelta, solar_data: dict[str, Power]
     ) -> EnergyAmount:
-        power_during_timeslot = Power.from_kilo_watts(solar_data[timeframe_end.isoformat()])
-        return EnergyAmount.from_watt_seconds(power_during_timeslot.watts * timeframe_duration.total_seconds())
+        """
+        Fetches the energy produced during a specific timeframe from the provided solar data. The method determines the
+        power output at a given moment identified by `timeframe_end`, calculates the energy produced over the duration
+        specified, and returns it.
 
-    def _get_debug_solar_data(self) -> dict[str, float]:
+        Args:
+            timeframe_end (datetime): The end timestamp of the timeframe for which energy production is to be
+                calculated, defined in ISO format.
+            timeframe_duration (timedelta): The duration for which energy production is calculated, starting from
+                `timeframe_end` and going backwards.
+            solar_data (dict[str, Power]): A dictionary where keys are timestamps in ISO format and values represent the
+                power output at those specific times.
+
+        Returns:
+            EnergyAmount: The energy produced during the specified timeframe, computed as the power at `timeframe_end`
+                multiplied by the duration in seconds.
+
+        Raises:
+            KeyError: If the specified `timeframe_end` is not a key in the `solar_data` dictionary.
+                This should never happen.
+        """
+        try:
+            power_during_timeslot = solar_data[timeframe_end.isoformat()]
+            return EnergyAmount.from_watt_seconds(power_during_timeslot.watts * timeframe_duration.total_seconds())
+        except KeyError as e:
+            # This should never happen
+            self.log.critical(
+                f"The timeframe end {timeframe_end} is not found in the provided solar data {solar_data}",
+                exc_info=True,
+            )
+            raise e
+
+    def _get_debug_solar_data(self) -> dict[str, Power]:
+        """
+        Retrieves debug solar data for testing or fallback purposes.
+
+        This private method reads sample solar forecast data from a predefined JSON file
+        and adjusts the timestamps to the current replaceable timestamp. It then converts
+        the power estimate in kilowatts to the required `Power` object and organizes
+        the data into a dictionary structured by time periods.
+
+        Returns:
+            dict[str, Power]: A dictionary where the keys are ISO-formatted timestamps and
+            the values are `Power` objects representing the estimated solar power generation
+            for the corresponding time period.
+        """
         current_replace_timestamp = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0)
         sample_data_path = os.path.join(Path(__file__).parent.parent, "sample_solar_forecast.json")
         sample_data = {}
@@ -203,5 +340,5 @@ class SunForecastHandler(LoggerMixin):
         for timeslot in sample_input_data:
             timeslot["period_end"] = current_replace_timestamp.isoformat()
             current_replace_timestamp += self.default_timeframe_duration
-            sample_data[current_replace_timestamp.isoformat()] = timeslot["pv_estimate"]
+            sample_data[current_replace_timestamp.isoformat()] = Power.from_kilo_watts(timeslot["pv_estimate"])
         return sample_data

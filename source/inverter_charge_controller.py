@@ -122,12 +122,13 @@ class InverterChargeController(LoggerMixin):
         Computes the optimal charging strategy for an inverter until the next price minimum.
 
         This method performs several key tasks to determine if and how much the inverter needs to be charged:
-         - Retrieves the current timestamp and the next price minimum.
-         - Estimates the solar power output and energy usage until the next price minimum.
-         - Calculates the current energy stored in the battery based on its state of charge.
-         - Compares the current and expected future state with the target minimum state of charge to determine if
-           additional charging is necessary.
-         - Initiates charging if required.
+         - Retrieves the next price minimum.
+         - Sets the maximum charging duration of the current energy rate.
+         - Gets the current state of the inverter.
+         - Gets the average power consumption.
+         - Calculates the estimated minimum state of charge until the next price minimum.
+         - If the estimated minimum state of charge is lower than the target minimum state of charge, the method
+           calculates the required state of charge to reach the target minimum state of charge and initiates charging.
 
         Returns:
             EnergyRate: The next price minimum energy rate.
@@ -371,6 +372,12 @@ class InverterChargeController(LoggerMixin):
                 InfluxDBField("timestamp_ending_to_charge", timestamp_ending_to_charge.isoformat()),
             ]
         )
+
+    """
+    The following methods are used to cache values to reduce the number of API calls made to certain APIs and reduce the
+    amount of calculations performed. This cache is only used in the event that during an iteration an API call fails.
+    In this case, previous values from the same iteration are saved and used when the failed API call is retried.
+    """
 
     def _get_next_price_minimum(self) -> EnergyRate:
         cache_key = "next_price_minimum"

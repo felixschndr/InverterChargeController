@@ -17,9 +17,10 @@ class AbsenceHandler(LoggerMixin):
         try:
             absence_input = EnvironmentVariableGetter.get("ABSENCE_TIMEFRAME", "")
             return self._check_for_current_absence(absence_input)
-        except ValueError as e:
+        except ValueError:
             self.log.warning(
-                f'Improperly configured: "{absence_input}" is not a valid configuration: {e}! Read the README for instructions.'
+                f'Improperly configured: "{absence_input}" is not a valid configuration! Read the README for instructions.',
+                exc_info=True,
             )
             return False
 

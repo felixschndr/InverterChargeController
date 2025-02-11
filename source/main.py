@@ -5,7 +5,7 @@ from datetime import datetime, time, timedelta
 from types import FrameType
 
 import pause
-from energy_classes import EnergyAmount, Power, StateOfCharge
+from energy_classes import Power, StateOfCharge
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
 from sun_forecast_handler import SunForecastHandler
@@ -32,7 +32,7 @@ def log_solar_forecast() -> None:
             end -= timedelta(minutes=2)
 
         sun_forecast_handler.calculate_minimum_of_soc_and_power_generation_in_timeframe(
-            start, end, Power(0), StateOfCharge(EnergyAmount(0))
+            start, end, Power(0), StateOfCharge.from_percentage(0)
         )
 
 

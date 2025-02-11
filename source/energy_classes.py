@@ -10,11 +10,8 @@ from environment_variable_getter import EnvironmentVariableGetter
 class EnergyAmount:
     watt_hours: float
 
-    def __str__(self):
-        return f"{int(self.watt_hours)} Wh"
-
     def __repr__(self):
-        return self.__str__()
+        return f"{int(self.watt_hours)} Wh"
 
     def __add__(self, other: EnergyAmount | int | float) -> EnergyAmount | None:
         if isinstance(other, EnergyAmount):

@@ -19,7 +19,7 @@ class SemsPortalApiHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("power")
 
-    def login(self) -> None:
+    def _login(self) -> None:
         """
         Authenticates a user by sending a POST request to the SEMS Portal API and retrieves
         the necessary tokens and API URL for subsequent requests. The user's credentials are fetched from the
@@ -71,44 +71,6 @@ class SemsPortalApiHandler(LoggerMixin):
         )
         return Power(watts=average_energy_usage_per_day.watt_seconds / (60 * 60 * 24))
 
-    def _retrieve_power_data(self, date_to_crawl: date) -> dict:
-        """
-        Retrieves the power data from the SEMSPORTAL API. This includes:
-         - solar generation
-         - battery charge/discharge
-         - grid consumption/feed
-         - power usage
-         - state of charge
-
-        This method sends a POST request to the SEMSPORTAL API to fetch the energy consumption data of a specified plant station.
-        It constructs the necessary headers and payload required by the API and handles the response appropriately.
-
-        Returns:
-            dict: A dictionary containing the power data retrieved from the SEMSPORTAL API.
-        """
-        self.login()
-
-        self.log.debug(f"Crawling the SEMSPORTAL API for power data of {date_to_crawl}...")
-
-        url = "https://eu.semsportal.com/api/v2/Charts/GetPlantPowerChart"
-        headers = {
-            "Content-Type": "application/json",
-            "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
-        }
-        payload = {
-            "id": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
-            "date": date_to_crawl.strftime("%Y-%m-%d"),
-            "full_script": False,
-        }
-
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
-        response.raise_for_status()
-        response = response.json()
-
-        self.log.trace(f"Retrieved data: {response}")
-
-        return response
-
     def _retrieve_energy_consumption_data(self) -> dict:
         """
         Retrieves energy consumption data from the SEMSPORTAL API.
@@ -119,7 +81,7 @@ class SemsPortalApiHandler(LoggerMixin):
         Returns:
             dict: A dictionary containing the energy consumption data retrieved from the SEMSPORTAL API.
         """
-        self.login()
+        self._login()
 
         self.log.debug("Crawling the SEMSPORTAL API for energy consumption data...")
 
@@ -267,6 +229,44 @@ class SemsPortalApiHandler(LoggerMixin):
                         ),
                     ]
                 )
+
+    def _retrieve_power_data(self, date_to_crawl: date) -> dict:
+        """
+        Retrieves the power data from the SEMSPORTAL API. This includes:
+         - solar generation
+         - battery charge/discharge
+         - grid consumption/feed
+         - power usage
+         - state of charge
+
+        This method sends a POST request to the SEMSPORTAL API to fetch the energy consumption data of a specified plant station.
+        It constructs the necessary headers and payload required by the API and handles the response appropriately.
+
+        Returns:
+            dict: A dictionary containing the power data retrieved from the SEMSPORTAL API.
+        """
+        self._login()
+
+        self.log.debug(f"Crawling the SEMSPORTAL API for power data of {date_to_crawl}...")
+
+        url = "https://eu.semsportal.com/api/v2/Charts/GetPlantPowerChart"
+        headers = {
+            "Content-Type": "application/json",
+            "Token": f'{{"version":"v2.1.0","client":"ios","language":"en", "timestamp": "{self.timestamp}", "uid": "{self.user_id}", "token": "{self.token}"}}',
+        }
+        payload = {
+            "id": EnvironmentVariableGetter.get("SEMSPORTAL_POWERSTATION_ID"),
+            "date": date_to_crawl.strftime("%Y-%m-%d"),
+            "full_script": False,
+        }
+
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        response.raise_for_status()
+        response = response.json()
+
+        self.log.trace(f"Retrieved data: {response}")
+
+        return response
 
     @staticmethod
     def _get_value_of_line_by_line_index_and_time_key(lines: dict, line_index: int, time_key: str) -> int:

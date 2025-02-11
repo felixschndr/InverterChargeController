@@ -18,7 +18,7 @@ class SunForecastHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-        self.default_timeframe_duration = timedelta(minutes=30)
+        self.timeframe_duration = None
 
         self.database_handler = DatabaseHandler("solar_forecast")
 
@@ -72,13 +72,14 @@ class SunForecastHandler(LoggerMixin):
         first_iteration = True
         while True:
             if first_iteration:
-                next_half_hour_timestamp = timeframe_start.replace(minute=30, second=0)
-                if timeframe_start.minute >= 30:
-                    next_half_hour_timestamp += self.default_timeframe_duration
+                next_step_minutes = int(self.timeframe_duration.total_seconds() / 60)
+                next_half_hour_timestamp = timeframe_start.replace(minute=next_step_minutes, second=0)
+                if timeframe_start.minute >= next_step_minutes:
+                    next_half_hour_timestamp += self.timeframe_duration
                 current_timeframe_duration = next_half_hour_timestamp - current_timeframe_start
                 first_iteration = False
             else:
-                current_timeframe_duration = self.default_timeframe_duration
+                current_timeframe_duration = self.timeframe_duration
 
             current_timeframe_end = current_timeframe_start + current_timeframe_duration
 
@@ -159,8 +160,8 @@ class SunForecastHandler(LoggerMixin):
             timeframe_end (datetime): The end of the timeframe for which to retrieve solar data.
 
         Returns:
-            dict[str, Power]: A dictionary where keys represent timestamps (as ISO format strings) and  values are Power
-             objects corresponding to the cumulative power generation.
+            dict[str, Power]: A dictionary where keys represent timestamps (as ISO format strings) and values are Power
+                objects corresponding to the cumulative power generation.
         """
         rooftop_ids = self._get_rooftop_ids()
 
@@ -177,15 +178,14 @@ class SunForecastHandler(LoggerMixin):
                 data_for_rooftop += self.retrieve_historic_data_from_api(rooftop_id)
             if need_to_retrieve_forecast_data:
                 data_for_rooftop += self.retrieve_forecast_data_from_api(rooftop_id)
-            period_duration = parse_duration(data_for_rooftop[0]["period"])
+            self.timeframe_duration = parse_duration(data_for_rooftop[0]["period"])
             for timeslot in data_for_rooftop:
                 period_start = (
-                    datetime.fromisoformat(timeslot["period_end"]).astimezone() - period_duration
+                    datetime.fromisoformat(timeslot["period_end"]).astimezone() - self.timeframe_duration
                 ).isoformat()
-                if timeslot[period_start] not in solar_data.keys():
-                    solar_data[timeslot[period_start]] = Power.from_kilo_watts(timeslot["pv_estimate"])
-                else:
-                    solar_data[timeslot[period_start]] += Power.from_kilo_watts(timeslot["pv_estimate"])
+                if period_start not in solar_data.keys():
+                    solar_data[period_start] = Power(0)
+                solar_data[period_start] += Power.from_kilo_watts(timeslot["pv_estimate"])
 
                 self.database_handler.write_to_database(
                     [
@@ -358,8 +358,9 @@ class SunForecastHandler(LoggerMixin):
         sample_data = {}
         with open(sample_data_path, "r") as file:
             sample_input_data = json.load(file)["forecasts"]
+        self.timeframe_duration = parse_duration(sample_input_data[0]["period"])
         for timeslot in sample_input_data:
             timeslot["period_end"] = current_replace_timestamp.isoformat()
-            current_replace_timestamp += self.default_timeframe_duration
+            current_replace_timestamp += self.timeframe_duration
             sample_data[current_replace_timestamp.isoformat()] = Power.from_kilo_watts(timeslot["pv_estimate"])
         return sample_data

@@ -77,26 +77,6 @@ class Inverter(LoggerMixin):
 
         self.log.info(f"Successfully set new operation mode {mode.name}")
 
-    def calculate_energy_missing_from_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
-        """
-        Args:
-            state_of_charge (int): The current state of charge of the battery as a percentage.
-
-        Returns:
-            EnergyAmount: The amount of energy missing from the battery based on the current state of charge.
-        """
-        return self.battery_capacity - self.calculate_energy_saved_in_battery_from_state_of_charge(state_of_charge)
-
-    def calculate_energy_saved_in_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
-        """
-        Args:
-            state_of_charge (int): The current state of charge of the battery as a percentage.
-
-        Returns:
-            EnergyAmount: The amount of energy saved in the battery corresponding to the given state of charge.
-        """
-        return self.battery_capacity * (state_of_charge / 100)
-
     def get_state_of_charge(self, log_state_of_charge: bool = False) -> StateOfCharge:
         """
         Gets the current state of charge of the device's battery.

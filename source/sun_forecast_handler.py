@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 from pathlib import Path
 
 import requests
-from database_handler import DatabaseHandler
+from database_handler import DatabaseHandler, InfluxDBField
 from energy_classes import EnergyAmount, Power, StateOfCharge
 from environment_variable_getter import EnvironmentVariableGetter
 from isodate import parse_duration
@@ -55,11 +55,12 @@ class SunForecastHandler(LoggerMixin):
 
         need_to_retrieve_historic_data = False
         need_to_retrieve_forecast_data = False
-        now = TimeHandler.get_time(sanitize_seconds=True) - timedelta(seconds=1)
-        if timeframe_start >= now or timeframe_end >= now:
+        now = TimeHandler.get_time(sanitize_seconds=True)
+        now_minus_offset = now - timedelta(seconds=1)
+        if timeframe_start >= now_minus_offset or timeframe_end >= now_minus_offset:
             self.log.debug("Need to retrieve forecast data")
             need_to_retrieve_forecast_data = True
-        if timeframe_start <= now:
+        if timeframe_start <= now_minus_offset:
             self.log.debug("Need to retrieve historic data")
             need_to_retrieve_historic_data = True
 
@@ -81,6 +82,15 @@ class SunForecastHandler(LoggerMixin):
                 else:
                     solar_data[timeslot[period_start]] += timeslot["pv_estimate"]
 
+                self.database_handler.write_to_database(
+                    [
+                        InfluxDBField("pv_estimate_in_watts", float(timeslot["pv_estimate"] * 1000)),
+                        InfluxDBField("forecast_timestamp", period_start),
+                        InfluxDBField("retrieval_timestamp", now.isoformat()),
+                        InfluxDBField("rooftop_id", rooftop_id),
+                    ]
+                )
+
         return solar_data
 
     def calculate_minimum_of_soc_and_power_generation_in_timeframe(
@@ -94,7 +104,6 @@ class SunForecastHandler(LoggerMixin):
             solar_data = self._get_debug_solar_data()
         else:
             try:
-                # TODO: Write values to DB
                 solar_data = self.retrieve_solar_data(timeframe_start, timeframe_end)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code != 429:

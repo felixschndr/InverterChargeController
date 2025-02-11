@@ -5,7 +5,6 @@ from datetime import datetime, time, timedelta
 from types import FrameType
 
 import pause
-from energy_classes import Power, StateOfCharge
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
 from sun_forecast_handler import SunForecastHandler
@@ -14,7 +13,7 @@ from time_handler import TimeHandler
 logger = LoggerMixin()
 
 
-def log_solar_forecast() -> None:
+def write_solar_forecast_and_history_to_db() -> None:
     sun_forecast_handler = SunForecastHandler()
     morning_time = time(hour=5, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
     evening_time = time(hour=23, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
@@ -31,9 +30,11 @@ def log_solar_forecast() -> None:
         else:
             end -= timedelta(minutes=2)
 
-        sun_forecast_handler.calculate_minimum_of_soc_and_power_generation_in_timeframe(
-            start, end, Power(0), StateOfCharge.from_percentage(0)
-        )
+        try:
+            sun_forecast_handler.retrieve_solar_data_from_api(start, end)
+        except Exception:
+            logger.log.error("Failed to log solar forecast data", exc_info=True)
+            pass
 
 
 def _get_morning_and_evening_timestamp_of_today(morning_time: time, evening_time: time) -> tuple[datetime, datetime]:
@@ -77,10 +78,10 @@ for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
     signal.signal(signal_to_catch, handle_stop_signal)
 
 if __name__ == "__main__":
-    solar_forecast_logging_thread = threading.Thread(target=log_solar_forecast, daemon=True)
-    solar_forecast_logging_thread.start()
-    # Let the solar forecast calculate and log its next wakeup time before logging all the info of the
-    # InverterChargeController
+    solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
+    solar_protocol_thread.start()
+
+    # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
     pause.seconds(1)
 
     inverter_charge_controller = InverterChargeController()

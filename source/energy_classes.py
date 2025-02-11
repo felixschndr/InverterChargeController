@@ -118,13 +118,6 @@ battery_capacity = EnergyAmount(int(EnvironmentVariableGetter.get("INVERTER_BATT
 class StateOfCharge:
     absolute: EnergyAmount
 
-    def __post_init__(self):
-        if self.absolute.watt_hours > battery_capacity.watt_hours:
-            raise ValueError(
-                f"The absolute value of the state of charge cannot be greater than the battery capacity: "
-                f"{self.absolute.watt_hours} > {battery_capacity.watt_hours}"
-            )
-
     def __repr__(self):
         return f"{self.in_percentage:.2f} % ({self.absolute})"
 

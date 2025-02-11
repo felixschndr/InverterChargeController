@@ -7,6 +7,7 @@ import requests
 from database_handler import DatabaseHandler
 from energy_classes import EnergyAmount, Power, StateOfCharge
 from environment_variable_getter import EnvironmentVariableGetter
+from isodate import parse_duration
 from logger import LoggerMixin
 from time_handler import TimeHandler
 
@@ -15,7 +16,7 @@ class SunForecastHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-        self.timeslot_duration = timedelta(minutes=30)
+        self.default_timeframe_duration = timedelta(minutes=30)
 
         self.database_handler = DatabaseHandler("solar_forecast")
 
@@ -40,11 +41,47 @@ class SunForecastHandler(LoggerMixin):
         self.log.trace(f"Retrieved data: {data}")
         return data[path]
 
-    def retrieve_solar_forecast_data(self, rooftop_id: str) -> list[dict]:
+    def retrieve_forecast_data(self, rooftop_id: str) -> list[dict]:
         return self._retrieve_data_from_api(rooftop_id, "forecasts")
 
     def retrieve_historic_data(self, rooftop_id: str) -> list[dict]:
         return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
+
+    def retrieve_solar_data(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, float]:
+        rooftop_ids = [EnvironmentVariableGetter.get("ROOFTOP_ID_1")]
+        rooftop_id_2 = EnvironmentVariableGetter.get("ROOFTOP_ID_2", None)
+        if rooftop_id_2 is not None:
+            rooftop_ids.append(rooftop_id_2)
+
+        need_to_retrieve_historic_data = False
+        need_to_retrieve_forecast_data = False
+        now = TimeHandler.get_time(sanitize_seconds=True) - timedelta(seconds=1)
+        if timeframe_start >= now or timeframe_end >= now:
+            self.log.debug("Need to retrieve forecast data")
+            need_to_retrieve_forecast_data = True
+        if timeframe_start <= now:
+            self.log.debug("Need to retrieve historic data")
+            need_to_retrieve_historic_data = True
+
+        solar_data = {}
+
+        for rooftop_id in rooftop_ids:
+            data_for_rooftop = []
+            if need_to_retrieve_historic_data:
+                data_for_rooftop += self.retrieve_historic_data(rooftop_id)
+            if need_to_retrieve_forecast_data:
+                data_for_rooftop += self.retrieve_forecast_data(rooftop_id)
+            period_duration = parse_duration(data_for_rooftop[0]["period"])
+            for timeslot in data_for_rooftop:
+                period_start = (
+                    datetime.fromisoformat(timeslot["period_end"]).astimezone() - period_duration
+                ).isoformat()
+                if timeslot[period_start] not in solar_data.keys():
+                    solar_data[timeslot[period_start]] = timeslot["pv_estimate"]
+                else:
+                    solar_data[timeslot[period_start]] += timeslot["pv_estimate"]
+
+        return solar_data
 
     def calculate_minimum_of_soc_and_power_generation_in_timeframe(
         self,
@@ -57,9 +94,8 @@ class SunForecastHandler(LoggerMixin):
             solar_data = self._get_debug_solar_data()
         else:
             try:
-                # TODO: Aggregate the two rooftops
                 # TODO: Write values to DB
-                solar_data = self.retrieve_solar_forecast_data(EnvironmentVariableGetter.get("ROOFTOP_ID_1"))
+                solar_data = self.retrieve_solar_data(timeframe_start, timeframe_end)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code != 429:
                     raise e
@@ -77,20 +113,20 @@ class SunForecastHandler(LoggerMixin):
             if first_iteration:
                 next_half_hour_timestamp = timeframe_start.replace(minute=30, second=0)
                 if timeframe_start.minute >= 30:
-                    next_half_hour_timestamp += self.timeslot_duration
-                timeslot_duration = next_half_hour_timestamp - current_timeframe_start
+                    next_half_hour_timestamp += self.default_timeframe_duration
+                current_timeframe_duration = next_half_hour_timestamp - current_timeframe_start
                 first_iteration = False
             else:
-                timeslot_duration = self.timeslot_duration
+                current_timeframe_duration = self.default_timeframe_duration
 
-            current_timeframe_end = current_timeframe_start + timeslot_duration
+            current_timeframe_end = current_timeframe_start + current_timeframe_duration
 
             power_usage_during_timeframe = self._calculate_energy_usage_in_timeframe(
-                current_timeframe_start, timeslot_duration, average_power_usage
+                current_timeframe_start, current_timeframe_duration, average_power_usage
             )
             total_power_usage += power_usage_during_timeframe
             power_generation_during_timeframe = self._calculate_energy_produced_in_timeframe(
-                current_timeframe_start, timeslot_duration, solar_data
+                current_timeframe_end, current_timeframe_duration, solar_data
             )
             total_power_generation += power_generation_during_timeframe
             soc_after_current_timeframe = StateOfCharge(
@@ -109,7 +145,7 @@ class SunForecastHandler(LoggerMixin):
                 f"The expected power usage during this slot is {power_usage_during_timeframe}. "
                 f"The expected power generation during this slot is {power_generation_during_timeframe}. "
             )
-            current_timeframe_start += timeslot_duration
+            current_timeframe_start += current_timeframe_duration
 
             if current_timeframe_start > timeframe_end:
                 break
@@ -144,42 +180,19 @@ class SunForecastHandler(LoggerMixin):
 
     @staticmethod
     def _calculate_energy_produced_in_timeframe(
-        timeframe_start: datetime, timeframe_duration: timedelta, solar_data: list[dict]
+        timeframe_end: datetime, timeframe_duration: timedelta, solar_data: dict[str, float]
     ) -> EnergyAmount:
-        expected_solar_output = EnergyAmount(0)
-        for timeslot in solar_data:
-            timeslot_end = datetime.fromisoformat(timeslot["period_end"]).astimezone()
-            timeslot_start = timeslot_end - timeframe_duration
+        power_during_timeslot = Power.from_kilo_watts(solar_data[timeframe_end.isoformat()])
+        return EnergyAmount.from_watt_seconds(power_during_timeslot.watts * timeframe_duration.total_seconds())
 
-            overlap = TimeHandler.calculate_overlap_between_time_frames(
-                timeframe_start, timeframe_start + timeframe_duration, timeslot_start, timeslot_end
-            )
-            if overlap.total_seconds() == 0:
-                continue
-
-            power_during_timeslot = Power.from_kilo_watts(timeslot["pv_estimate"])
-            energy_produced_in_timeslot = EnergyAmount.from_watt_seconds(
-                power_during_timeslot.watts * overlap.total_seconds()
-            )
-            expected_solar_output += energy_produced_in_timeslot
-        return expected_solar_output
-
-    def _get_debug_solar_data(self) -> list[dict]:
+    def _get_debug_solar_data(self) -> dict[str, float]:
         current_replace_timestamp = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0)
         sample_data_path = os.path.join(Path(__file__).parent.parent, "sample_solar_forecast.json")
+        sample_data = {}
         with open(sample_data_path, "r") as file:
-            sample_data = json.load(file)["forecasts"]
-        for timeslot in sample_data:
+            sample_input_data = json.load(file)["forecasts"]
+        for timeslot in sample_input_data:
             timeslot["period_end"] = current_replace_timestamp.isoformat()
-            current_replace_timestamp += self.timeslot_duration
+            current_replace_timestamp += self.default_timeframe_duration
+            sample_data[current_replace_timestamp.isoformat()] = timeslot["pv_estimate"]
         return sample_data
-
-
-# if __name__ == "__main__":
-#     handler = SunForecastHandler()
-#     next_price_minimum_timestamp = (TimeHandler.get_time() + timedelta(hours=12)).replace(minute=0, second=0)
-#     print(
-#         handler.calculate_minimum_of_soc_and_power_generation_in_timeframe(
-#             next_price_minimum_timestamp, Power(150), EnergyAmount(4000)
-#         )
-#     )

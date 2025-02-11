@@ -161,7 +161,7 @@ class InverterChargeController(LoggerMixin):
             next_price_minimum.timestamp, average_power_consumption, current_state_of_charge
         )
         self.log.info(
-            f"The minimum of state of charge until the next price minimum with the current state of charge is "
+            f"The expected minimum of state of charge until the next price minimum with the current state of charge is "
             f"{minimum_of_soc_until_next_price_minimum}"
         )
 
@@ -176,7 +176,7 @@ class InverterChargeController(LoggerMixin):
             "minimum_has_to_be_rechecked": next_price_minimum.has_to_be_rechecked,
             "maximum charging duration": current_energy_rate.format_maximum_charging_duration(),
             "current state of charge": current_state_of_charge,
-            "average power consumption": average_power_consumption,
+            "average power consumption": average_power_consumption.watts,
             "minimum of soc until next price minimum": minimum_of_soc_until_next_price_minimum,
             "target min soc": target_min_soc,
         }
@@ -192,6 +192,13 @@ class InverterChargeController(LoggerMixin):
 
         required_state_of_charge = current_state_of_charge + (target_min_soc - minimum_of_soc_until_next_price_minimum)
         self.log.info(f"There is a need to charge to {required_state_of_charge}")
+        maximum_possible_state_of_charge = StateOfCharge.from_percentage(100)
+        if required_state_of_charge > maximum_possible_state_of_charge:
+            self.log.info(
+                "The target state of charge is higher than possible "
+                f"--> Setting it to {maximum_possible_state_of_charge}"
+            )
+            required_state_of_charge = maximum_possible_state_of_charge
 
         max_target_soc = StateOfCharge.from_percentage(
             int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 95))

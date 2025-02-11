@@ -43,6 +43,11 @@ class SunForecastHandler(LoggerMixin):
                 - The minimum state of charge observed during the timeframe.
                 - The total amount of power generated within the timeframe.
         """
+        self.log.debug(
+            "Calculating the estimated minimum of state of charge and power generation in the timeframe "
+            f"{timeframe_start} to {timeframe_end}"
+        )
+
         solar_data = self.retrieve_solar_data(timeframe_start, timeframe_end)
 
         current_timeframe_start = timeframe_start
@@ -90,7 +95,7 @@ class SunForecastHandler(LoggerMixin):
             )
             current_timeframe_start += current_timeframe_duration
 
-            if current_timeframe_start > timeframe_end:
+            if current_timeframe_start >= timeframe_end:
                 break
 
         self.log.debug(
@@ -279,7 +284,7 @@ class SunForecastHandler(LoggerMixin):
         average_power_usage = EnergyAmount.from_watt_seconds(
             average_power_consumption.watts * timeframe_duration.total_seconds() * 2
         )
-        if day_start <= timeframe_start.time() <= night_start:
+        if day_start <= timeframe_start.time() < night_start:
             return average_power_usage * factor_energy_usage_during_the_day
         return average_power_usage * factor_energy_usage_during_the_night
 

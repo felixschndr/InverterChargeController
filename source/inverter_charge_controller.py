@@ -158,7 +158,10 @@ class InverterChargeController(LoggerMixin):
         self.log.info(f"The average power consumption is {average_power_consumption}")
 
         minimum_of_soc_until_next_price_minimum = self._get_minimum_of_soc_until_next_price_minimum(
-            next_price_minimum.timestamp, average_power_consumption, current_state_of_charge
+            next_price_minimum.timestamp,
+            average_power_consumption,
+            current_state_of_charge,
+            next_price_minimum.has_to_be_rechecked,
         )
         self.log.info(
             f"The expected minimum of state of charge until the next price minimum with the current state of charge is "
@@ -407,7 +410,11 @@ class InverterChargeController(LoggerMixin):
         return average_power_consumption
 
     def _get_minimum_of_soc_until_next_price_minimum(
-        self, next_price_minimum_timestamp: datetime, average_power_consumption: Power, current_soc: StateOfCharge
+        self,
+        next_price_minimum_timestamp: datetime,
+        average_power_consumption: Power,
+        current_soc: StateOfCharge,
+        minimum_has_to_rechecked: bool,
     ) -> StateOfCharge:
         cache_key = "minimum_of_soc_until_next_price_minimum"
         minimum_of_soc_until_next_price_minimum = self._get_value_from_cache_if_exists(cache_key)
@@ -416,7 +423,11 @@ class InverterChargeController(LoggerMixin):
 
         minimum_of_soc_until_next_price_minimum, _ = (
             self.sun_forecast_handler.calculate_minimum_of_soc_and_power_generation_in_timeframe(
-                TimeHandler.get_time(), next_price_minimum_timestamp, average_power_consumption, current_soc
+                TimeHandler.get_time(),
+                next_price_minimum_timestamp,
+                average_power_consumption,
+                current_soc,
+                minimum_has_to_rechecked,
             )
         )
         self._set_cache_key(cache_key, minimum_of_soc_until_next_price_minimum)

@@ -13,6 +13,8 @@ from time_handler import TimeHandler
 
 
 class SunForecastHandler(LoggerMixin):
+    POWER_USAGE_INCREASE_FACTOR = 1.25  # this factor is applied when the next price minimum has to be re-checked
+
     def __init__(self):
         super().__init__()
 
@@ -26,17 +28,20 @@ class SunForecastHandler(LoggerMixin):
         timeframe_end: datetime,
         average_power_usage: Power,
         starting_soc: StateOfCharge,
+        minimum_has_to_rechecked: bool = False,
     ) -> tuple[StateOfCharge, EnergyAmount]:
         """
-        Calculates the minimum state of charge (SOC) and total power generation within a specified timeframe,
-        considering average power usage and initial SOC. This function uses solar data and iteratively computes power
-        usage and generation for subintervals within the timeframe.
+        Calculates the minimum state of charge (SOC) and total power generation within a specified timeframe.
+        It considers average power usage, initial SOC and optionally adjusts for higher power usage in cases where the
+        pricing for the next day is unavailable. This function uses solar data and iteratively computes power usage and
+        generation for subintervals within the timeframe.
 
         Args:
             timeframe_start: The starting timestamp of the timeframe.
             timeframe_end: The ending timestamp of the timeframe.
             average_power_usage: The average power consumption over the timeframe.
             starting_soc: The battery's state of charge at the beginning of the timeframe.
+            minimum_has_to_rechecked (optional): Whether to increase the power usage by POWER_USAGE_INCREASE_FACTOR
 
         Returns:
             A tuple containing:
@@ -47,6 +52,14 @@ class SunForecastHandler(LoggerMixin):
             "Calculating the estimated minimum of state of charge and power generation in the timeframe "
             f"{timeframe_start} to {timeframe_end}"
         )
+        power_usage_increase_factor = 1.00
+        if minimum_has_to_rechecked:
+            power_usage_increase_factor = SunForecastHandler.POWER_USAGE_INCREASE_FACTOR
+            self.log.info(
+                "The upcoming price minimum has to be re-checked since it is at the end of a day and the price rates "
+                "for tomorrow are unavailable --> The expected power usage is multiplied by "
+                f"{SunForecastHandler.POWER_USAGE_INCREASE_FACTOR}"
+            )
 
         solar_data = self.retrieve_solar_data(timeframe_start, timeframe_end)
 
@@ -70,7 +83,7 @@ class SunForecastHandler(LoggerMixin):
             current_timeframe_end = current_timeframe_start + current_timeframe_duration
 
             power_usage_during_timeframe = self._calculate_energy_usage_in_timeframe(
-                current_timeframe_start, current_timeframe_duration, average_power_usage
+                current_timeframe_start, current_timeframe_duration, average_power_usage, power_usage_increase_factor
             )
             total_power_usage += power_usage_during_timeframe
             power_generation_during_timeframe = self._get_energy_produced_in_timeframe_from_solar_data(
@@ -253,7 +266,10 @@ class SunForecastHandler(LoggerMixin):
 
     @staticmethod
     def _calculate_energy_usage_in_timeframe(
-        timeframe_start: datetime, timeframe_duration: timedelta, average_power_consumption: Power
+        timeframe_start: datetime,
+        timeframe_duration: timedelta,
+        average_power_consumption: Power,
+        power_usage_increase_factor: float = 1.00,
     ) -> EnergyAmount:
         """
         Calculates the energy usage within a specific timeframe considering day and night power usage factors.
@@ -282,7 +298,7 @@ class SunForecastHandler(LoggerMixin):
             )
 
         average_power_usage = EnergyAmount.from_watt_seconds(
-            average_power_consumption.watts * timeframe_duration.total_seconds() * 2
+            average_power_consumption.watts * timeframe_duration.total_seconds() * power_usage_increase_factor * 2
         )
         if day_start <= timeframe_start.time() < night_start:
             return average_power_usage * factor_energy_usage_during_the_day

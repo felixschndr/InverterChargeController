@@ -46,12 +46,13 @@ class SunForecastHandler(LoggerMixin):
     def retrieve_historic_data(self, rooftop_id: str) -> list[dict]:
         return self._retrieve_data_from_api(rooftop_id, "estimated_actuals")
 
-    def calculate_minimum_of_soc_until_next_price_minimum(
+    def calculate_minimum_of_soc_and_power_generation_in_timeframe(
         self,
-        next_price_minimum_timestamp: datetime,
+        timeframe_start: datetime,
+        timeframe_end: datetime,
         average_power_usage: Power,
         starting_soc: StateOfCharge,
-    ) -> StateOfCharge:
+    ) -> tuple[StateOfCharge, EnergyAmount]:
         if EnvironmentVariableGetter.get("USE_DEBUG_SOLAR_OUTPUT", False):
             solar_data = self._get_debug_solar_data()
         else:
@@ -65,16 +66,17 @@ class SunForecastHandler(LoggerMixin):
                 self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
                 solar_data = self._get_debug_solar_data()
 
-        now = TimeHandler.get_time()
-        current_timeframe_start = now
+        current_timeframe_start = timeframe_start
         soc_after_current_timeframe = starting_soc
         minimum_soc = starting_soc
+        total_power_usage = EnergyAmount(0)
+        total_power_generation = EnergyAmount(0)
 
         first_iteration = True
         while True:
             if first_iteration:
-                next_half_hour_timestamp = now.replace(minute=30, second=0)
-                if now.minute >= 30:
+                next_half_hour_timestamp = timeframe_start.replace(minute=30, second=0)
+                if timeframe_start.minute >= 30:
                     next_half_hour_timestamp += self.timeslot_duration
                 timeslot_duration = next_half_hour_timestamp - current_timeframe_start
                 first_iteration = False
@@ -86,9 +88,11 @@ class SunForecastHandler(LoggerMixin):
             power_usage_during_timeframe = self._calculate_energy_usage_in_timeframe(
                 current_timeframe_start, timeslot_duration, average_power_usage
             )
+            total_power_usage += power_usage_during_timeframe
             power_generation_during_timeframe = self._calculate_energy_produced_in_timeframe(
                 current_timeframe_start, timeslot_duration, solar_data
             )
+            total_power_generation += power_generation_during_timeframe
             soc_after_current_timeframe = StateOfCharge(
                 soc_after_current_timeframe.absolute - power_usage_during_timeframe + power_generation_during_timeframe
             )
@@ -107,10 +111,15 @@ class SunForecastHandler(LoggerMixin):
             )
             current_timeframe_start += timeslot_duration
 
-            if current_timeframe_start > next_price_minimum_timestamp:
+            if current_timeframe_start > timeframe_end:
                 break
 
-        return minimum_soc
+        self.log.debug(
+            f"From {timeframe_start} to {timeframe_end} the expected minimum of state of charge is {minimum_soc}, the "
+            f"expected amount of power generated is {total_power_generation} and the expected amount of power used is "
+            f"{total_power_usage}."
+        )
+        return minimum_soc, total_power_generation
 
     @staticmethod
     def _calculate_energy_usage_in_timeframe(
@@ -166,11 +175,11 @@ class SunForecastHandler(LoggerMixin):
         return sample_data
 
 
-if __name__ == "__main__":
-    handler = SunForecastHandler()
-    next_price_minimum_timestamp = (TimeHandler.get_time() + timedelta(hours=12)).replace(minute=0, second=0)
-    print(
-        handler.calculate_minimum_of_soc_until_next_price_minimum(
-            next_price_minimum_timestamp, Power(150), EnergyAmount(4000)
-        )
-    )
+# if __name__ == "__main__":
+#     handler = SunForecastHandler()
+#     next_price_minimum_timestamp = (TimeHandler.get_time() + timedelta(hours=12)).replace(minute=0, second=0)
+#     print(
+#         handler.calculate_minimum_of_soc_and_power_generation_in_timeframe(
+#             next_price_minimum_timestamp, Power(150), EnergyAmount(4000)
+#         )
+#     )

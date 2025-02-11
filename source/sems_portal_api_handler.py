@@ -26,8 +26,6 @@ class SemsPortalApiHandler(LoggerMixin):
         environment variables.
         This has to be done every time a request is made to the API since the authentication tokens expire after a few
         seconds.
-
-        :return: None
         """
         self.log.trace("Logging in into the SEMSPORTAL...")
         url = "https://www.semsportal.com/api/v1/Common/CrossLogin"

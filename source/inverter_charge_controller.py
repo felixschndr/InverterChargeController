@@ -400,9 +400,9 @@ class InverterChargeController(LoggerMixin):
         if minimum_of_soc_until_next_price_minimum:
             return minimum_of_soc_until_next_price_minimum
 
-        minimum_of_soc_until_next_price_minimum = (
-            self.sun_forecast_handler.calculate_minimum_of_soc_until_next_price_minimum(
-                next_price_minimum_timestamp, average_power_consumption, current_soc
+        minimum_of_soc_until_next_price_minimum, _ = (
+            self.sun_forecast_handler.calculate_minimum_of_soc_and_power_generation_in_timeframe(
+                TimeHandler.get_time(), next_price_minimum_timestamp, average_power_consumption, current_soc
             )
         )
         self._set_cache_key(cache_key, minimum_of_soc_until_next_price_minimum)

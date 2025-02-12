@@ -20,10 +20,10 @@ def write_solar_forecast_and_history_to_db() -> None:
     while True:
         next_wakeup_time = _get_next_wakeup_time(morning_time, evening_time)
         logger.log.info(f"Next wakeup time to log solar forecast data is at {next_wakeup_time}")
-        logger.write_newlines_to_log_file(2)
         pause.until(next_wakeup_time)
 
         start, end = _get_morning_and_evening_timestamp_of_today(morning_time, evening_time)
+        logger.write_newlines_to_log_file()
         logger.log.info(f"Waking up to log solar forecast data from {start} to {end}")
         if TimeHandler.get_time().hour == morning_time.hour:
             start += timedelta(minutes=2)

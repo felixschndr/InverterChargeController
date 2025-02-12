@@ -63,7 +63,7 @@ class TibberAPIHandler(LoggerMixin):
         if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
             upcoming_energy_rates
         ):
-            self.log.info(
+            self.log.debug(
                 "This is the first time finding the minimum prices and the prices are currently on a decline. "
                 "Thus the next price minimum is considered (instead of the one after the first maximum)."
             )

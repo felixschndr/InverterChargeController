@@ -96,6 +96,7 @@ class InverterChargeController(LoggerMixin):
                         f"--> Waiting until {time_to_sleep_to}..."
                     )
                     pause.until(time_to_sleep_to)
+                    self.write_newlines_to_log_file()
                     self.log.info("Waking up since the the price minimum has to re-checked")
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
 
@@ -188,13 +189,13 @@ class InverterChargeController(LoggerMixin):
         if minimum_of_soc_until_next_price_minimum > target_min_soc:
             self.log.info(
                 "The expected minimum state of charge until the next price minimum without additional charging"
-                "is higher than the target minimum state of charge. --> There is no need to charge"
+                "is higher than the target minimum state of charge --> There is no need to charge"
             )
             self.iteration_cache = {}
             return next_price_minimum
 
         required_state_of_charge = current_state_of_charge + (target_min_soc - minimum_of_soc_until_next_price_minimum)
-        self.log.info(f"There is a need to charge to {required_state_of_charge}")
+        self.log.info(f"There is a need to charge to {required_state_of_charge} (from {current_state_of_charge})")
         maximum_possible_state_of_charge = StateOfCharge.from_percentage(100)
         if required_state_of_charge > maximum_possible_state_of_charge:
             self.log.info(
@@ -307,7 +308,8 @@ class InverterChargeController(LoggerMixin):
 
             if current_state_of_charge >= target_state_of_charge:
                 self.log.info(
-                    f"Charging finished ({current_state_of_charge}) --> Setting the inverter back to normal mode"
+                    f"Charging finished, the battery is at {current_state_of_charge} "
+                    "--> Setting the inverter back to normal mode"
                 )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
@@ -321,8 +323,8 @@ class InverterChargeController(LoggerMixin):
                 break
 
             self.log.debug(
-                f"Charging is still ongoing (current: {current_state_of_charge}, target: >= {target_state_of_charge} "
-                f") --> Waiting for another {charging_progress_check_interval}..."
+                f"Charging is still ongoing (current: {current_state_of_charge}, target: >= {target_state_of_charge}) "
+                f"--> Waiting for another {charging_progress_check_interval}..."
             )
 
     def _calculate_amount_of_energy_bought(

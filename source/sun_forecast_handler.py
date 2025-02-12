@@ -96,16 +96,15 @@ class SunForecastHandler(LoggerMixin):
             )
 
             if soc_after_current_timeframe < minimum_soc:
-                log_text = "This is a new minimum in the amount of energy stored. "
+                log_text = " (new minimum)"
                 minimum_soc = soc_after_current_timeframe
             else:
                 log_text = ""
-            self.log.trace(
-                f"The estimated energy saved in the battery at {current_timeframe_end} is "
-                f"{soc_after_current_timeframe}. "
-                f"{log_text}"
-                f"The expected power usage during this slot is {power_usage_during_timeframe}. "
-                f"The expected power generation during this slot is {power_generation_during_timeframe}. "
+            self.log.debug(
+                f"{current_timeframe_end}"
+                f" - estimated SOC: {soc_after_current_timeframe}{log_text}"
+                f" - expected power usage: {power_usage_during_timeframe}"
+                f" - expected power generation: {power_generation_during_timeframe}"
             )
             current_timeframe_start += current_timeframe_duration
 
@@ -114,8 +113,8 @@ class SunForecastHandler(LoggerMixin):
 
         self.log.debug(
             f"From {timeframe_start} to {timeframe_end} the expected minimum of state of charge is {minimum_soc}, the "
-            f"expected amount of power generated is {total_power_generation} and the expected amount of power used is "
-            f"{total_power_usage}."
+            f"expected total amount of power usage is {total_power_usage} and the expected total amount of power "
+            f"generated is {total_power_generation}"
         )
         return minimum_soc, total_power_generation
 

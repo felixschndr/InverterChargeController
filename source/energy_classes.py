@@ -90,7 +90,7 @@ class StateOfCharge:
     absolute: EnergyAmount
 
     def __repr__(self):
-        return f"{self.in_percentage:.2f} % ({self.absolute})"
+        return f"{self.in_percentage} % ({self.absolute})"
 
     def __add__(self, other: StateOfCharge) -> StateOfCharge:
         return StateOfCharge(self.absolute + other.absolute)

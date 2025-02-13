@@ -170,7 +170,7 @@ class InverterChargeController(LoggerMixin):
         )
 
         target_min_soc = StateOfCharge.from_percentage(
-            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MIN_STATE_OF_CHARGE", 10))
+            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MIN_STATE_OF_CHARGE", 15))
         )
         self.log.info(f"The battery shall be at least at {target_min_soc} at all times")
 

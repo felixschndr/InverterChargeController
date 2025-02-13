@@ -13,24 +13,28 @@ from time_handler import TimeHandler
 logger = LoggerMixin()
 
 
-def log_solar_forecast() -> None:
+def write_solar_forecast_and_history_to_db() -> None:
     sun_forecast_handler = SunForecastHandler()
     morning_time = time(hour=5, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
     evening_time = time(hour=23, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
     while True:
         next_wakeup_time = _get_next_wakeup_time(morning_time, evening_time)
         logger.log.info(f"Next wakeup time to log solar forecast data is at {next_wakeup_time}")
-        logger.write_newlines_to_log_file(2)
         pause.until(next_wakeup_time)
 
         start, end = _get_morning_and_evening_timestamp_of_today(morning_time, evening_time)
+        logger.write_newlines_to_log_file()
         logger.log.info(f"Waking up to log solar forecast data from {start} to {end}")
         if TimeHandler.get_time().hour == morning_time.hour:
             start += timedelta(minutes=2)
         else:
             end -= timedelta(minutes=2)
 
-        sun_forecast_handler.get_solar_output_in_timeframe(start, end)
+        try:
+            sun_forecast_handler.retrieve_solar_data_from_api(start, end)
+        except Exception:
+            logger.log.error("Failed to log solar forecast data", exc_info=True)
+            pass
 
 
 def _get_morning_and_evening_timestamp_of_today(morning_time: time, evening_time: time) -> tuple[datetime, datetime]:
@@ -74,10 +78,10 @@ for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
     signal.signal(signal_to_catch, handle_stop_signal)
 
 if __name__ == "__main__":
-    solar_forecast_logging_thread = threading.Thread(target=log_solar_forecast, daemon=True)
-    solar_forecast_logging_thread.start()
-    # Let the solar forecast calculate and log its next wakeup time before logging all the info of the
-    # InverterChargeController
+    solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
+    solar_protocol_thread.start()
+
+    # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
     pause.seconds(1)
 
     inverter_charge_controller = InverterChargeController()

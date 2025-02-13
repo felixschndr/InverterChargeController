@@ -1,7 +1,7 @@
 import asyncio
 
 import goodwe
-from energy_classes import EnergyAmount
+from energy_classes import EnergyAmount, StateOfCharge
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import inverter as GoodweInverter
 from goodwe.et import OperationMode
@@ -15,6 +15,7 @@ class Inverter(LoggerMixin):
 
         self._device = None
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
+        self.battery_capacity = EnergyAmount(int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
 
         self.sems_portal_api_handler = SemsPortalApiHandler()
 
@@ -22,11 +23,6 @@ class Inverter(LoggerMixin):
         if controlled_by_bash_script:
             self.log.name += " USER"
             self.sems_portal_api_handler.log.name += " USER"
-
-        self.battery_capacity = None
-        # We have to pull the battery capacity at startup since there are functions here that require it which are
-        # called when using the bash script to control the inverter manually
-        self.update_battery_capacity()
 
     @property
     def device(self) -> GoodweInverter:
@@ -43,23 +39,6 @@ class Inverter(LoggerMixin):
             self.log.info("Successfully connected to inverter")
 
         return self._device
-
-    def update_battery_capacity(self) -> None:
-        """
-        Updates the battery capacity by retrieving the value using the SemsPortalApiHandler and comparing it
-        against the current stored capacity. Logs information about the current and updated battery
-        capacity if changes occur.
-        """
-        battery_capacity = self.sems_portal_api_handler.get_battery_capacity()
-
-        if self.battery_capacity is None:
-            self.log.info(f"The battery capacity is {battery_capacity}")
-            self.battery_capacity = battery_capacity
-            return
-
-        if battery_capacity != self.battery_capacity:
-            self.log.info(f"The battery capacity was updated from {self.battery_capacity} to {battery_capacity}")
-            self.battery_capacity = battery_capacity
 
     def get_operation_mode(self, log_new_mode: bool = False) -> OperationMode:
         """
@@ -98,41 +77,7 @@ class Inverter(LoggerMixin):
 
         self.log.info(f"Successfully set new operation mode {mode.name}")
 
-    def calculate_energy_missing_from_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
-        """
-        Args:
-            state_of_charge (int): The current state of charge of the battery as a percentage.
-
-        Returns:
-            EnergyAmount: The amount of energy missing from the battery based on the current state of charge.
-        """
-        return self.battery_capacity - self.calculate_energy_saved_in_battery_from_state_of_charge(state_of_charge)
-
-    def calculate_energy_saved_in_battery_from_state_of_charge(self, state_of_charge: int) -> EnergyAmount:
-        """
-        Args:
-            state_of_charge (int): The current state of charge of the battery as a percentage.
-
-        Returns:
-            EnergyAmount: The amount of energy saved in the battery corresponding to the given state of charge.
-        """
-        return self.battery_capacity * (state_of_charge / 100)
-
-    def calculate_state_of_charge_from_energy_amount(self, energy_amount: EnergyAmount) -> int:
-        """
-        Args:
-            energy_amount: An instance of EnergyAmount.
-
-        Returns:
-            int: The state of charge of the inverter depending on the battery size as a percentage, capped at 100%.
-        """
-        state_of_charge = int(energy_amount.watt_hours / self.battery_capacity.watt_hours * 100)
-        if state_of_charge > 100:
-            self.log.info(f"The calculated state of charge is {state_of_charge} %, capping it at 100 %")
-            return 100
-        return state_of_charge
-
-    def get_state_of_charge(self, log_state_of_charge: bool = False) -> int:
+    def get_state_of_charge(self, log_state_of_charge: bool = False) -> StateOfCharge:
         """
         Gets the current state of charge of the device's battery.
 
@@ -140,11 +85,11 @@ class Inverter(LoggerMixin):
             log_state_of_charge (bool): Whether to log the state of charge information. Default is False.
 
         Returns:
-            int: The current state of charge in percentage.
+            StateOfCharge: The current state of charge of the battery.
         """
         self.log.debug("Getting current state of charge...")
         runtime_data = asyncio.run(self.device.read_runtime_data())
-        state_of_charge = runtime_data["battery_soc"]
+        state_of_charge = StateOfCharge.from_percentage(runtime_data["battery_soc"])
         if log_state_of_charge:
             self.log.info(f"The current state of charge is {state_of_charge} %")
         return state_of_charge

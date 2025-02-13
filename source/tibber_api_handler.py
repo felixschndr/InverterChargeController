@@ -63,7 +63,7 @@ class TibberAPIHandler(LoggerMixin):
         if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
             upcoming_energy_rates
         ):
-            self.log.info(
+            self.log.debug(
                 "This is the first time finding the minimum prices and the prices are currently on a decline. "
                 "Thus the next price minimum is considered (instead of the one after the first maximum)."
             )
@@ -194,8 +194,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             A list of EnergyRate objects that have timestamps in the future relative to the beginning of the current hour.
         """
-        current_time = TimeHandler.get_time()
-        beginning_of_current_hour = current_time.replace(minute=0, second=0, microsecond=0)
+        beginning_of_current_hour = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0)
 
         upcoming_energy_rates = [
             energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > beginning_of_current_hour

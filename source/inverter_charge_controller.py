@@ -8,7 +8,7 @@ import pause
 from abscence_handler import AbsenceHandler
 from aiohttp import ClientError
 from database_handler import DatabaseHandler, InfluxDBField
-from energy_classes import EnergyAmount, EnergyRate
+from energy_classes import EnergyAmount, EnergyRate, Power, StateOfCharge
 from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import InverterError, OperationMode
 from inverter import Inverter
@@ -48,7 +48,7 @@ class InverterChargeController(LoggerMixin):
         Starts the inverter charge controller process. Ensures that the process is not already running
         by checking for the presence of a lock file. If the process is running, logs the error and exits.
         Upon successful starting, creates and manages a lock file for the process to avoid multiple
-        instances. Also ensures cleanup of the lock file post execution.
+        instances. It Also ensures cleanup of the lock file post execution.
         """
         if os.path.exists(self.LOCK_FILE_PATH):
             self.log.error("Attempted to start the inverter charge controller, but it is already running.")
@@ -87,8 +87,8 @@ class InverterChargeController(LoggerMixin):
                     next_price_minimum = self._do_iteration(next_price_minimum)
 
                 if next_price_minimum.has_to_be_rechecked:
-                    now = TimeHandler.get_time()
-                    time_to_sleep_to = now.replace(hour=14, minute=0, second=0, microsecond=0)
+                    now = TimeHandler.get_time(sanitize_seconds=True)
+                    time_to_sleep_to = now.replace(hour=14, minute=0)
                     if now > time_to_sleep_to:
                         time_to_sleep_to += timedelta(days=1)
                     self.log.info(
@@ -96,6 +96,7 @@ class InverterChargeController(LoggerMixin):
                         f"--> Waiting until {time_to_sleep_to}..."
                     )
                     pause.until(time_to_sleep_to)
+                    self.write_newlines_to_log_file()
                     self.log.info("Waking up since the the price minimum has to re-checked")
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
 
@@ -122,12 +123,13 @@ class InverterChargeController(LoggerMixin):
         Computes the optimal charging strategy for an inverter until the next price minimum.
 
         This method performs several key tasks to determine if and how much the inverter needs to be charged:
-         - Retrieves the current timestamp and the next price minimum.
-         - Estimates the solar power output and energy usage until the next price minimum.
-         - Calculates the current energy stored in the battery based on its state of charge.
-         - Compares the current and expected future state with the target minimum state of charge to determine if
-           additional charging is necessary.
-         - Initiates charging if required.
+         - Retrieves the next price minimum.
+         - Sets the maximum charging duration of the current energy rate.
+         - Gets the current state of the inverter.
+         - Gets the average power consumption.
+         - Calculates the estimated minimum state of charge until the next price minimum.
+         - If the estimated minimum state of charge is lower than the target minimum state of charge, the method
+           calculates the required state of charge to reach the target minimum state of charge and initiates charging.
 
         Returns:
             EnergyRate: The next price minimum energy rate.
@@ -136,8 +138,6 @@ class InverterChargeController(LoggerMixin):
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
         )
         timestamp_now = TimeHandler.get_time()
-
-        self._update_battery_capacity()
 
         next_price_minimum = self._get_next_price_minimum()
         self.log.info(f"The next price minimum is at {next_price_minimum}")
@@ -148,79 +148,69 @@ class InverterChargeController(LoggerMixin):
             f"{current_energy_rate.maximum_charging_duration}"
         )
 
-        if next_price_minimum.rate > current_energy_rate.rate:
+        if next_price_minimum > current_energy_rate:
             # Information is unused at the moment
             self.log.info("The price of the upcoming minimum is higher than the current energy rate")
 
-        expected_power_harvested_till_next_minimum = self._get_expected_power_harvested_till_next_minimum(
-            timestamp_now, next_price_minimum
-        )
-        self.log.info(
-            f"The expected energy harvested by the sun till the next price minimum is "
-            f"{expected_power_harvested_till_next_minimum}"
-        )
-
-        expected_energy_usage_till_next_minimum = self._get_expected_energy_usage_till_next_minimum(
-            timestamp_now, next_price_minimum
-        )
-        self.log.info(
-            f"The total expected energy usage till the next price minimum is {expected_energy_usage_till_next_minimum}"
-        )
-
         current_state_of_charge = self.inverter.get_state_of_charge()
-        current_energy_in_battery = self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(
-            current_state_of_charge
-        )
-        self.log.info(f"The battery is currently holds {current_energy_in_battery} ({current_state_of_charge} %)")
+        self.log.info(f"The battery is currently is at {current_state_of_charge}")
 
-        target_min_state_of_charge = int(EnvironmentVariableGetter.get("INVERTER_TARGET_MIN_STATE_OF_CHARGE", 20))
-        energy_to_be_in_battery_when_reaching_next_minimum = (
-            self.inverter.calculate_energy_saved_in_battery_from_state_of_charge(target_min_state_of_charge)
+        average_power_consumption = self._get_average_power_consumption()
+        self.log.info(f"The average power consumption is {average_power_consumption}")
+
+        minimum_of_soc_until_next_price_minimum = self._get_minimum_of_soc_until_next_price_minimum(
+            next_price_minimum.timestamp,
+            average_power_consumption,
+            current_state_of_charge,
+            next_price_minimum.has_to_be_rechecked,
         )
         self.log.info(
-            f"The battery shall contain {energy_to_be_in_battery_when_reaching_next_minimum} "
-            f"({target_min_state_of_charge} %) when reaching the next minimum"
+            f"The expected minimum of state of charge until the next price minimum with the current state of charge is "
+            f"{minimum_of_soc_until_next_price_minimum}"
         )
+
+        target_min_soc = StateOfCharge.from_percentage(
+            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MIN_STATE_OF_CHARGE", 10))
+        )
+        self.log.info(f"The battery shall be at least at {target_min_soc} at all times")
 
         summary_of_energy_vales = {
             "timestamp now": str(timestamp_now),
             "next price minimum": next_price_minimum,
             "minimum_has_to_be_rechecked": next_price_minimum.has_to_be_rechecked,
             "maximum charging duration": current_energy_rate.format_maximum_charging_duration(),
-            "expected power harvested till next minimum": expected_power_harvested_till_next_minimum,
-            "expected energy usage till next minimum": expected_energy_usage_till_next_minimum,
             "current state of charge": current_state_of_charge,
-            "current energy in battery": current_energy_in_battery,
-            "target min state of charge": target_min_state_of_charge,
-            "energy to be in battery when reaching next minimum": energy_to_be_in_battery_when_reaching_next_minimum,
+            "average power consumption": average_power_consumption.watts,
+            "minimum of soc until next price minimum": minimum_of_soc_until_next_price_minimum,
+            "target min soc": target_min_soc,
         }
         self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
-        excess_energy = (
-            current_energy_in_battery
-            + expected_power_harvested_till_next_minimum
-            - expected_energy_usage_till_next_minimum
-            - energy_to_be_in_battery_when_reaching_next_minimum
-        )
-        if excess_energy.watt_hours > 0:
-            self.log.info(f"There is {excess_energy} of excess energy, thus there is no need to charge")
+        if minimum_of_soc_until_next_price_minimum > target_min_soc:
+            self.log.info(
+                "The expected minimum state of charge until the next price minimum without additional charging"
+                "is higher than the target minimum state of charge --> There is no need to charge"
+            )
             self.iteration_cache = {}
             return next_price_minimum
 
-        missing_energy = excess_energy * -1
-        self.log.info(f"There is a need to charge {missing_energy}")
+        required_state_of_charge = current_state_of_charge + (target_min_soc - minimum_of_soc_until_next_price_minimum)
+        self.log.info(f"There is a need to charge to {required_state_of_charge} (from {current_state_of_charge})")
+        maximum_possible_state_of_charge = StateOfCharge.from_percentage(100)
+        if required_state_of_charge > maximum_possible_state_of_charge:
+            self.log.info(
+                "The target state of charge is higher than possible "
+                f"--> Setting it to {maximum_possible_state_of_charge}"
+            )
+            required_state_of_charge = maximum_possible_state_of_charge
 
-        required_energy_in_battery = current_energy_in_battery + missing_energy
-        required_state_of_charge = self.inverter.calculate_state_of_charge_from_energy_amount(
-            required_energy_in_battery
+        max_target_soc = StateOfCharge.from_percentage(
+            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 95))
         )
-        self.log.info(f"Need to charge to {required_state_of_charge} %")
-
-        max_target_soc = int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 95))
         if required_state_of_charge > max_target_soc:
             self.log.info(
                 "The target state of charge is more than the maximum allowed charge set in the environment "
-                f"--> Setting it to {max_target_soc} %"
+                f"--> Setting it to {max_target_soc}"
             )
             required_state_of_charge = max_target_soc
 
@@ -253,7 +243,7 @@ class InverterChargeController(LoggerMixin):
         self.iteration_cache = {}
         return next_price_minimum
 
-    def _charge_inverter(self, target_state_of_charge: int, maximum_charging_duration: timedelta) -> None:
+    def _charge_inverter(self, target_state_of_charge: StateOfCharge, maximum_charging_duration: timedelta) -> None:
         """
         Charges the inverter battery to the target state of charge within a specified maximum charging duration.
         Monitors the charging progress at regular intervals and stops the charging process if specific conditions are
@@ -270,13 +260,15 @@ class InverterChargeController(LoggerMixin):
         """
         charging_progress_check_interval = timedelta(minutes=5)
 
-        maximum_end_charging_time = TimeHandler.get_time().replace(minute=0, second=0) + maximum_charging_duration
+        maximum_end_charging_time = (
+            TimeHandler.get_time(sanitize_seconds=True).replace(minute=0) + maximum_charging_duration
+        )
 
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
 
         self.log.info(
-            f"Set the inverter to charge, the target state of charge is {target_state_of_charge} %. "
+            f"Set the inverter to charge, the target state of charge is {target_state_of_charge}. "
             f"End of charging is {maximum_end_charging_time.strftime('%H:%M:%S')} at the latest. "
             f"Checking the charging progress every {charging_progress_check_interval}..."
         )
@@ -316,7 +308,8 @@ class InverterChargeController(LoggerMixin):
 
             if current_state_of_charge >= target_state_of_charge:
                 self.log.info(
-                    f"Charging finished ({current_state_of_charge} %) --> Setting the inverter back to normal mode"
+                    f"Charging finished, the battery is at {current_state_of_charge} "
+                    "--> Setting the inverter back to normal mode"
                 )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
@@ -324,14 +317,14 @@ class InverterChargeController(LoggerMixin):
             if TimeHandler.get_time() > maximum_end_charging_time:
                 self.log.info(
                     f"The maximum end charging time of {maximum_end_charging_time} has been reached "
-                    f"--> Stopping the charging process. The battery is at {current_state_of_charge} %"
+                    f"--> Stopping the charging process. The battery is at {current_state_of_charge}"
                 )
                 self.inverter.set_operation_mode(OperationMode.GENERAL)
                 break
 
             self.log.debug(
-                f"Charging is still ongoing (current: {current_state_of_charge} %, target: >= {target_state_of_charge} "
-                f"%) --> Waiting for another {charging_progress_check_interval}..."
+                f"Charging is still ongoing (current: {current_state_of_charge}, target: >= {target_state_of_charge}) "
+                f"--> Waiting for another {charging_progress_check_interval}..."
             )
 
     def _calculate_amount_of_energy_bought(
@@ -392,13 +385,11 @@ class InverterChargeController(LoggerMixin):
             ]
         )
 
-    def _update_battery_capacity(self) -> None:
-        cache_key = "battery_capacity_updated"
-        if self._get_value_from_cache_if_exists(cache_key):
-            return
-
-        self.inverter.update_battery_capacity()
-        self._set_cache_key(cache_key, True)
+    """
+    The following methods are used to cache values to reduce the number of API calls made to certain APIs and reduce the
+    amount of calculations performed. This cache is only used in the event that during an iteration an API call fails.
+    In this case, previous values from the same iteration are saved and used when the failed API call is retried.
+    """
 
     def _get_next_price_minimum(self) -> EnergyRate:
         cache_key = "next_price_minimum"
@@ -410,57 +401,39 @@ class InverterChargeController(LoggerMixin):
         self._set_cache_key(cache_key, next_price_minimum)
         return next_price_minimum
 
-    def _get_expected_power_harvested_till_next_minimum(
-        self, timestamp_now: datetime, next_price_minimum: EnergyRate
-    ) -> EnergyAmount:
-        cache_key = "expected_power_harvested_till_next_minimum"
-        expected_power_harvested_till_next_minimum = self._get_value_from_cache_if_exists(cache_key)
-        if expected_power_harvested_till_next_minimum:
-            return expected_power_harvested_till_next_minimum
+    def _get_average_power_consumption(self) -> Power:
+        cache_key = "average_power_consumption"
+        average_power_consumption = self._get_value_from_cache_if_exists(cache_key)
+        if average_power_consumption:
+            return average_power_consumption
 
-        expected_power_harvested_till_next_minimum = self.sun_forecast_handler.get_solar_output_in_timeframe(
-            timestamp_now, next_price_minimum.timestamp
+        average_power_consumption = self.sems_portal_api_handler.get_average_power_consumption()
+        self._set_cache_key(cache_key, average_power_consumption)
+        return average_power_consumption
+
+    def _get_minimum_of_soc_until_next_price_minimum(
+        self,
+        next_price_minimum_timestamp: datetime,
+        average_power_consumption: Power,
+        current_soc: StateOfCharge,
+        minimum_has_to_rechecked: bool,
+    ) -> StateOfCharge:
+        cache_key = "minimum_of_soc_until_next_price_minimum"
+        minimum_of_soc_until_next_price_minimum = self._get_value_from_cache_if_exists(cache_key)
+        if minimum_of_soc_until_next_price_minimum:
+            return minimum_of_soc_until_next_price_minimum
+
+        minimum_of_soc_until_next_price_minimum, _ = (
+            self.sun_forecast_handler.calculate_minimum_of_soc_and_power_generation_in_timeframe(
+                TimeHandler.get_time(),
+                next_price_minimum_timestamp,
+                average_power_consumption,
+                current_soc,
+                minimum_has_to_rechecked,
+            )
         )
-        self._set_cache_key(cache_key, expected_power_harvested_till_next_minimum)
-        return expected_power_harvested_till_next_minimum
-
-    def _get_expected_energy_usage_till_next_minimum(
-        self, timestamp_now: datetime, next_price_minimum: EnergyRate
-    ) -> EnergyAmount:
-        cache_key = "expected_energy_usage_till_next_minimum"
-        expected_energy_usage_till_next_minimum = self._get_value_from_cache_if_exists(cache_key)
-        if expected_energy_usage_till_next_minimum:
-            return expected_energy_usage_till_next_minimum
-
-        if self.absence_handler.check_for_current_absence():
-            self.log.info(
-                "Currently there is an absence, using the power consumption configured in the environment as the "
-                "basis for calculation"
-            )
-            expected_energy_usage_till_next_minimum = self.absence_handler.calculate_power_usage_for_absence(
-                timestamp_now, next_price_minimum.timestamp
-            )
-        else:
-            self.log.info(
-                "Currently there is no absence, using last week's power consumption data as the basis for calculation"
-            )
-            expected_energy_usage_till_next_minimum = self.sems_portal_api_handler.estimate_energy_usage_in_timeframe(
-                timestamp_now, next_price_minimum.timestamp
-            )
-
-        if next_price_minimum.has_to_be_rechecked:
-            power_usage_increase_factor = 25
-            self.log.info(
-                "The price minimum has to be re-checked since it is at the end of a day and the price rates for "
-                "tomorrow are unavailable --> The expected power usage "
-                f"({expected_energy_usage_till_next_minimum}) is increased by {power_usage_increase_factor} %"
-            )
-            expected_energy_usage_till_next_minimum += expected_energy_usage_till_next_minimum * (
-                power_usage_increase_factor / 100
-            )
-
-        self._set_cache_key(cache_key, expected_energy_usage_till_next_minimum)
-        return expected_energy_usage_till_next_minimum
+        self._set_cache_key(cache_key, minimum_of_soc_until_next_price_minimum)
+        return minimum_of_soc_until_next_price_minimum
 
     def _get_value_from_cache_if_exists(self, cache_key: str) -> Optional[Any]:
         if cache_key not in self.iteration_cache.keys():

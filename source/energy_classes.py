@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from environment_variable_getter import EnvironmentVariableGetter
+from logger import LoggerMixin
 
 
 @dataclass
@@ -82,6 +83,7 @@ class EnergyRate:
         return f"{charging_duration_in_hours} hours"
 
 
+soc_logger = LoggerMixin("StateOfCharge")
 battery_capacity = EnergyAmount(int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
 
 
@@ -91,6 +93,13 @@ class StateOfCharge:
 
     def __repr__(self):
         return f"{self.in_percentage} % ({self.absolute})"
+
+    def __post_init__(self):
+        if not self.absolute.watt_hours > battery_capacity.watt_hours:
+            return
+
+        soc_logger.log.debug(f"Capping the state of charge at the battery capacity (would be {self.absolute})")
+        self.absolute = EnergyAmount(battery_capacity.watt_hours)
 
     def __add__(self, other: StateOfCharge) -> StateOfCharge:
         return StateOfCharge(self.absolute + other.absolute)

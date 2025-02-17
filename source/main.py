@@ -10,7 +10,7 @@ from logger import LoggerMixin
 from sun_forecast_handler import SunForecastHandler
 from time_handler import TimeHandler
 
-logger = LoggerMixin()
+logger = LoggerMixin("Main")
 
 
 def write_solar_forecast_and_history_to_db() -> None:
@@ -69,6 +69,7 @@ def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
         signal_number: The number representing the signal received.
         _frame: The current stack frame when the signal was received.
     """
+    logger.write_newlines_to_log_file()
     logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
     inverter_charge_controller.unlock()
     sys.exit(0)

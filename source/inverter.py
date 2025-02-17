@@ -83,5 +83,5 @@ class Inverter(LoggerMixin):
         runtime_data = asyncio.run(self.device.read_runtime_data())
         state_of_charge = StateOfCharge.from_percentage(runtime_data["battery_soc"])
         if log_state_of_charge:
-            self.log.info(f"The current state of charge is {state_of_charge} %")
+            self.log.info(f"The current state of charge is {state_of_charge}")
         return state_of_charge

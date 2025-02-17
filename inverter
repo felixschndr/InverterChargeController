@@ -53,13 +53,14 @@ from inverter import Inverter
 from logger import LoggerMixin
 from tibber_api_handler import TibberAPIHandler
 
-logger = LoggerMixin()
+logger = LoggerMixin("Bashscript")
 logger.write_newlines_to_log_file()
 logger.log.info(f"Inverter is manually controlled by the user {getpass.getuser()}: {sys.argv}")
 
 if sys.argv[1] == "--status":
     try:
-        inverter = Inverter(True)
+        inverter = Inverter()
+        inverter.log.name += " User"
         soc = inverter.get_state_of_charge(True)
         mode = inverter.get_operation_mode(True).name
         print(f"SoC: {soc}\nmode: {mode}")
@@ -70,7 +71,8 @@ if sys.argv[1] == "--status":
 if sys.argv[1] == "--mode":
     try:
         new_mode = OperationMode[sys.argv[2]]
-        inverter = Inverter(True)
+        inverter = Inverter()
+        inverter.log.name += " User"
         last_mode = inverter.get_operation_mode(True).name
         inverter.set_operation_mode(new_mode)
         print(f"last mode: {last_mode}\nnew mode: {new_mode.name}")

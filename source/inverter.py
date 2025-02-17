@@ -6,23 +6,15 @@ from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import inverter as GoodweInverter
 from goodwe.et import OperationMode
 from logger import LoggerMixin
-from sems_portal_api_handler import SemsPortalApiHandler
 
 
 class Inverter(LoggerMixin):
-    def __init__(self, controlled_by_bash_script: bool = False):
+    def __init__(self):
         super().__init__()
 
         self._device = None
         self.hostname = EnvironmentVariableGetter.get("INVERTER_HOSTNAME")
         self.battery_capacity = EnergyAmount(int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))
-
-        self.sems_portal_api_handler = SemsPortalApiHandler()
-
-        # Add a notice to the loggers name to make to easier to identify actions taken by a user manually
-        if controlled_by_bash_script:
-            self.log.name += " USER"
-            self.sems_portal_api_handler.log.name += " USER"
 
     @property
     def device(self) -> GoodweInverter:

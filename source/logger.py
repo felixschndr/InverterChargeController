@@ -32,12 +32,14 @@ class LoggerMixin:
     Notice that the loglevel trace with a weight of 5 was added.
     """
 
-    def __init__(self):
+    def __init__(self, logger_name: str = None):
         root_logger = logging.getLogger()
         if len(root_logger.handlers) == 0:
             self._set_logger(root_logger)
 
-        self.log = logging.getLogger(self.__class__.__name__)
+        if not logger_name:
+            logger_name = self.__class__.__name__
+        self.log = logging.getLogger(logger_name)
 
     def _set_logger(self, root_logger: logging.Logger) -> None:
         """

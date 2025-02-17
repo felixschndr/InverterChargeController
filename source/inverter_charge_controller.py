@@ -26,9 +26,6 @@ class InverterChargeController(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-        started_by_systemd = " by systemd" if "INVOCATION_ID" in os.environ else ""
-        self.log.info(f"Starting application{started_by_systemd}")
-
         self.timezone = TimeHandler.get_timezone()
         self.sems_portal_api_handler = SemsPortalApiHandler()
         self.sun_forecast_handler = SunForecastHandler()
@@ -79,11 +76,11 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=2, seconds=30)
         while True:
             try:
-                self.write_newlines_to_log_file()
                 if first_iteration:
                     next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False
                 else:
+                    self.write_newlines_to_log_file()
                     next_price_minimum = self._do_iteration(next_price_minimum)
 
                 if next_price_minimum.has_to_be_rechecked:
@@ -188,7 +185,7 @@ class InverterChargeController(LoggerMixin):
 
         if minimum_of_soc_until_next_price_minimum > target_min_soc:
             self.log.info(
-                "The expected minimum state of charge until the next price minimum without additional charging"
+                "The expected minimum state of charge until the next price minimum without additional charging "
                 "is higher than the target minimum state of charge --> There is no need to charge"
             )
             self.iteration_cache = {}

@@ -5,12 +5,13 @@ from datetime import datetime, time, timedelta
 from types import FrameType
 
 import pause
+from environment_variable_getter import EnvironmentVariableGetter
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
 from sun_forecast_handler import SunForecastHandler
 from time_handler import TimeHandler
 
-logger = LoggerMixin()
+logger = LoggerMixin("Main")
 
 
 def write_solar_forecast_and_history_to_db() -> None:
@@ -69,6 +70,7 @@ def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
         signal_number: The number representing the signal received.
         _frame: The current stack frame when the signal was received.
     """
+    logger.write_newlines_to_log_file()
     logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
     inverter_charge_controller.unlock()
     sys.exit(0)
@@ -78,6 +80,10 @@ for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
     signal.signal(signal_to_catch, handle_stop_signal)
 
 if __name__ == "__main__":
+    logger.write_newlines_to_log_file()
+    started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
+    logger.log.info(f"Starting application{started_by_systemd}")
+
     solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
     solar_protocol_thread.start()
 

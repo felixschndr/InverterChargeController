@@ -76,13 +76,9 @@ class LoggerMixin:
             backupCount=7,
         )
 
-        # Write newlines when starting the application for better readability
-        file_handler.stream.write("\n\n")
         handlers = [file_handler]
-
         if EnvironmentVariableGetter.get("PRINT_TO_STDOUT", True):
             handlers.append(logging.StreamHandler())
-
         for handler in handlers:
             handler.setFormatter(formatter)
             handler.setLevel(log_level)

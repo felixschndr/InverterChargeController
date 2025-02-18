@@ -1,3 +1,4 @@
+import os
 import signal
 import sys
 import threading
@@ -12,7 +13,29 @@ from logger import LoggerMixin
 from sun_forecast_handler import SunForecastHandler
 from time_handler import TimeHandler
 
+LOCK_FILE_PATH = "/tmp/inverter_charge_controller.lock"  # nosec B108
+
 logger = LoggerMixin("Main")
+
+
+def lock() -> None:
+    """
+    Writes the current process ID to a lock file to indicate the process is active.
+    """
+    with open(LOCK_FILE_PATH, "w") as lock_file:
+        lock_file.write(str(os.getpid()))
+    logger.log.debug("Lock file created")
+
+
+def unlock() -> None:
+    """
+    Removes the lock file if it exists and thus unlocking the process.
+    """
+    if not os.path.exists(LOCK_FILE_PATH):
+        return
+
+    os.remove(LOCK_FILE_PATH)
+    logger.log.debug("Lock file removed")
 
 
 def write_solar_forecast_and_history_to_db() -> None:
@@ -77,25 +100,35 @@ def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
     """
     logger.write_newlines_to_log_file()
     logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
-    inverter_charge_controller.unlock()
+    unlock()
     sys.exit(0)
 
 
 for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
     signal.signal(signal_to_catch, handle_stop_signal)
 
+
 if __name__ == "__main__":
-    logger.write_newlines_to_log_file()
-    started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
-    logger.log.info(f"Starting application{started_by_systemd}")
+    if os.path.exists(LOCK_FILE_PATH):
+        logger.write_newlines_to_log_file()
+        logger.log.error("Attempted to start the inverter charge controller, but it is already running.")
+        sys.exit(1)
 
-    solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
-    solar_protocol_thread.start()
+    try:
+        lock()
+        logger.write_newlines_to_log_file()
+        started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
+        logger.log.info(f"Starting application{started_by_systemd}")
 
-    # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
-    pause.seconds(1)
+        solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
+        solar_protocol_thread.start()
 
-    inverter_charge_controller = InverterChargeController()
-    inverter_charge_controller_thread = threading.Thread(target=inverter_charge_controller.start)
-    inverter_charge_controller_thread.start()
-    inverter_charge_controller_thread.join()
+        # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
+        pause.seconds(1)
+
+        inverter_charge_controller = InverterChargeController()
+        inverter_charge_controller_thread = threading.Thread(target=inverter_charge_controller.start)
+        inverter_charge_controller_thread.start()
+        inverter_charge_controller_thread.join()
+    finally:
+        unlock()

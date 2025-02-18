@@ -1,4 +1,3 @@
-import os
 import socket
 import sys
 from datetime import datetime, timedelta
@@ -21,7 +20,6 @@ from time_handler import TimeHandler
 
 
 class InverterChargeController(LoggerMixin):
-    LOCK_FILE_PATH = "/tmp/inverter_charge_controller.lock"  # nosec B108
 
     def __init__(self):
         super().__init__()
@@ -41,23 +39,6 @@ class InverterChargeController(LoggerMixin):
         self.iteration_cache = {}
 
     def start(self) -> None:
-        """
-        Starts the inverter charge controller process. Ensures that the process is not already running
-        by checking for the presence of a lock file. If the process is running, logs the error and exits.
-        Upon successful starting, creates and manages a lock file for the process to avoid multiple
-        instances. It Also ensures cleanup of the lock file post execution.
-        """
-        if os.path.exists(self.LOCK_FILE_PATH):
-            self.log.error("Attempted to start the inverter charge controller, but it is already running.")
-            return
-
-        self._lock()
-        try:
-            self._start()
-        finally:
-            self.unlock()
-
-    def _start(self) -> None:
         """
         Starts the continuous running of the program and handles all exceptions possibly raised during execution.
          - Expected exceptions: Wait for some minutes and retry
@@ -433,21 +414,3 @@ class InverterChargeController(LoggerMixin):
 
     def _set_cache_key(self, cache_key: str, value: Any) -> None:
         self.iteration_cache[cache_key] = value
-
-    def _lock(self) -> None:
-        """
-        Writes the current process ID to a lock file to indicate the process is active.
-        """
-        with open(self.LOCK_FILE_PATH, "w") as lock_file:
-            lock_file.write(str(os.getpid()))
-        self.log.debug("Lock file created")
-
-    def unlock(self) -> None:
-        """
-        Removes the lock file if it exists and thus unlocking the process.
-        """
-        if not os.path.exists(self.LOCK_FILE_PATH):
-            return
-
-        os.remove(self.LOCK_FILE_PATH)
-        self.log.debug("Lock file removed")

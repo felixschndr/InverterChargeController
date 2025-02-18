@@ -22,16 +22,16 @@ class SunForecastHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("solar_forecast")
 
-    def calculate_minimum_of_soc_and_power_generation_in_timeframe(
+    def calculate_min_and_max_of_soc_in_timeframe(
         self,
         timeframe_start: datetime,
         timeframe_end: datetime,
         average_power_usage: Power,
         starting_soc: StateOfCharge,
-        minimum_has_to_rechecked: bool = False,
-    ) -> tuple[StateOfCharge, EnergyAmount]:
+        minimum_has_to_rechecked: bool,
+    ) -> tuple[StateOfCharge, StateOfCharge]:
         """
-        Calculates the minimum state of charge (SOC) and total power generation within a specified timeframe.
+        Calculates the minimum state of charge (SOC) and maximum state of charge within a specified timeframe.
         It considers average power usage, initial SOC and optionally adjusts for higher power usage in cases where the
         pricing for the next day is unavailable. This function uses solar data and iteratively computes power usage and
         generation for subintervals within the timeframe.
@@ -41,12 +41,12 @@ class SunForecastHandler(LoggerMixin):
             timeframe_end: The ending timestamp of the timeframe.
             average_power_usage: The average power consumption over the timeframe.
             starting_soc: The battery's state of charge at the beginning of the timeframe.
-            minimum_has_to_rechecked (optional): Whether to increase the power usage by POWER_USAGE_INCREASE_FACTOR
+            minimum_has_to_rechecked: Whether to increase the power usage by POWER_USAGE_INCREASE_FACTOR
 
         Returns:
             A tuple containing:
                 - The minimum state of charge observed during the timeframe.
-                - The total amount of power generated within the timeframe.
+                - The maximum state of charge observed during the timeframe.
         """
         self.log.debug(
             "Calculating the estimated minimum of state of charge and power generation in the timeframe "
@@ -66,8 +66,9 @@ class SunForecastHandler(LoggerMixin):
         current_timeframe_start = timeframe_start
         soc_after_current_timeframe = starting_soc
         minimum_soc = starting_soc
-        total_power_usage = EnergyAmount(0)
-        total_power_generation = EnergyAmount(0)
+        maximum_soc = starting_soc
+        total_energy_used = EnergyAmount(0)
+        total_energy_harvested = EnergyAmount(0)
 
         first_iteration = True
         while True:
@@ -83,28 +84,33 @@ class SunForecastHandler(LoggerMixin):
 
             current_timeframe_end = current_timeframe_start + current_timeframe_duration
 
-            power_usage_during_timeframe = self._calculate_energy_usage_in_timeframe(
+            energy_usage_during_timeframe = self._calculate_energy_usage_in_timeframe(
                 current_timeframe_start, current_timeframe_duration, average_power_usage, power_usage_increase_factor
             )
-            total_power_usage += power_usage_during_timeframe
-            power_generation_during_timeframe = self._get_energy_produced_in_timeframe_from_solar_data(
+            total_energy_used += energy_usage_during_timeframe
+            energy_harvested_during_timeframe = self._get_energy_harvested_in_timeframe_from_solar_data(
                 current_timeframe_end, current_timeframe_duration, solar_data
             )
-            total_power_generation += power_generation_during_timeframe
+            total_energy_harvested += energy_harvested_during_timeframe
             soc_after_current_timeframe = StateOfCharge(
-                soc_after_current_timeframe.absolute - power_usage_during_timeframe + power_generation_during_timeframe
+                soc_after_current_timeframe.absolute
+                - energy_usage_during_timeframe
+                + energy_harvested_during_timeframe
             )
 
             if soc_after_current_timeframe < minimum_soc:
                 log_text = " (new minimum)"
                 minimum_soc = soc_after_current_timeframe
+            elif soc_after_current_timeframe > maximum_soc:
+                log_text = " (new maximum)"
+                maximum_soc = soc_after_current_timeframe
             else:
                 log_text = ""
             self.log.debug(
                 f"{current_timeframe_end}"
                 f" - estimated SOC: {soc_after_current_timeframe}{log_text}"
-                f" - expected power usage: {power_usage_during_timeframe}"
-                f" - expected power generation: {power_generation_during_timeframe}"
+                f" - expected energy used: {energy_usage_during_timeframe}"
+                f" - expected energy harvested: {energy_harvested_during_timeframe}"
             )
             current_timeframe_start += current_timeframe_duration
 
@@ -112,11 +118,12 @@ class SunForecastHandler(LoggerMixin):
                 break
 
         self.log.debug(
-            f"From {timeframe_start} to {timeframe_end} the expected minimum of state of charge is {minimum_soc}, the "
-            f"expected total amount of power usage is {total_power_usage} and the expected total amount of power "
-            f"generated is {total_power_generation}"
+            f"From {timeframe_start} to {timeframe_end} the expected minimum of state of charge is {minimum_soc}, "
+            f"the expected maximum of state of charge is {maximum_soc}, "
+            f"the expected total amount of energy used is {total_energy_used} "
+            f"and the expected total amount of energy harvested is {total_energy_harvested}"
         )
-        return minimum_soc, total_power_generation
+        return minimum_soc, maximum_soc
 
     def retrieve_solar_data(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, Power]:
         """
@@ -303,7 +310,7 @@ class SunForecastHandler(LoggerMixin):
             return average_power_usage * factor_energy_usage_during_the_day
         return average_power_usage * factor_energy_usage_during_the_night
 
-    def _get_energy_produced_in_timeframe_from_solar_data(
+    def _get_energy_harvested_in_timeframe_from_solar_data(
         self, timeframe_end: datetime, timeframe_duration: timedelta, solar_data: dict[str, Power]
     ) -> EnergyAmount:
         """

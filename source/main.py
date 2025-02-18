@@ -5,6 +5,7 @@ from datetime import datetime, time, timedelta
 from types import FrameType
 
 import pause
+import requests
 from environment_variable_getter import EnvironmentVariableGetter
 from inverter_charge_controller import InverterChargeController
 from logger import LoggerMixin
@@ -33,6 +34,10 @@ def write_solar_forecast_and_history_to_db() -> None:
 
         try:
             sun_forecast_handler.retrieve_solar_data_from_api(start, end)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code != 429:
+                raise e
+            logger.log.warning("Too many requests to the solar forecast API --> unable to log solar forecast data")
         except Exception:
             logger.log.error("Failed to log solar forecast data", exc_info=True)
             pass

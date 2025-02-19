@@ -23,9 +23,9 @@ class TibberAPIHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("energy_prices")
 
-        self.upcoming_energy_rates_cache = []
-
-    def get_next_price_minimum(self, first_iteration: bool = False) -> EnergyRate:
+    def get_next_price_minimum(
+        self, first_iteration: bool = False, upcoming_energy_rates: list[EnergyRate] = None
+    ) -> EnergyRate:
         """
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
@@ -55,11 +55,8 @@ class TibberAPIHandler(LoggerMixin):
             EnergyRate: The next price minimum energy rate.
         """
         self.log.debug("Finding the price minimum...")
-        api_result = self._fetch_upcoming_prices_from_api()
-        all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
-        self.write_energy_rates_to_database(all_energy_rates)
-        upcoming_energy_rates = self._remove_energy_rates_from_the_past(all_energy_rates)
-        self.upcoming_energy_rates_cache = upcoming_energy_rates
+        if upcoming_energy_rates is None:
+            upcoming_energy_rates = self.get_upcoming_energy_rates()
         if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
             upcoming_energy_rates
         ):
@@ -84,6 +81,13 @@ class TibberAPIHandler(LoggerMixin):
             minimum_of_energy_rates.has_to_be_rechecked = True
 
         return minimum_of_energy_rates
+
+    def get_upcoming_energy_rates(self) -> list[EnergyRate]:
+        self.log.debug("Fetching the upcoming energy rates from the Tibber API...")
+        api_result = self._fetch_upcoming_prices_from_api()
+        all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
+        self.write_energy_rates_to_database(all_energy_rates)
+        return self._remove_energy_rates_from_the_past(all_energy_rates)
 
     @staticmethod
     def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:

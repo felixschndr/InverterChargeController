@@ -58,7 +58,7 @@ class InverterChargeController(LoggerMixin):
         while True:
             try:
                 if first_iteration:
-                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
+                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration=True)
                     first_iteration = False
                 else:
                     self._do_iteration()
@@ -75,7 +75,7 @@ class InverterChargeController(LoggerMixin):
                     pause.until(time_to_sleep_to)
                     self.write_newlines_to_log_file()
                     self.log.info("Waking up since the the price minimum has to re-checked")
-                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
+                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration=True)
 
                 self.sems_portal_api_handler.write_values_to_database()
 
@@ -464,13 +464,25 @@ class InverterChargeController(LoggerMixin):
     In this case, previous values from the same iteration are saved and used when the failed API call is retried.
     """
 
+    def _get_upcoming_energy_rates(self) -> list[EnergyRate]:
+        cache_key = "upcoming_energy_rates"
+        upcoming_energy_rates = self._get_value_from_cache_if_exists(cache_key)
+        if upcoming_energy_rates:
+            return upcoming_energy_rates
+
+        upcoming_energy_rates = self.tibber_api_handler.get_upcoming_energy_rates()
+        self._set_cache_key(cache_key, upcoming_energy_rates)
+        return upcoming_energy_rates
+
     def _get_next_price_minimum(self) -> EnergyRate:
         cache_key = "next_price_minimum"
         next_price_minimum = self._get_value_from_cache_if_exists(cache_key)
         if next_price_minimum:
             return next_price_minimum
 
-        next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
+        next_price_minimum = self.tibber_api_handler.get_next_price_minimum(
+            upcoming_energy_rates=self._get_upcoming_energy_rates()
+        )
         self._set_cache_key(cache_key, next_price_minimum)
         return next_price_minimum
 

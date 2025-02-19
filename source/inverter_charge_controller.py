@@ -108,13 +108,8 @@ class InverterChargeController(LoggerMixin):
          - Gets the current state of the inverter.
          - Gets the average power consumption.
          - Calculates the estimated minimum and maximum state of charge until the next price minimum.
-         - If the next price minimum is higher than the current one
-            - If the estimated minimum state of charge is higher than the target minimum state of charge no charging is
-              initiated.
-            - Else the method calculates the required state of charge to reach the target minimum state of charge and
-              start charging.
-         - Else the method calculates how much power can be bought such that no energy of the sun is wasted.
-           "Wasted" being the energy is sold instead of used to charge the battery.
+         - Calculates the target state of charge for the battery.
+         - Charges the inverter if necessary.
         """
         self.write_newlines_to_log_file()
         self.log.info(
@@ -177,6 +172,55 @@ class InverterChargeController(LoggerMixin):
         }
         self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
+        charging_target_soc = self._calculate_target_soc(
+            current_energy_rate,
+            current_state_of_charge,
+            maximum_of_soc_until_next_price_minimum,
+            minimum_of_soc_until_next_price_minimum,
+            target_min_soc,
+            target_max_soc,
+        )
+        if charging_target_soc is None:
+            return
+
+        self.handle_charging(charging_target_soc, current_energy_rate.maximum_charging_duration)
+
+        self.iteration_cache = {}
+
+    def _calculate_target_soc(
+        self,
+        current_energy_rate: EnergyRate,
+        current_state_of_charge: StateOfCharge,
+        maximum_of_soc_until_next_price_minimum: StateOfCharge,
+        minimum_of_soc_until_next_price_minimum: StateOfCharge,
+        target_min_soc: StateOfCharge,
+        target_max_soc: StateOfCharge,
+    ) -> StateOfCharge | None:
+        """
+        Calculates the target state of charge (SOC) of a battery based on various parameters including current
+        energy rate, current SOC, and predicted SOCs.
+        - If the next price minimum is higher than the current one
+            - If the estimated minimum state of charge is higher than the target minimum state of charge no charging is
+              initiated.
+            - Else the method calculates the required state of charge to reach the target minimum state of charge and
+              start charging.
+         - Else the method calculates how much power can be bought such that no energy of the sun is wasted.
+           "Wasted" being the energy is sold instead of used to charge the battery.
+
+        Args:
+            current_energy_rate: The current energy rate being considered for charging or discharging.
+            current_state_of_charge: The present state of charge of the battery.
+            maximum_of_soc_until_next_price_minimum: The maximum predicted state of charge of the battery
+                until the next energy price minimum without additional charging.
+            minimum_of_soc_until_next_price_minimum: The minimum predicted state of charge of the battery
+                until the next energy price minimum without additional charging.
+            target_min_soc: The minimum state of charge target for the battery as per configuration.
+            target_max_soc: The maximum allowable state of charge limit for the battery as per configuration.
+
+        Returns:
+            A `StateOfCharge` object representing the calculated target state of charge for the battery.
+            Returns `None` if no additional charging is needed to meet the target minimum state of charge.
+        """
         if current_energy_rate > self.next_price_minimum:
             self.log.info(
                 f"The price of the current minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
@@ -190,7 +234,7 @@ class InverterChargeController(LoggerMixin):
                     f"{target_min_soc} --> There is no need to charge"
                 )
                 self.iteration_cache = {}
-                return
+                return None
 
             charging_target_soc = current_state_of_charge + (target_min_soc - minimum_of_soc_until_next_price_minimum)
         else:
@@ -202,6 +246,7 @@ class InverterChargeController(LoggerMixin):
             charging_target_soc = current_state_of_charge + (
                 StateOfCharge.from_percentage(100) - maximum_of_soc_until_next_price_minimum
             )
+
         self.log.info(f"The calculated target state of charge is {charging_target_soc}")
 
         if charging_target_soc > target_max_soc:
@@ -211,11 +256,22 @@ class InverterChargeController(LoggerMixin):
             )
             charging_target_soc = target_max_soc
 
+        return charging_target_soc
+
+    def handle_charging(self, charging_target_soc: StateOfCharge, maximum_charging_duration: timedelta) -> None:
+        """
+        Handles the charging process. This involves getting the energy bought before charging, charging the inverter,
+        getting the energy bought after charging, and updating the database with the consumed energy data.
+
+        Args:
+            charging_target_soc: Desired state of charge for the battery after charging.
+            maximum_charging_duration: Maximum allowable duration for the charging process.
+        """
         energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
         timestamp_starting_to_charge = TimeHandler.get_time()
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
-        self._charge_inverter(charging_target_soc, current_energy_rate.maximum_charging_duration)
+        self._charge_inverter(charging_target_soc, maximum_charging_duration)
 
         timestamp_ending_to_charge = TimeHandler.get_time()
 
@@ -236,9 +292,6 @@ class InverterChargeController(LoggerMixin):
         self._write_energy_buy_statistics_to_database(
             timestamp_starting_to_charge, timestamp_ending_to_charge, energy_bought
         )
-
-        self.iteration_cache = {}
-        return
 
     def _charge_inverter(self, target_state_of_charge: StateOfCharge, maximum_charging_duration: timedelta) -> None:
         """

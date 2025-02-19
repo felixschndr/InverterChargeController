@@ -143,8 +143,6 @@ class InverterChargeController(LoggerMixin):
         )
         self.log.info(f"The battery shall be at most be charged up to {target_max_soc}")
 
-        solar_data = self._get_solar_data(timestamp_now, self.next_price_minimum.timestamp)
-
         minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 timestamp_now,
@@ -152,7 +150,7 @@ class InverterChargeController(LoggerMixin):
                 average_power_consumption,
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
-                solar_data,
+                self._get_solar_data(timestamp_now, self.next_price_minimum.timestamp),
             )
         )
         self.log.info(
@@ -182,6 +180,8 @@ class InverterChargeController(LoggerMixin):
             minimum_of_soc_until_next_price_minimum,
             target_min_soc,
             target_max_soc,
+            timestamp_now,
+            average_power_consumption,
         )
         if charging_target_soc is None:
             return
@@ -198,6 +198,8 @@ class InverterChargeController(LoggerMixin):
         minimum_of_soc_until_next_price_minimum: StateOfCharge,
         target_min_soc: StateOfCharge,
         target_max_soc: StateOfCharge,
+        timestamp_now: datetime,
+        average_power_consumption: Power,
     ) -> StateOfCharge | None:
         """
         Calculates the target state of charge (SOC) of a battery based on various parameters including current
@@ -219,11 +221,40 @@ class InverterChargeController(LoggerMixin):
                 until the next energy price minimum without additional charging.
             target_min_soc: The minimum state of charge target for the battery as per configuration.
             target_max_soc: The maximum allowable state of charge limit for the battery as per configuration.
+            timestamp_now: The current timestamp.
+            average_power_consumption: The estimated average power consumption for the given timeframe.
 
         Returns:
             A `StateOfCharge` object representing the calculated target state of charge for the battery.
             Returns `None` if no additional charging is needed to meet the target minimum state of charge.
         """
+        if minimum_of_soc_until_next_price_minimum < target_min_soc:
+            soc_full = StateOfCharge.from_percentage(100)
+            self.log.info(
+                "The expected minimum state of charge until the next price minimum without additional charging "
+                f"{minimum_of_soc_until_next_price_minimum} is lower than the target minimum state of charge "
+                f"{target_min_soc} "
+                f"--> Checking whether the next price minimum can be reached even with charging to {soc_full}"
+            )
+            minimum_of_soc_until_next_price_minimum, _ = (
+                self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
+                    timestamp_now,
+                    self.next_price_minimum.timestamp,
+                    average_power_consumption,
+                    soc_full,
+                    self.next_price_minimum.has_to_be_rechecked,
+                    self._get_solar_data(timestamp_now, self.next_price_minimum.timestamp),
+                )
+            )
+            if minimum_of_soc_until_next_price_minimum >= target_min_soc:
+                self.log.info(
+                    f"The next price minimum can be reached by charging to {soc_full} "
+                    "--> Proceeding with normal operation to determine the target state of charge"
+                )
+            else:
+                # TODO: What to do in this case?
+                pass
+
         if current_energy_rate > self.next_price_minimum:
             self.log.info(
                 f"The price of the current minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "

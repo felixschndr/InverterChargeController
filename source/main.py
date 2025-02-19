@@ -115,10 +115,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        lock()
         logger.write_newlines_to_log_file()
         started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
         logger.log.info(f"Starting application{started_by_systemd}")
+        lock()
 
         solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
         solar_protocol_thread.start()

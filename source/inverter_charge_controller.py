@@ -185,7 +185,8 @@ class InverterChargeController(LoggerMixin):
             if minimum_of_soc_until_next_price_minimum > target_min_soc:
                 self.log.info(
                     "The expected minimum state of charge until the next price minimum without additional charging "
-                    "is higher than the target minimum state of charge --> There is no need to charge"
+                    f"{minimum_of_soc_until_next_price_minimum} is higher than the target minimum state of charge "
+                    f"{target_min_soc} --> There is no need to charge"
                 )
                 self.iteration_cache = {}
                 return next_price_minimum

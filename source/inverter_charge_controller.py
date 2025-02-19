@@ -32,6 +32,7 @@ class InverterChargeController(LoggerMixin):
         self.absence_handler = AbsenceHandler()
         self.database_handler = DatabaseHandler("power_buy")
 
+        self.next_price_minimum = None
         # This is a dict which saves the values of a certain operations such as the upcoming energy rates, the
         # expected power harvested by the sun or the expected power usage
         # This way if one of the requests to an external system fails (e.g. no Internet access) the prior requests don't
@@ -53,35 +54,36 @@ class InverterChargeController(LoggerMixin):
             SystemExit: If an unexpected error occurs, the program will exit with a status code of 1.
         """
         first_iteration = True
-        next_price_minimum = None
         duration_to_wait_in_cause_of_error = timedelta(minutes=2, seconds=30)
         while True:
             try:
                 if first_iteration:
-                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
+                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration)
                     first_iteration = False
                 else:
-                    next_price_minimum = self._do_iteration(next_price_minimum)
+                    self._do_iteration()
 
-                if next_price_minimum.has_to_be_rechecked:
+                if self.next_price_minimum.has_to_be_rechecked:
                     now = TimeHandler.get_time(sanitize_seconds=True)
                     time_to_sleep_to = now.replace(hour=14, minute=0)
                     if now > time_to_sleep_to:
                         time_to_sleep_to += timedelta(days=1)
                     self.log.info(
-                        f"The price minimum {next_price_minimum} has to re-checked "
+                        f"The price minimum {self.next_price_minimum} has to re-checked "
                         f"--> Waiting until {time_to_sleep_to}..."
                     )
                     pause.until(time_to_sleep_to)
                     self.write_newlines_to_log_file()
                     self.log.info("Waking up since the the price minimum has to re-checked")
-                    next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
+                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(True)
 
                 self.sems_portal_api_handler.write_values_to_database()
 
-                self.log.info(f"The next price minimum is at {next_price_minimum.timestamp}. Waiting until then...")
+                self.log.info(
+                    f"The next price minimum is at {self.next_price_minimum.timestamp} " f"--> Waiting until then..."
+                )
 
-                pause.until(next_price_minimum.timestamp)
+                pause.until(self.next_price_minimum.timestamp)
 
             except (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError):
                 self.log.warning(
@@ -95,12 +97,13 @@ class InverterChargeController(LoggerMixin):
                 self.log.critical("An unexpected error occurred. Exiting now...", exc_info=True)
                 sys.exit(1)
 
-    def _do_iteration(self, current_energy_rate: EnergyRate) -> EnergyRate:
+    def _do_iteration(self) -> None:
         """
         Computes the optimal charging strategy for an inverter until the next price minimum.
 
         This method performs several key tasks to determine if and how much the inverter needs to be charged:
-         - Retrieves the next price minimum.
+         - Sets the next price minimum (before it is updated) as the current rate.
+         - Retrieves and sets the next price minimum.
          - Sets the maximum charging duration of the current energy rate.
          - Gets the current state of the inverter.
          - Gets the average power consumption.
@@ -112,18 +115,16 @@ class InverterChargeController(LoggerMixin):
               start charging.
          - Else the method calculates how much power can be bought such that no energy of the sun is wasted.
            "Wasted" being the energy is sold instead of used to charge the battery.
-
-        Returns:
-            EnergyRate: The next price minimum energy rate.
         """
         self.write_newlines_to_log_file()
         self.log.info(
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
         )
         timestamp_now = TimeHandler.get_time()
+        current_energy_rate = self.next_price_minimum
 
-        next_price_minimum = self._get_next_price_minimum()
-        self.log.info(f"The next price minimum is at {next_price_minimum}")
+        self.next_price_minimum = self._get_next_price_minimum()
+        self.log.info(f"The next price minimum is at {self.next_price_minimum}")
 
         self.tibber_api_handler.set_maximum_charging_duration_of_current_energy_rate(current_energy_rate)
         self.log.info(
@@ -150,10 +151,10 @@ class InverterChargeController(LoggerMixin):
         minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 timestamp_now,
-                next_price_minimum.timestamp,
+                self.next_price_minimum.timestamp,
                 average_power_consumption,
                 current_state_of_charge,
-                next_price_minimum.has_to_be_rechecked,
+                self.next_price_minimum.has_to_be_rechecked,
             )
         )
         self.log.info(
@@ -164,8 +165,8 @@ class InverterChargeController(LoggerMixin):
 
         summary_of_energy_vales = {
             "timestamp now": str(timestamp_now),
-            "next price minimum": next_price_minimum,
-            "next price minimum has to be rechecked": next_price_minimum.has_to_be_rechecked,
+            "next price minimum": self.next_price_minimum,
+            "next price minimum has to be rechecked": self.next_price_minimum.has_to_be_rechecked,
             "maximum charging duration": current_energy_rate.format_maximum_charging_duration(),
             "current state of charge": current_state_of_charge,
             "average power consumption": average_power_consumption.watts,
@@ -176,9 +177,9 @@ class InverterChargeController(LoggerMixin):
         }
         self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
-        if current_energy_rate > next_price_minimum:
+        if current_energy_rate > self.next_price_minimum:
             self.log.info(
-                f"The price of the current minimum ({next_price_minimum.rate} ct/kWh) is higher than the one of "
+                f"The price of the current minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
                 f"the upcoming minimum ({current_energy_rate.rate} ct/kWh) "
                 "--> Will only charge the battery to reach the next price minimum"
             )
@@ -189,12 +190,12 @@ class InverterChargeController(LoggerMixin):
                     f"{target_min_soc} --> There is no need to charge"
                 )
                 self.iteration_cache = {}
-                return next_price_minimum
+                return
 
             charging_target_soc = current_state_of_charge + (target_min_soc - minimum_of_soc_until_next_price_minimum)
         else:
             self.log.info(
-                f"The price of the upcoming minimum ({next_price_minimum.rate} ct/kWh) is higher than the one of "
+                f"The price of the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
                 f"the current minimum ({current_energy_rate.rate} ct/kWh)"
                 "--> Will charge as much as possible without wasting any energy of the sun"
             )
@@ -237,7 +238,7 @@ class InverterChargeController(LoggerMixin):
         )
 
         self.iteration_cache = {}
-        return next_price_minimum
+        return
 
     def _charge_inverter(self, target_state_of_charge: StateOfCharge, maximum_charging_duration: timedelta) -> None:
         """

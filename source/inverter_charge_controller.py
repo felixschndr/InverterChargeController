@@ -121,12 +121,6 @@ class InverterChargeController(LoggerMixin):
         self.next_price_minimum = self._get_next_price_minimum()
         self.log.info(f"The next price minimum is at {self.next_price_minimum}")
 
-        self.tibber_api_handler.set_maximum_charging_duration_of_current_energy_rate(current_energy_rate)
-        self.log.info(
-            f"The maximum charging duration of the current energy rate is "
-            f"{current_energy_rate.maximum_charging_duration}"
-        )
-
         current_state_of_charge = self.inverter.get_state_of_charge()
         self.log.info(f"The battery is currently is at {current_state_of_charge}")
 
@@ -163,7 +157,6 @@ class InverterChargeController(LoggerMixin):
             "timestamp now": str(timestamp_now),
             "next price minimum": self.next_price_minimum,
             "next price minimum has to be rechecked": self.next_price_minimum.has_to_be_rechecked,
-            "maximum charging duration": current_energy_rate.format_maximum_charging_duration(),
             "current state of charge": current_state_of_charge,
             "average power consumption": average_power_consumption.watts,
             "target min soc": target_min_soc,
@@ -186,7 +179,7 @@ class InverterChargeController(LoggerMixin):
         if charging_target_soc is None:
             return
 
-        self.handle_charging(charging_target_soc, current_energy_rate.maximum_charging_duration)
+        self.handle_charging(charging_target_soc)
 
         self.iteration_cache = {}
 
@@ -292,20 +285,19 @@ class InverterChargeController(LoggerMixin):
 
         return charging_target_soc
 
-    def handle_charging(self, charging_target_soc: StateOfCharge, maximum_charging_duration: timedelta) -> None:
+    def handle_charging(self, charging_target_soc: StateOfCharge) -> None:
         """
         Handles the charging process. This involves getting the energy bought before charging, charging the inverter,
         getting the energy bought after charging, and updating the database with the consumed energy data.
 
         Args:
             charging_target_soc: Desired state of charge for the battery after charging.
-            maximum_charging_duration: Maximum allowable duration for the charging process.
         """
         energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
         timestamp_starting_to_charge = TimeHandler.get_time()
         self.log.debug(f"The amount of energy bought before charging is {energy_bought_before_charging}")
 
-        self._charge_inverter(charging_target_soc, maximum_charging_duration)
+        self._charge_inverter(charging_target_soc)
 
         timestamp_ending_to_charge = TimeHandler.get_time()
 
@@ -327,7 +319,7 @@ class InverterChargeController(LoggerMixin):
             timestamp_starting_to_charge, timestamp_ending_to_charge, energy_bought
         )
 
-    def _charge_inverter(self, target_state_of_charge: StateOfCharge, maximum_charging_duration: timedelta) -> None:
+    def _charge_inverter(self, target_state_of_charge: StateOfCharge) -> None:
         """
         Charges the inverter battery to the target state of charge within a specified maximum charging duration.
         Monitors the charging progress at regular intervals and stops the charging process if specific conditions are
@@ -340,13 +332,10 @@ class InverterChargeController(LoggerMixin):
         Args:
             target_state_of_charge: The desired battery state of charge percentage to reach during the
                 charging process.
-            maximum_charging_duration: The maximum duration allowed for the charging process to complete.
         """
         charging_progress_check_interval = timedelta(minutes=5)
 
-        maximum_end_charging_time = (
-            TimeHandler.get_time(sanitize_seconds=True).replace(minute=0) + maximum_charging_duration
-        )
+        maximum_end_charging_time = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0) + timedelta(hours=2)
 
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
@@ -367,8 +356,8 @@ class InverterChargeController(LoggerMixin):
                 # Can't set the mode of the inverter as it is unresponsive
                 break
 
-            # Account for program execution times, this way the check happens at 05:00 and does not add up delays
-            # (minor cosmetics)
+            # Account for program execution times, this way the check happens at 5-minute intervals and delays do not
+            # add up (minor cosmetics)
             pause.seconds(charging_progress_check_interval.total_seconds() - TimeHandler.get_time().second)
 
             try:

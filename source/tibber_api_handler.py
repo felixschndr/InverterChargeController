@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from database_handler import DatabaseHandler, InfluxDBField
 from energy_classes import EnergyRate
@@ -84,28 +84,6 @@ class TibberAPIHandler(LoggerMixin):
             minimum_of_energy_rates.has_to_be_rechecked = True
 
         return minimum_of_energy_rates
-
-    def set_maximum_charging_duration_of_current_energy_rate(self, current_energy_rate: EnergyRate) -> None:
-        """
-        It takes the current energy rate from the InverterChargeController and compares it against the upcoming energy
-        rates. It then calculates and sets the maximum possible charging duration based on the comparison of the current
-        price and the consecutive ones.
-
-        We have to provide the current energy rate as the upcoming energy rates (which are saved as an instance
-        variable) only include the **upcoming** energy rates and not the current one.
-
-        Args:
-            current_energy_rate (EnergyRate): The current energy rate for comparison against upcoming energy rates.
-        """
-        charging_duration = timedelta(hours=1)
-
-        for energy_rate in self.upcoming_energy_rates_cache:
-            if energy_rate.rate <= current_energy_rate.rate + TibberAPIHandler.MAXIMUM_THRESHOLD:
-                charging_duration += timedelta(hours=1)
-            else:
-                break
-
-        current_energy_rate.maximum_charging_duration = charging_duration
 
     @staticmethod
     def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:

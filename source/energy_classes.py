@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
@@ -64,7 +64,6 @@ class Power:
 class EnergyRate:
     rate: float
     timestamp: datetime
-    maximum_charging_duration: timedelta = timedelta(hours=1)
     has_to_be_rechecked: bool = False
 
     def __repr__(self):
@@ -75,12 +74,6 @@ class EnergyRate:
 
     def __gt__(self, other: EnergyRate) -> bool:
         return self.rate > other.rate
-
-    def format_maximum_charging_duration(self) -> str:
-        charging_duration_in_hours = int(self.maximum_charging_duration.total_seconds() // 3600)
-        if charging_duration_in_hours == 1:
-            return "1 hour"
-        return f"{charging_duration_in_hours} hours"
 
 
 soc_logger = LoggerMixin("StateOfCharge")

@@ -143,6 +143,8 @@ class InverterChargeController(LoggerMixin):
         )
         self.log.info(f"The battery shall be at most be charged up to {target_max_soc}")
 
+        solar_data = self._get_solar_data(timestamp_now, self.next_price_minimum.timestamp)
+
         minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 timestamp_now,
@@ -150,6 +152,7 @@ class InverterChargeController(LoggerMixin):
                 average_power_consumption,
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
+                solar_data,
             )
         )
         self.log.info(
@@ -199,7 +202,7 @@ class InverterChargeController(LoggerMixin):
         """
         Calculates the target state of charge (SOC) of a battery based on various parameters including current
         energy rate, current SOC, and predicted SOCs.
-        - If the next price minimum is higher than the current one
+         - If the next price minimum is higher than the current one
             - If the estimated minimum state of charge is higher than the target minimum state of charge no charging is
               initiated.
             - Else the method calculates the required state of charge to reach the target minimum state of charge and
@@ -460,6 +463,16 @@ class InverterChargeController(LoggerMixin):
         average_power_consumption = self.sems_portal_api_handler.get_average_power_consumption()
         self._set_cache_key(cache_key, average_power_consumption)
         return average_power_consumption
+
+    def _get_solar_data(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, Power]:
+        cache_key = "solar_data"
+        solar_data = self._get_value_from_cache_if_exists(cache_key)
+        if solar_data:
+            return solar_data
+
+        solar_data = self.sun_forecast_handler.retrieve_solar_data(timeframe_start, timeframe_end)
+        self._set_cache_key(cache_key, solar_data)
+        return solar_data
 
     def _get_value_from_cache_if_exists(self, cache_key: str) -> Optional[Any]:
         if cache_key not in self.iteration_cache.keys():

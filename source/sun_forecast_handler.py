@@ -29,6 +29,7 @@ class SunForecastHandler(LoggerMixin):
         average_power_usage: Power,
         starting_soc: StateOfCharge,
         minimum_has_to_rechecked: bool,
+        solar_data: dict[str, Power],
     ) -> tuple[StateOfCharge, StateOfCharge]:
         """
         Calculates the minimum state of charge (SOC) and maximum state of charge within a specified timeframe.
@@ -42,6 +43,8 @@ class SunForecastHandler(LoggerMixin):
             average_power_usage: The average power consumption over the timeframe.
             starting_soc: The battery's state of charge at the beginning of the timeframe.
             minimum_has_to_rechecked: Whether to increase the power usage by POWER_USAGE_INCREASE_FACTOR
+            solar_data: A dictionary where keys represent specific times and values represent the forecasted power at
+                those times.
 
         Returns:
             A tuple containing:
@@ -60,8 +63,6 @@ class SunForecastHandler(LoggerMixin):
                 "for tomorrow are unavailable --> The expected power usage is multiplied by "
                 f"{SunForecastHandler.POWER_USAGE_INCREASE_FACTOR}"
             )
-
-        solar_data = self.retrieve_solar_data(timeframe_start, timeframe_end)
 
         current_timeframe_start = timeframe_start
         soc_after_current_timeframe = starting_soc

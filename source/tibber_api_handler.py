@@ -292,6 +292,59 @@ class TibberAPIHandler(LoggerMixin):
 
         return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable
 
+    def get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
+        self, upcoming_energy_rates: list[EnergyRate], ending_timestamp: datetime
+    ) -> tuple[EnergyRate, EnergyRate]:
+        """
+        Identifies two specific energy rates from a list of upcoming energy rates up to a given timestamp:
+        the last rate before the price is higher than the average and the first rate
+
+        Args:
+            upcoming_energy_rates (list[EnergyRate]): The list of upcoming energy rates.
+            ending_timestamp (datetime): A timestamp limiting the processing to only consider energy rates up to and
+                including this time.
+
+        Returns:
+            tuple[EnergyRate, EnergyRate]: A tuple containing:
+                - The energy rate before the price is higher than the average price up to the provided timestamp.
+                - The energy rate after the price is higher than the average price up to the provided timestamp.
+        """
+        average_price = self._get_average_price_of_energy_rates(upcoming_energy_rates)
+        self.log.debug(f"The average price of all upcoming energy rates is {average_price}")
+
+        upcoming_energy_rates_until_ending_timestamp = [
+            energy_rate for energy_rate in upcoming_energy_rates if energy_rate.timestamp <= ending_timestamp
+        ]
+
+        self.log.trace("Determining the last energy rate before the price is higher than the average price...")
+        energy_rate_before_the_price_is_higher_than_the_average = upcoming_energy_rates_until_ending_timestamp[0]
+        for energy_rate in upcoming_energy_rates_until_ending_timestamp:
+            if energy_rate.rate < average_price:
+                self.log.trace(f"The energy rate {energy_rate} is cheaper than the average price")
+                energy_rate_before_the_price_is_higher_than_the_average = energy_rate
+            else:
+                self.log.trace(f"The energy rate {energy_rate} is more expensive than the average price")
+                break
+
+        self.log.trace("Determining the first energy rate after the price was higher than the average price...")
+        energy_rate_after_the_price_is_higher_than_the_average = upcoming_energy_rates_until_ending_timestamp[-1]
+        for energy_rate in reversed(upcoming_energy_rates_until_ending_timestamp):
+            if energy_rate.rate < average_price:
+                self.log.trace(f"The energy rate {energy_rate} is cheaper than the average price")
+                energy_rate_after_the_price_is_higher_than_the_average = energy_rate
+            else:
+                self.log.trace(f"The energy rate {energy_rate} is more expensive than the average price")
+                break
+
+        return (
+            energy_rate_before_the_price_is_higher_than_the_average,
+            energy_rate_after_the_price_is_higher_than_the_average,
+        )
+
+    @staticmethod
+    def _get_average_price_of_energy_rates(energy_rates: list[EnergyRate]) -> float:
+        return sum(energy_rate.rate for energy_rate in energy_rates) / len(energy_rates)
+
     def write_energy_rates_to_database(self, energy_rates: list[EnergyRate]) -> None:
         """
         Writes the list of energy rates to the database while avoiding duplication of already existing data.

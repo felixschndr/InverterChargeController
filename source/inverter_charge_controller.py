@@ -245,8 +245,13 @@ class InverterChargeController(LoggerMixin):
                     "--> Proceeding with normal operation to determine the target state of charge"
                 )
             else:
-                # TODO: What to do in this case?
-                pass
+                self.log.info(
+                    f"It is not possible to reach the next price minimum with charging to {soc_full} "
+                    "--> Will determine the optimal points in time for charging around the price spike"
+                )
+                # This method charges the inverter itself and thus does not need the normal flow of operation
+                self._handle_next_price_minimum_is_unreachable()
+                return None
 
         if current_energy_rate > self.next_price_minimum:
             self.log.info(
@@ -284,6 +289,28 @@ class InverterChargeController(LoggerMixin):
             charging_target_soc = target_max_soc
 
         return charging_target_soc
+
+    def _handle_next_price_minimum_is_unreachable(self) -> None:
+        soc_full = StateOfCharge.from_percentage(100)
+
+        upcoming_energy_rates = self._get_upcoming_energy_rates()
+        energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_after_average = (
+            self.tibber_api_handler.get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
+                upcoming_energy_rates, self.next_price_minimum.timestamp
+            )
+        )
+        self.log.info(
+            f"The last energy rate before the price rises over the average is "
+            f"{energy_rate_before_price_rises_over_average}. "
+            f"The first energy rate after the price drops is {energy_rate_after_price_drops_after_average}."
+            f"--> Will charge now to {soc_full} and then wait until "
+            f"{energy_rate_before_price_rises_over_average.timestamp}"
+        )
+        self.handle_charging(soc_full)
+        self.log.info(f"Waiting until {energy_rate_before_price_rises_over_average.timestamp}")
+        pause.until(energy_rate_before_price_rises_over_average.timestamp)
+
+        # TODO: Continue here
 
     def handle_charging(self, charging_target_soc: StateOfCharge) -> None:
         """

@@ -244,17 +244,6 @@ class TibberAPIHandler(LoggerMixin):
 
         return energy_rates_till_maximum
 
-    def determine_if_average_of_next_few_prices_higher(self, upcoming_energy_rates: list[EnergyRate]) -> bool:
-        """
-        Determines whether the average of the 2nd and 3rd energy rates is higher than the first one.
-
-        Args:
-            upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
-
-        Returns:
-            bool: True if the average of the 2nd and 3rd rates is higher than the 1st rate, otherwise False.
-        """
-
     def get_global_minimum_of_energy_rates(self, energy_rates_till_maximum: list[EnergyRate]) -> EnergyRate:
         """
         Determines the global minimum energy rate from a list of energy rates (in this case up until the first maximum).

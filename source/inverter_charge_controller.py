@@ -80,7 +80,7 @@ class InverterChargeController(LoggerMixin):
                 self.sems_portal_api_handler.write_values_to_database()
 
                 self.log.info(
-                    f"The next price minimum is at {self.next_price_minimum.timestamp} " f"--> Waiting until then..."
+                    f"The next price minimum is {self.next_price_minimum.timestamp} --> Waiting until then..."
                 )
 
                 pause.until(self.next_price_minimum.timestamp)
@@ -250,7 +250,7 @@ class InverterChargeController(LoggerMixin):
                     "--> Will determine the optimal points in time for charging around the price spike"
                 )
                 # This method charges the inverter itself and thus does not need the normal flow of operation
-                self._handle_next_price_minimum_is_unreachable()
+                self.handle_next_price_minimum_is_unreachable()
                 return None
 
         if current_energy_rate > self.next_price_minimum:
@@ -268,12 +268,21 @@ class InverterChargeController(LoggerMixin):
                 self.iteration_cache = {}
                 return None
 
+            self.log.debug(
+                f"Formula for calculating the target state of charge: current {current_state_of_charge} + "
+                f"(target minimum state of charge ({target_min_soc}) - minimum state of charge until next price "
+                f"minimum ({minimum_of_soc_until_next_price_minimum}))"
+            )
             charging_target_soc = current_state_of_charge + (target_min_soc - minimum_of_soc_until_next_price_minimum)
         else:
             self.log.info(
                 f"The price of the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
-                f"the current minimum ({current_energy_rate.rate} ct/kWh)"
+                f"the current minimum ({current_energy_rate.rate} ct/kWh) "
                 "--> Will charge as much as possible without wasting any energy of the sun"
+            )
+            self.log.debug(
+                f"Formula for calculating the target state of charge: current ({current_state_of_charge}) + 100 % - "
+                f"maximum state of charge until next price minimum ({maximum_of_soc_until_next_price_minimum})"
             )
             charging_target_soc = current_state_of_charge + (
                 StateOfCharge.from_percentage(100) - maximum_of_soc_until_next_price_minimum
@@ -289,28 +298,6 @@ class InverterChargeController(LoggerMixin):
             charging_target_soc = target_max_soc
 
         return charging_target_soc
-
-    def _handle_next_price_minimum_is_unreachable(self) -> None:
-        soc_full = StateOfCharge.from_percentage(100)
-
-        upcoming_energy_rates = self._get_upcoming_energy_rates()
-        energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_after_average = (
-            self.tibber_api_handler.get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
-                upcoming_energy_rates, self.next_price_minimum.timestamp
-            )
-        )
-        self.log.info(
-            f"The last energy rate before the price rises over the average is "
-            f"{energy_rate_before_price_rises_over_average}. "
-            f"The first energy rate after the price drops is {energy_rate_after_price_drops_after_average}."
-            f"--> Will charge now to {soc_full} and then wait until "
-            f"{energy_rate_before_price_rises_over_average.timestamp}"
-        )
-        self.handle_charging(soc_full)
-        self.log.info(f"Waiting until {energy_rate_before_price_rises_over_average.timestamp}")
-        pause.until(energy_rate_before_price_rises_over_average.timestamp)
-
-        # TODO: Continue here
 
     def handle_charging(self, charging_target_soc: StateOfCharge) -> None:
         """
@@ -345,6 +332,28 @@ class InverterChargeController(LoggerMixin):
         self._write_energy_buy_statistics_to_database(
             timestamp_starting_to_charge, timestamp_ending_to_charge, energy_bought
         )
+
+    def handle_next_price_minimum_is_unreachable(self) -> None:
+        soc_full = StateOfCharge.from_percentage(100)
+
+        upcoming_energy_rates = self._get_upcoming_energy_rates()
+        energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_after_average = (
+            self.tibber_api_handler.get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
+                upcoming_energy_rates, self.next_price_minimum.timestamp
+            )
+        )
+        self.log.info(
+            f"The last energy rate before the price rises over the average is "
+            f"{energy_rate_before_price_rises_over_average}. "
+            f"The first energy rate after the price drops is {energy_rate_after_price_drops_after_average}."
+            f"--> Will charge now to {soc_full} and then wait until "
+            f"{energy_rate_before_price_rises_over_average.timestamp}"
+        )
+        self.handle_charging(soc_full)
+        self.log.info(f"Waiting until {energy_rate_before_price_rises_over_average.timestamp}")
+        pause.until(energy_rate_before_price_rises_over_average.timestamp)
+
+        # TODO: Continue here
 
     def _charge_inverter(self, target_state_of_charge: StateOfCharge) -> None:
         """

@@ -254,7 +254,7 @@ class InverterChargeController(LoggerMixin):
                 average_power_consumption,
                 target_max_soc,
                 self.next_price_minimum.has_to_be_rechecked,
-                self._get_solar_data(timestamp_now, self.next_price_minimum.timestamp),
+                self._get_solar_data(),
             )
         )
         if minimum_of_soc_until_next_price_minimum >= target_min_soc:
@@ -587,11 +587,16 @@ class InverterChargeController(LoggerMixin):
         self._set_cache_key(cache_key, average_power_consumption)
         return average_power_consumption
 
-    def _get_solar_data(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, Power]:
+    def _get_solar_data(
+        self, timeframe_start: Optional[datetime] = None, timeframe_end: Optional[datetime] = None
+    ) -> dict[str, Power]:
         cache_key = "solar_data"
         solar_data = self._get_value_from_cache_if_exists(cache_key)
         if solar_data:
             return solar_data
+
+        if not timeframe_start or not timeframe_end:
+            raise ValueError("Timeframe start and end must be provided to retrieve solar data if the cache is empty")
 
         solar_data = self.sun_forecast_handler.retrieve_solar_data(timeframe_start, timeframe_end)
         self._set_cache_key(cache_key, solar_data)

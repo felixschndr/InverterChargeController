@@ -109,14 +109,16 @@ for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
 
 
 if __name__ == "__main__":
+    started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
     if os.path.exists(LOCK_FILE_PATH):
         logger.write_newlines_to_log_file()
-        logger.log.error("Attempted to start the inverter charge controller, but it is already running.")
+        logger.log.error(
+            f"Attempted to start the inverter charge controller {started_by_systemd}, but it is already running."
+        )
         sys.exit(1)
 
     try:
         logger.write_newlines_to_log_file()
-        started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
         logger.log.info(f"Starting application{started_by_systemd}")
         lock()
 

@@ -1,0 +1,290 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36" version="26.0.16">
+  <diagram id="C5RBs43oDa-KdzZeNtuy" name="Page-1">
+    <mxGraphModel dx="2755" dy="934" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="WIyWlLk6GJQsqaUBKTNV-0" />
+        <mxCell id="WIyWlLk6GJQsqaUBKTNV-1" parent="WIyWlLk6GJQsqaUBKTNV-0" />
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-0" target="IToKXIyIeDY8aH4dUtEY-3" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-0" value="Now is a price minimum, check what has to be done to reach the next one" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="70" y="60" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-2" target="IToKXIyIeDY8aH4dUtEY-6" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="130" y="420" />
+              <mxPoint x="390" y="420" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-8" value="Yes" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="IToKXIyIeDY8aH4dUtEY-7" vertex="1" connectable="0">
+          <mxGeometry x="-0.2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-2" target="IToKXIyIeDY8aH4dUtEY-25" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="130" y="420" />
+              <mxPoint x="-245" y="420" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-27" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="IToKXIyIeDY8aH4dUtEY-26" vertex="1" connectable="0">
+          <mxGeometry x="0.1667" y="-1" relative="1" as="geometry">
+            <mxPoint x="267" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-2" value="Is the estimated min soc lower than INVERTER_TARGET_MIN_STATE_OF_CHARGE?" style="rhombus;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry y="260" width="260" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-3" target="IToKXIyIeDY8aH4dUtEY-2" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-3" value="Calculate the estimated min and max soc until the next price minimum" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="70" y="160" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-56" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-6" target="IToKXIyIeDY8aH4dUtEY-9" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="390" y="590" />
+              <mxPoint x="430" y="590" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-60" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="IToKXIyIeDY8aH4dUtEY-56" vertex="1" connectable="0">
+          <mxGeometry x="-0.3786" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-58" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-6" target="IToKXIyIeDY8aH4dUtEY-25" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="390" y="590" />
+              <mxPoint x="-245" y="590" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-59" value="Yes" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="IToKXIyIeDY8aH4dUtEY-58" vertex="1" connectable="0">
+          <mxGeometry x="-0.7027" y="-3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-6" value="Is is possible to reach the next price minimum by charging at most 1 time?" style="rhombus;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="260" y="440" width="260" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-9" target="IToKXIyIeDY8aH4dUtEY-12" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-9" value="It is necessary to charge multiple times" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="370" y="650" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-12" value="Determine the energy rates before and after the upcoming price spike" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="370" y="730" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-14" target="IToKXIyIeDY8aH4dUtEY-16">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="880" />
+              <mxPoint x="430" y="880" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-14" value="Charge until INVERTER_TARGET_MAX_STATE_OF_CHARGE" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="290" y="810" width="290" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-16" target="IToKXIyIeDY8aH4dUtEY-22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-16" value="Wait until before the price spike" style="whiteSpace=wrap;html=1;rounded=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="370" y="890" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-22" target="MpzSnMRbyWUiNTLwxItA-3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="1170" />
+              <mxPoint x="590" y="1170" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-5" value="Yes" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MpzSnMRbyWUiNTLwxItA-4">
+          <mxGeometry x="0.2534" y="-1" relative="1" as="geometry">
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-22" target="MpzSnMRbyWUiNTLwxItA-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="1170" />
+              <mxPoint x="300" y="1170" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-20" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MpzSnMRbyWUiNTLwxItA-19">
+          <mxGeometry x="-0.5494" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-22" value="Is the energy rate before the price spike higher than the one after?" style="rhombus;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="300" y="985" width="260" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-25" target="IToKXIyIeDY8aH4dUtEY-29" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-245.32" y="830" />
+              <mxPoint x="-55.32" y="830" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-31" value="Yes" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="IToKXIyIeDY8aH4dUtEY-30" vertex="1" connectable="0">
+          <mxGeometry x="-0.04" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-25" target="IToKXIyIeDY8aH4dUtEY-43">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-245" y="830" />
+              <mxPoint x="-375" y="830" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-24" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MpzSnMRbyWUiNTLwxItA-23">
+          <mxGeometry x="-0.3069" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-25" value="Is the current energy hate higher than the one of the next price minimum?" style="rhombus;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="-375.32" y="660" width="260" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-29" target="IToKXIyIeDY8aH4dUtEY-32" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-45" value="Yes" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="IToKXIyIeDY8aH4dUtEY-33" vertex="1" connectable="0">
+          <mxGeometry x="-0.041" y="-1" relative="1" as="geometry">
+            <mxPoint y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-29" target="IToKXIyIeDY8aH4dUtEY-38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-26" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MpzSnMRbyWUiNTLwxItA-25">
+          <mxGeometry x="0.0877" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-29" value="Only charge as much as necessary to reach the next price minimum.&lt;div&gt;Is the estimated min state of charge until the next price minimum higher than the INVERTER_TARGET_MIN_STATE_OF_CHARGE?&lt;/div&gt;" style="rhombus;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="-185.32" y="880" width="260" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-52" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-32" target="IToKXIyIeDY8aH4dUtEY-49" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="85" y="1330" />
+              <mxPoint x="-670" y="1330" />
+              <mxPoint x="-670" y="40" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-32" value="There is no need to charge" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="40" y="1110" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-51" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-38" target="IToKXIyIeDY8aH4dUtEY-49" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-145" y="1330" />
+              <mxPoint x="-670" y="1330" />
+              <mxPoint x="-670" y="40" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-38" value="&lt;div&gt;There is a need to charge&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;charging until&lt;div&gt;current state of charge + INVERTER_TARGET_MIN_STATE_OF_CHARGE - estimated min state of charge until the next price minimum.&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="-310" y="1110" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-53" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-43" target="IToKXIyIeDY8aH4dUtEY-49" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-375" y="1330" />
+              <mxPoint x="-670" y="1330" />
+              <mxPoint x="-670" y="40" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-43" value="&lt;div&gt;Charge as much as possible without wasting energy from the sun&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;charge until&lt;div&gt;current state of charge + INVERTER_TARGET_MAX_STATE_OF_CHARGE - estimated max state of charge until the next price minimum&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="-530" y="930" width="310" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-50" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-49" target="IToKXIyIeDY8aH4dUtEY-0" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="IToKXIyIeDY8aH4dUtEY-49" value="Wait until the next price minimum" style="rounded=1;whiteSpace=wrap;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
+          <mxGeometry x="-370" y="10" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="MpzSnMRbyWUiNTLwxItA-3" target="MpzSnMRbyWUiNTLwxItA-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="590" y="1380" />
+              <mxPoint x="300" y="1380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-8" value="Yes" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MpzSnMRbyWUiNTLwxItA-7">
+          <mxGeometry y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="MpzSnMRbyWUiNTLwxItA-3" target="MpzSnMRbyWUiNTLwxItA-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-11" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MpzSnMRbyWUiNTLwxItA-10">
+          <mxGeometry x="0.0082" y="-2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-3" value="Is the estimated min state of charge until after the price spike higher than INVERTER_TARGET_MIN_STATE_OF_CHARGE?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="460" y="1210" width="260" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="MpzSnMRbyWUiNTLwxItA-6" target="MpzSnMRbyWUiNTLwxItA-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-6" value="Wait until after the price spike" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="240" y="1400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="MpzSnMRbyWUiNTLwxItA-9" target="MpzSnMRbyWUiNTLwxItA-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="1430" />
+              <mxPoint x="420" y="1430" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-9" value="Charge such that the energy rate after the price spike is reachable" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="610" y="1400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="MpzSnMRbyWUiNTLwxItA-15" target="MpzSnMRbyWUiNTLwxItA-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-15" value="Calculate the necessary charge to reach the next price minimum" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="240" y="1480" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="MpzSnMRbyWUiNTLwxItA-17" target="IToKXIyIeDY8aH4dUtEY-49">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="1650" />
+              <mxPoint x="-670" y="1650" />
+              <mxPoint x="-670" y="40" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-17" value="Charge if necessary" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="240" y="1560" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.485;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="IToKXIyIeDY8aH4dUtEY-12" target="IToKXIyIeDY8aH4dUtEY-14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MpzSnMRbyWUiNTLwxItA-34" value="A price spike are all the energy rates that are higher than the average upcoming energy rate.&amp;nbsp;&lt;div&gt;&quot;Before the price spike&quot; is the last energy rate before the price rises above the average&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="510" y="890" width="290" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

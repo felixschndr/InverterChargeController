@@ -125,43 +125,8 @@ The logs of the application are stored in `<path to repository>/logs/`. They are
 See also the environment variables `DIRECTORY_OF_LOGS` and `LOGLEVEL`.
 
 ## Charging algorithm
-The following describes the algorithm the program executes to determine when to charge.
-- Start: Now is a price minimum, check what has to be done to reach the next one.
-- Calculate the estimated min and max state of charge from now until the next price minimum. Is the estimated min state of charge until the next price minimum lower than the `INVERTER_TARGET_MIN_STATE_OF_CHARGE`?
-  - `Yes`: Is it possible to reach the next price minimum by not charging or charging (= is it necessary to charge multiple times to reach the next price minimum?).
-    - `Yes`: Continue with `No` branch of parent decision.
-    - `No`: It is necessary to charge multiple times
-      1. Determine the energy rates before and after the upcoming price spike. A price spike is a series of energy rates that are more expensive than the average of all upcoming energy rates.
-      2. Charge until `INVERTER_TARGET_MAX_STATE_OF_CHARGE`
-      3. Wait until the energy rate before the price spike.
-      4. Is the energy rate after the price spike higher than the one after?
-         - `Yes`: Calculate the estimated min state of charge from now until the energy rate after the price spike. Is the estimated min state of charge until the energy rate after the price spike higher than the `INVERTER_TARGET_MIN_STATE_OF_CHARGE`?
-           - `Yes`: It is possible to reach the energy rate after the price spike without charging. Wait until the energy rate after the price spike.
-           - `No`: It is necessary to charge to reach the energy rate after the price spike. 
-             1. Calculate the amount of energy necessary to charge to reach the energy rate after the price spike. # TODO
-             2. Charge until `target state of charge`.
-             3. Wait until the energy rate after the price spike.
-             4. Calculate the estimated min state of charge from now until the next price minimum. Is the estimated min state of charge until the next price minimum higher than the `INVERTER_TARGET_MIN_STATE_OF_CHARGE`?
-                - `Yes`: There is no need to charge, skip to end.
-                - `No`:
-                  1. Calculate the amount of energy necessary to charge to reach the next price minimum. 
-                  2. Charge until `target state of charge`.
-                  3. Skip to end.
-         - `No`: Calculate the estimated min state of charge from now until the next price minimum. Is the estimated min state of charge until the next price minimum higher than the `INVERTER_TARGET_MIN_STATE_OF_CHARGE`? This should not be the case as we calculated this earlier. However, since some hours have passed, it is a good idea to recheck.
-           - `Yes`: There is no need to charge, skip to end.
-           - `No`: # TODO
-  - `No`: Is the current energy rate higher than the one of the next price minimum?
-    - `Yes`: Only charge as much as necessary to reach the next price minimum. Is the estimated min state of charge until the next price minimum higher than the `INVERTER_TARGET_MIN_STATE_OF_CHARGE`?
-      - `Yes`: There is no need to charge, skip to end. 
-      - `No`: There is a need to charge.
-        1. `target state of charge` = `current state of charge` + `INVERTER_TARGET_MIN_STATE_OF_CHARGE` - `estimated min state of charge until the next price minimum`.
-        2. Charge until `target state of charge`.
-        3. Skip to end.
-    - `No`: Charge as much as possible without waisting energy from the sun. 
-      1. `target state of charge` = `current state of charge` + `INVERTER_TARGET_MAX_STATE_OF_CHARGE` - `estimated max state of charge until the next price minimum`.
-      2. Charge until `target state of charge`.
-      3. Skip to end.
-- Wait until next price minimum.
+
+![](Algorithm.png)
 
 ## InfluxDB commands
 

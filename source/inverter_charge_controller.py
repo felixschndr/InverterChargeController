@@ -328,10 +328,10 @@ class InverterChargeController(LoggerMixin):
             maximum_of_soc_until_next_price_minimum (StateOfCharge): The calculated maximum SOC in the timespan to the
                 next price minimum.
         """
-        if current_energy_rate > self.next_price_minimum:
+        if current_energy_rate >= self.next_price_minimum:
             self.log.info(
-                f"The price of the current minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
-                f"the upcoming minimum ({current_energy_rate.rate} ct/kWh) "
+                f"The price of the current minimum ({current_energy_rate.rate} ct/kWh) is higher than the one of "
+                f"the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) "
                 "--> Will only charge the battery to reach the next price minimum"
             )
             if minimum_of_soc_until_next_price_minimum > target_min_soc:

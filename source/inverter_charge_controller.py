@@ -126,15 +126,8 @@ class InverterChargeController(LoggerMixin):
         average_power_consumption = self._get_average_power_consumption()
         self.log.info(f"The average power consumption is {average_power_consumption}")
 
-        target_min_soc = StateOfCharge.from_percentage(
-            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MIN_STATE_OF_CHARGE", 15))
-        )
-        self.log.info(f"The battery shall be at least at {target_min_soc} at all times")
-
-        target_max_soc = StateOfCharge.from_percentage(
-            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 95))
-        )
-        self.log.info(f"The battery shall be at most be charged up to {target_max_soc}")
+        self.log.info(f"The battery shall be at least at {self.target_min_soc} at all times")
+        self.log.info(f"The battery shall be at most be charged up to {self.target_max_soc}")
 
         minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
@@ -158,8 +151,8 @@ class InverterChargeController(LoggerMixin):
             "next price minimum has to be rechecked": self.next_price_minimum.has_to_be_rechecked,
             "current state of charge": current_state_of_charge,
             "average power consumption": average_power_consumption.watts,
-            "target min soc": target_min_soc,
-            "target max soc": target_max_soc,
+            "target min soc": self.target_min_soc,
+            "target max soc": self.target_max_soc,
             "minimum of soc until next price minimum": minimum_of_soc_until_next_price_minimum,
             "maximum of soc until next price minimum": maximum_of_soc_until_next_price_minimum,
         }
@@ -170,8 +163,6 @@ class InverterChargeController(LoggerMixin):
             current_state_of_charge,
             average_power_consumption,
             current_energy_rate,
-            target_min_soc,
-            target_max_soc,
             minimum_of_soc_until_next_price_minimum,
             maximum_of_soc_until_next_price_minimum,
         )
@@ -184,8 +175,6 @@ class InverterChargeController(LoggerMixin):
         current_state_of_charge: StateOfCharge,
         average_power_consumption: Power,
         current_energy_rate: EnergyRate,
-        target_min_soc: StateOfCharge,
-        target_max_soc: StateOfCharge,
         minimum_of_soc_until_next_price_minimum: StateOfCharge,
         maximum_of_soc_until_next_price_minimum: StateOfCharge,
     ) -> None:
@@ -199,33 +188,27 @@ class InverterChargeController(LoggerMixin):
             current_state_of_charge (StateOfCharge): The current level of charge in the battery.
             average_power_consumption (Power): The average rate of power consumption.
             current_energy_rate (EnergyRate): The current cost of energy, influencing charging decisions.
-            target_min_soc (StateOfCharge): The minimum SOC target the battery shall hold at all times.
-            target_max_soc (StateOfCharge): The maximum SOC target the charging shall stop at.
             minimum_of_soc_until_next_price_minimum (StateOfCharge): The calculated minimum SOC in the timespan to the
                 next price minimum.
             maximum_of_soc_until_next_price_minimum (StateOfCharge): The calculated maximum SOC in the timespan to the
                 next price minimum.
         """
-        if minimum_of_soc_until_next_price_minimum < target_min_soc:
+        if minimum_of_soc_until_next_price_minimum < self.target_min_soc:
             self.log.info(
                 "The expected minimum state of charge until the next price minimum without additional charging "
                 f"{minimum_of_soc_until_next_price_minimum} is lower than the target minimum state of charge "
-                f"{target_min_soc} "
-                f"--> Checking whether the next price minimum can be reached even with charging to {target_max_soc}"
+                f"{self.target_min_soc} "
+                f"--> Checking whether the next price minimum can be reached even by charging to {self.target_max_soc}"
             )
             if not self._is_next_price_minimum_reachable_by_charging_the_battery_fully(
-                timestamp_now, average_power_consumption, target_min_soc, minimum_of_soc_until_next_price_minimum
+                timestamp_now, average_power_consumption
             ):
-                self._coordinate_charging_when_next_price_minimum_is_unreachable(
-                    average_power_consumption, target_min_soc, target_max_soc
-                )
+                self._coordinate_charging_when_next_price_minimum_is_unreachable(average_power_consumption)
                 return
 
         self._coordinate_charging_next_price_minimum_is_reachable(
             current_state_of_charge,
             current_energy_rate,
-            target_min_soc,
-            target_max_soc,
             minimum_of_soc_until_next_price_minimum,
             maximum_of_soc_until_next_price_minimum,
         )
@@ -234,8 +217,6 @@ class InverterChargeController(LoggerMixin):
         self,
         timestamp_now: datetime,
         average_power_consumption: Power,
-        target_min_soc: StateOfCharge,
-        target_max_soc: StateOfCharge,
     ) -> bool:
         """
         Determines whether the next price minimum can be reached by fully charging the battery.
@@ -243,8 +224,6 @@ class InverterChargeController(LoggerMixin):
         Args:
             timestamp_now (datetime): The current datetime.
             average_power_consumption (Power): The average rate of power consumption.
-            target_min_soc (StateOfCharge): Desired minimum state of charge that should be maintained.
-            target_max_soc (StateOfCharge): Desired maximum state of charge to which the battery can be charged.
 
         Returns:
             bool: Whether it is possible to reach the next price minimum by charging to the target maximum
@@ -254,37 +233,35 @@ class InverterChargeController(LoggerMixin):
                 timestamp_now,
                 self.next_price_minimum.timestamp,
                 average_power_consumption,
-                target_max_soc,
+                self.target_max_soc,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
             )
         )
-        if minimum_of_soc_until_next_price_minimum >= target_min_soc:
+        if minimum_of_soc_until_next_price_minimum >= self.target_min_soc:
             self.log.info(
-                f"The next price minimum can be reached by charging to {target_max_soc} "
+                f"The next price minimum can be reached by charging to {self.target_max_soc} "
                 "--> Proceeding with normal operation to determine the target state of charge"
             )
             return True
         else:
             self.log.info(
-                f"It is not possible to reach the next price minimum with charging to {target_max_soc} "
+                f"It is not possible to reach the next price minimum with charging to {self.target_max_soc} "
                 "--> Will determine the optimal points in time to charge around the price spike"
             )
             return False
 
-    def _coordinate_charging_when_next_price_minimum_is_unreachable(
-        self, average_power_consumption: Power, target_min_soc: StateOfCharge, target_max_soc: StateOfCharge
-    ) -> None:
+    def _coordinate_charging_when_next_price_minimum_is_unreachable(self, average_power_consumption: Power) -> None:
         """
         Handles the coordination of battery charging when the upcoming price minimum cannot be reached.
 
         This function utilizes the upcoming energy rates to determine the most efficient charging strategy.
 
         Args:
-            target_max_soc (StateOfCharge): The maximum SOC target the charging shall stop at.
+            average_power_consumption: The average rate of power consumption during the charging period.
         """
         energy_rate_after_price_drops_after_average, energy_rate_before_price_rises_over_average = (
-            self._coordinate_charging_when_next_price_minimum_is_unreachable_first_charge(target_max_soc)
+            self._coordinate_charging_when_next_price_minimum_is_unreachable_first_charge()
         )
 
         self.log.info("Waking up to determine the optimal charging time around the price spike")
@@ -293,11 +270,10 @@ class InverterChargeController(LoggerMixin):
                 average_power_consumption,
                 energy_rate_after_price_drops_after_average,
                 energy_rate_before_price_rises_over_average,
-                target_min_soc,
             )
 
     def _coordinate_charging_when_next_price_minimum_is_unreachable_first_charge(
-        self, target_max_soc: StateOfCharge
+        self,
     ) -> tuple[EnergyRate, EnergyRate]:
         upcoming_energy_rates = self._get_upcoming_energy_rates()
         energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_after_average = (
@@ -310,11 +286,11 @@ class InverterChargeController(LoggerMixin):
             f"{energy_rate_before_price_rises_over_average}. "
             f"The first energy rate after the price drops below the average is "
             f"{energy_rate_after_price_drops_after_average}."
-            f"--> Will charge now to {target_max_soc} and then wait until "
+            f"--> Will charge now to {self.target_max_soc} and then wait until "
             f"{energy_rate_before_price_rises_over_average.timestamp}"
         )
         with self._protocol_amount_of_energy_bought():
-            self._charge_inverter(target_max_soc)
+            self._charge_inverter(self.target_max_soc)
         self.log.info(f"Waiting until {energy_rate_before_price_rises_over_average.timestamp}...")
         pause.until(energy_rate_before_price_rises_over_average.timestamp)
         return energy_rate_after_price_drops_after_average, energy_rate_before_price_rises_over_average
@@ -324,7 +300,6 @@ class InverterChargeController(LoggerMixin):
         average_power_consumption: Power,
         energy_rate_after_price_drops_after_average: EnergyRate,
         energy_rate_before_price_rises_over_average: EnergyRate,
-        target_min_soc: StateOfCharge,
     ) -> None:
         self.log.debug(
             "The energy rate after the price drops below the average is lower than the rate before "
@@ -342,7 +317,7 @@ class InverterChargeController(LoggerMixin):
                 self._get_solar_data(),
             )
         )
-        if minimum_of_soc_until_next_price_minimum >= target_min_soc:
+        if minimum_of_soc_until_next_price_minimum >= self.target_min_soc:
             self.log.info(
                 "The energy rate after the price drops below the average can be reached without charging "
                 f"--> Waiting until {energy_rate_after_price_drops_after_average.timestamp}"
@@ -370,8 +345,6 @@ class InverterChargeController(LoggerMixin):
         self,
         current_state_of_charge: StateOfCharge,
         current_energy_rate: EnergyRate,
-        target_min_soc: StateOfCharge,
-        target_max_soc: StateOfCharge,
         minimum_of_soc_until_next_price_minimum: StateOfCharge,
         maximum_of_soc_until_next_price_minimum: StateOfCharge,
     ) -> None:
@@ -386,8 +359,6 @@ class InverterChargeController(LoggerMixin):
         Args:
             current_state_of_charge (StateOfCharge): The current level of charge in the battery.
             current_energy_rate (EnergyRate): The current cost of energy, influencing charging decisions.
-            target_min_soc (StateOfCharge): The minimum SOC target the battery shall hold at all times.
-            target_max_soc (StateOfCharge): The maximum SOC target the charging shall stop at.
             minimum_of_soc_until_next_price_minimum (StateOfCharge): The calculated minimum SOC in the timespan to the
                 next price minimum.
             maximum_of_soc_until_next_price_minimum (StateOfCharge): The calculated maximum SOC in the timespan to the
@@ -399,20 +370,22 @@ class InverterChargeController(LoggerMixin):
                 f"the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) "
                 "--> Will only charge the battery to reach the next price minimum"
             )
-            if minimum_of_soc_until_next_price_minimum > target_min_soc:
+            if minimum_of_soc_until_next_price_minimum > self.target_min_soc:
                 self.log.info(
                     "The expected minimum state of charge until the next price minimum without additional charging "
                     f"{minimum_of_soc_until_next_price_minimum} is higher than the target minimum state of charge "
-                    f"{target_min_soc} --> There is no need to charge"
+                    f"{self.target_min_soc} --> There is no need to charge"
                 )
                 return
 
             self.log.debug(
                 f"Formula for calculating the target state of charge: current {current_state_of_charge} + "
-                f"target minimum state of charge ({target_min_soc}) - minimum state of charge until next price "
+                f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
                 f"minimum ({minimum_of_soc_until_next_price_minimum})"
             )
-            charging_target_soc = current_state_of_charge + target_min_soc - minimum_of_soc_until_next_price_minimum
+            charging_target_soc = (
+                current_state_of_charge + self.target_min_soc - minimum_of_soc_until_next_price_minimum
+            )
 
         else:
             self.log.info(
@@ -422,19 +395,21 @@ class InverterChargeController(LoggerMixin):
             )
             self.log.debug(
                 f"Formula for calculating the target state of charge: current ({current_state_of_charge}) + "
-                f"target maximum state of charge ({target_max_soc})  - "
+                f"target maximum state of charge ({self.target_max_soc})  - "
                 f"maximum state of charge until next price minimum ({maximum_of_soc_until_next_price_minimum})"
             )
-            charging_target_soc = current_state_of_charge + target_max_soc - maximum_of_soc_until_next_price_minimum
+            charging_target_soc = (
+                current_state_of_charge + self.target_max_soc - maximum_of_soc_until_next_price_minimum
+            )
 
         self.log.info(f"The calculated target state of charge is {charging_target_soc}")
 
-        if charging_target_soc > target_max_soc:
+        if charging_target_soc > self.target_max_soc:
             self.log.info(
                 "The target state of charge is more than the maximum allowed charge set in the environment "
-                f"--> Setting it to {target_max_soc}"
+                f"--> Setting it to {self.target_max_soc}"
             )
-            charging_target_soc = target_max_soc
+            charging_target_soc = self.target_max_soc
 
         with self._protocol_amount_of_energy_bought():
             self._charge_inverter(charging_target_soc)
@@ -612,6 +587,18 @@ class InverterChargeController(LoggerMixin):
                 InfluxDBField("timestamp_starting_to_charge", timestamp_starting_to_charge.isoformat()),
                 InfluxDBField("timestamp_ending_to_charge", timestamp_ending_to_charge.isoformat()),
             ]
+        )
+
+    @property
+    def target_min_soc(self) -> StateOfCharge:
+        return StateOfCharge.from_percentage(
+            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MIN_STATE_OF_CHARGE", 15))
+        )
+
+    @property
+    def target_max_soc(self) -> StateOfCharge:
+        return StateOfCharge.from_percentage(
+            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 15))
         )
 
     """

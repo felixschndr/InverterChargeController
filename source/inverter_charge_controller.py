@@ -118,7 +118,7 @@ class InverterChargeController(LoggerMixin):
         current_energy_rate = self.next_price_minimum
 
         self.next_price_minimum = self._get_next_price_minimum()
-        self.log.info(f"The next price minimum is at {self.next_price_minimum}")
+        self.log.info(f"The next price minimum is {self.next_price_minimum}")
 
         current_state_of_charge = self.inverter.get_state_of_charge()
         self.log.info(f"The battery is currently is at {current_state_of_charge}")
@@ -216,7 +216,9 @@ class InverterChargeController(LoggerMixin):
             if not self._is_next_price_minimum_reachable_by_charging_the_battery_fully(
                 timestamp_now, average_power_consumption, target_min_soc, minimum_of_soc_until_next_price_minimum
             ):
-                self._coordinate_charging_when_next_price_minimum_is_unreachable(target_max_soc)
+                self._coordinate_charging_when_next_price_minimum_is_unreachable(
+                    average_power_consumption, target_min_soc, target_max_soc
+                )
                 return
 
         self._coordinate_charging_next_price_minimum_is_reachable(
@@ -270,7 +272,9 @@ class InverterChargeController(LoggerMixin):
             )
             return False
 
-    def _coordinate_charging_when_next_price_minimum_is_unreachable(self, target_max_soc: StateOfCharge) -> None:
+    def _coordinate_charging_when_next_price_minimum_is_unreachable(
+        self, average_power_consumption: Power, target_min_soc: StateOfCharge, target_max_soc: StateOfCharge
+    ) -> None:
         """
         Handles the coordination of battery charging when the upcoming price minimum cannot be reached.
 
@@ -279,6 +283,22 @@ class InverterChargeController(LoggerMixin):
         Args:
             target_max_soc (StateOfCharge): The maximum SOC target the charging shall stop at.
         """
+        energy_rate_after_price_drops_after_average, energy_rate_before_price_rises_over_average = (
+            self._coordinate_charging_when_next_price_minimum_is_unreachable_first_charge(target_max_soc)
+        )
+
+        self.log.info("Waking up to determine the optimal charging time around the price spike")
+        if energy_rate_after_price_drops_after_average < energy_rate_before_price_rises_over_average:
+            self._coordinate_charging_when_next_price_minimum_is_unreachable_second_charge_after_spike_cheaper_than_before(
+                average_power_consumption,
+                energy_rate_after_price_drops_after_average,
+                energy_rate_before_price_rises_over_average,
+                target_min_soc,
+            )
+
+    def _coordinate_charging_when_next_price_minimum_is_unreachable_first_charge(
+        self, target_max_soc: StateOfCharge
+    ) -> tuple[EnergyRate, EnergyRate]:
         upcoming_energy_rates = self._get_upcoming_energy_rates()
         energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_after_average = (
             self.tibber_api_handler.get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
@@ -295,11 +315,56 @@ class InverterChargeController(LoggerMixin):
         )
         with self._protocol_amount_of_energy_bought():
             self._charge_inverter(target_max_soc)
-
-        self.log.info(f"Waiting until {energy_rate_before_price_rises_over_average.timestamp}")
+        self.log.info(f"Waiting until {energy_rate_before_price_rises_over_average.timestamp}...")
         pause.until(energy_rate_before_price_rises_over_average.timestamp)
+        return energy_rate_after_price_drops_after_average, energy_rate_before_price_rises_over_average
 
-        # TODO: Continue here
+    def _coordinate_charging_when_next_price_minimum_is_unreachable_second_charge_after_spike_cheaper_than_before(
+        self,
+        average_power_consumption: Power,
+        energy_rate_after_price_drops_after_average: EnergyRate,
+        energy_rate_before_price_rises_over_average: EnergyRate,
+        target_min_soc: StateOfCharge,
+    ) -> None:
+        self.log.debug(
+            "The energy rate after the price drops below the average is lower than the rate before "
+            "--> Checking whether it is necessary to charge to reach that point in time"
+        )
+        current_state_of_charge = self.inverter.get_state_of_charge()
+        self.log.debug(f"The current state of charge is {current_state_of_charge}")
+        minimum_of_soc_until_next_price_minimum, _ = (
+            self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
+                energy_rate_before_price_rises_over_average.timestamp,
+                energy_rate_after_price_drops_after_average.timestamp,
+                average_power_consumption,
+                current_state_of_charge,
+                self.next_price_minimum.has_to_be_rechecked,
+                self._get_solar_data(),
+            )
+        )
+        if minimum_of_soc_until_next_price_minimum >= target_min_soc:
+            self.log.info(
+                "The energy rate after the price drops below the average can be reached without charging "
+                f"--> Waiting until {energy_rate_after_price_drops_after_average.timestamp}"
+            )
+            pause.until(energy_rate_after_price_drops_after_average.timestamp)
+
+            self.log.info(
+                f"Waking up to determine what is necessary to reach the next price minimum "
+                f"({self.next_price_minimum.timestamp})"
+            )
+            current_state_of_charge = self.inverter.get_state_of_charge()
+            self.log.debug(f"The current state of charge is {current_state_of_charge}")
+            minimum_of_soc_until_next_price_minimum, _ = (
+                self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
+                    energy_rate_after_price_drops_after_average.timestamp,
+                    self.next_price_minimum.timestamp,
+                    average_power_consumption,
+                    current_state_of_charge,
+                    self.next_price_minimum.has_to_be_rechecked,
+                    self._get_solar_data(),
+                )
+            )
 
     def _coordinate_charging_next_price_minimum_is_reachable(
         self,

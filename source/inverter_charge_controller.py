@@ -430,6 +430,12 @@ class InverterChargeController(LoggerMixin):
         """
         charging_progress_check_interval = timedelta(minutes=5)
 
+        if self.inverter.get_state_of_charge().in_percentage >= target_state_of_charge.in_percentage:
+            self.log.info(
+                "The current state of charge is higher or equal to the target state of charge" "--> Will not charge"
+            )
+            return
+
         maximum_end_charging_time = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0) + timedelta(hours=2)
 
         self.log.info("Starting to charge")

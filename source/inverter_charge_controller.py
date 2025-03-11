@@ -365,41 +365,18 @@ class InverterChargeController(LoggerMixin):
                 next price minimum.
         """
         if current_energy_rate >= self.next_price_minimum:
-            self.log.info(
-                f"The price of the current minimum ({current_energy_rate.rate} ct/kWh) is higher than the one of "
-                f"the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) "
-                "--> Will only charge the battery to reach the next price minimum"
-            )
-            if minimum_of_soc_until_next_price_minimum > self.target_min_soc:
-                self.log.info(
-                    "The expected minimum state of charge until the next price minimum without additional charging "
-                    f"{minimum_of_soc_until_next_price_minimum} is higher than the target minimum state of charge "
-                    f"{self.target_min_soc} --> There is no need to charge"
+            charging_target_soc = (
+                self._calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_higher_than_next_one(
+                    current_energy_rate, current_state_of_charge, minimum_of_soc_until_next_price_minimum
                 )
+            )
+            if charging_target_soc is None:
                 return
-
-            self.log.debug(
-                f"Formula for calculating the target state of charge: current {current_state_of_charge} + "
-                f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
-                f"minimum ({minimum_of_soc_until_next_price_minimum})"
-            )
-            charging_target_soc = (
-                current_state_of_charge + self.target_min_soc - minimum_of_soc_until_next_price_minimum
-            )
-
         else:
-            self.log.info(
-                f"The price of the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
-                f"the current minimum ({current_energy_rate.rate} ct/kWh) "
-                "--> Will charge as much as possible without wasting any energy of the sun"
-            )
-            self.log.debug(
-                f"Formula for calculating the target state of charge: current ({current_state_of_charge}) + "
-                f"target maximum state of charge ({self.target_max_soc})  - "
-                f"maximum state of charge until next price minimum ({maximum_of_soc_until_next_price_minimum})"
-            )
             charging_target_soc = (
-                current_state_of_charge + self.target_max_soc - maximum_of_soc_until_next_price_minimum
+                self._calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_lower_than_next_one(
+                    current_energy_rate, current_state_of_charge, maximum_of_soc_until_next_price_minimum
+                )
             )
 
         self.log.info(f"The calculated target state of charge is {charging_target_soc}")
@@ -413,6 +390,50 @@ class InverterChargeController(LoggerMixin):
 
         with self._protocol_amount_of_energy_bought():
             self._charge_inverter(charging_target_soc)
+
+    def _calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_higher_than_next_one(
+        self,
+        current_energy_rate: EnergyRate,
+        current_state_of_charge: StateOfCharge,
+        minimum_of_soc_until_next_price_minimum: StateOfCharge,
+    ) -> Optional[StateOfCharge]:
+        self.log.info(
+            f"The price of the current minimum ({current_energy_rate.rate} ct/kWh) is higher than the one of "
+            f"the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) "
+            "--> Will only charge the battery to reach the next price minimum"
+        )
+        if minimum_of_soc_until_next_price_minimum > self.target_min_soc:
+            self.log.info(
+                "The expected minimum state of charge until the next price minimum without additional charging "
+                f"{minimum_of_soc_until_next_price_minimum} is higher than the target minimum state of charge "
+                f"{self.target_min_soc} --> There is no need to charge"
+            )
+            return None
+
+        self.log.debug(
+            f"Formula for calculating the target state of charge: current {current_state_of_charge} + "
+            f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
+            f"minimum ({minimum_of_soc_until_next_price_minimum})"
+        )
+        return current_state_of_charge + self.target_min_soc - minimum_of_soc_until_next_price_minimum
+
+    def _calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_lower_than_next_one(
+        self,
+        current_energy_rate: EnergyRate,
+        current_state_of_charge: StateOfCharge,
+        maximum_of_soc_until_next_price_minimum: StateOfCharge,
+    ) -> StateOfCharge:
+        self.log.info(
+            f"The price of the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
+            f"the current minimum ({current_energy_rate.rate} ct/kWh) "
+            "--> Will charge as much as possible without wasting any energy of the sun"
+        )
+        self.log.debug(
+            f"Formula for calculating the target state of charge: current ({current_state_of_charge}) + "
+            f"target maximum state of charge ({self.target_max_soc})  - "
+            f"maximum state of charge until next price minimum ({maximum_of_soc_until_next_price_minimum})"
+        )
+        return current_state_of_charge + self.target_max_soc - maximum_of_soc_until_next_price_minimum
 
     def _charge_inverter(self, target_state_of_charge: StateOfCharge) -> None:
         """

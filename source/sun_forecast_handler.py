@@ -129,7 +129,7 @@ class SunForecastHandler(LoggerMixin):
         )
         return minimum_soc, maximum_soc
 
-    def retrieve_solar_data(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, Power]:
+    def retrieve_solar_data(self, retrieve_future_data: bool) -> dict[str, Power]:
         """
         Retrieves solar data for a specified timeframe either from the solar forecast API or a debug solar output
         depending on the configuration and API response.
@@ -138,8 +138,7 @@ class SunForecastHandler(LoggerMixin):
         (too many requests) from the solar forecast API, the method falls back to using a debug solar data output.
 
         Args:
-            timeframe_start: Start date and time of the timeframe for which solar data is requested.
-            timeframe_end: End date and time of the timeframe for which solar data is requested.
+            retrieve_future_data: Whether to retrieve data for the future or the past.
 
         Returns:
             A dictionary where keys represent specific times and values represent the forecasted power at those times.
@@ -152,22 +151,21 @@ class SunForecastHandler(LoggerMixin):
             return self._get_debug_solar_data()
 
         try:
-            return self.retrieve_solar_data_from_api(timeframe_start, timeframe_end)
+            return self.retrieve_solar_data_from_api(retrieve_future_data)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 429:
                 raise e
             self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
             return self._get_debug_solar_data()
 
-    def retrieve_solar_data_from_api(self, timeframe_start: datetime, timeframe_end: datetime) -> dict[str, Power]:
+    def retrieve_solar_data_from_api(self, retrieve_future_data: bool) -> dict[str, Power]:
         """
         Retrieves solar data from an API over a specified timeframe. The function collects photovoltaic forecasts and/or
         historic data for multiple rooftops, processes the data into a dictionary mapping timestamps to cumulative power
         values, and writes relevant data to a database.
 
         Args:
-            timeframe_start (datetime): The start of the timeframe for which to retrieve solar data.
-            timeframe_end (datetime): The end of the timeframe for which to retrieve solar data.
+            retrieve_future_data: Whether to retrieve data for the future or the past.
 
         Returns:
             dict[str, Power]: A dictionary where keys represent timestamps (as ISO format strings) and values are Power
@@ -175,19 +173,17 @@ class SunForecastHandler(LoggerMixin):
         """
         rooftop_ids = self._get_rooftop_ids()
 
-        need_to_retrieve_forecast_data, need_to_retrieve_historic_data = self._need_to_retrieve_data(
-            timeframe_start, timeframe_end
-        )
-
         solar_data = {}
 
         now = TimeHandler.get_time().isoformat()
         for rooftop_id in rooftop_ids:
             data_for_rooftop = []
-            if need_to_retrieve_historic_data:
-                data_for_rooftop += self.retrieve_historic_data_from_api(rooftop_id)
-            if need_to_retrieve_forecast_data:
+            if retrieve_future_data:
+                self.log.debug("Need to retrieve forecast data")
                 data_for_rooftop += self.retrieve_forecast_data_from_api(rooftop_id)
+            else:
+                self.log.debug("Need to retrieve historic data")
+                data_for_rooftop += self.retrieve_historic_data_from_api(rooftop_id)
             self.timeframe_duration = parse_duration(data_for_rooftop[0]["period"])
             for timeslot in data_for_rooftop:
                 period_start = (
@@ -247,31 +243,6 @@ class SunForecastHandler(LoggerMixin):
         if rooftop_id_2 is not None:
             rooftop_ids.append(rooftop_id_2)
         return rooftop_ids
-
-    def _need_to_retrieve_data(self, timeframe_start: datetime, timeframe_end: datetime) -> tuple[bool, bool]:
-        """
-        This method evaluates whether either historic data or forecast data needs to be retrieved based on the given
-        start and end timeframes in comparison to the current time.
-
-        Args:
-            timeframe_start (datetime): The start of the timeframe for evaluation.
-            timeframe_end (datetime): The end of the timeframe for evaluation.
-
-        Returns:
-            tuple[bool, bool]: A tuple containing two boolean values:
-                - The first boolean indicates whether retrieval of forecast data is required.
-                - The second boolean indicates whether retrieval of historic data is required.
-        """
-        need_to_retrieve_historic_data = False
-        need_to_retrieve_forecast_data = False
-        now_minus_offset = TimeHandler.get_time(sanitize_seconds=True) - timedelta(seconds=1)
-        if timeframe_start >= now_minus_offset or timeframe_end >= now_minus_offset:
-            self.log.debug("Need to retrieve forecast data")
-            need_to_retrieve_forecast_data = True
-        if timeframe_start <= now_minus_offset:
-            self.log.debug("Need to retrieve historic data")
-            need_to_retrieve_historic_data = True
-        return need_to_retrieve_forecast_data, need_to_retrieve_historic_data
 
     @staticmethod
     def _calculate_energy_usage_in_timeframe(

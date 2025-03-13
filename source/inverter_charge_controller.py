@@ -676,7 +676,7 @@ class InverterChargeController(LoggerMixin):
         if not timeframe_start or not timeframe_end:
             raise ValueError("Timeframe start and end must be provided to retrieve solar data if the cache is empty")
 
-        solar_data = self.sun_forecast_handler.retrieve_solar_data(timeframe_start, timeframe_end)
+        solar_data = self.sun_forecast_handler.retrieve_solar_data(True)
         self._set_cache_key(cache_key, solar_data)
         return solar_data
 

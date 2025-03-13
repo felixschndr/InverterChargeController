@@ -47,16 +47,13 @@ def write_solar_forecast_and_history_to_db() -> None:
         logger.log.info(f"Next wakeup time to log solar forecast data is at {next_wakeup_time}")
         pause.until(next_wakeup_time)
 
-        start, end = _get_morning_and_evening_timestamp_of_today(morning_time, evening_time)
         logger.write_newlines_to_log_file()
-        logger.log.info(f"Waking up to log solar forecast data from {start} to {end}")
-        if TimeHandler.get_time().hour == morning_time.hour:
-            start += timedelta(minutes=2)
-        else:
-            end -= timedelta(minutes=2)
+        logger.log.info("Waking up to log solar data of today")
 
         try:
-            sun_forecast_handler.retrieve_solar_data_from_api(start, end)
+            # We call this function instead of retrieve_solar_data to ensure not writing debug data into the DB
+            need_to_retrieve_future_data = next_wakeup_time.hour == morning_time.hour
+            sun_forecast_handler.retrieve_solar_data_from_api(need_to_retrieve_future_data)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 429:
                 raise e

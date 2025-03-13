@@ -2,32 +2,6 @@
 
 This project aims to charge the battery pack of a photovoltaic system when the energy rates are as low as possible.
 
-The program continuously runs and does the following:
-
-It queries the Tibber API for the least expensive energy rates (= *price minimum*).
-  - This is done in the [TibberAPIHandler](source/tibber_api_handler.py).
-  - The program then runs from a minimum in prices to the next one and sleeps in between.
-
-When the current time is a price minimum, the program wakes up and does the following:
-1. Check for the expected power consumption until the next price minimum.
-    - This is done in the [SemsPortalApiHandler](source/sems_portal_api_handler.py).
-    - The inverter used while programming this is a model from Goodwe (`GW5KN-ET`) which sends its data (state of charge, power input, power output, ...) into the SEMS portal. These values are retrieved from there via the API.
-    - The program calculates how much power will be used until the next price minimum. This is done based on the duration until then, how much power is used during the day vs. during the night and the power consumption in the last 7 days.
-2. Check for the amount of expected power harvested by the sun until the next price minimum.
-    - This is done in the [SunForecastHandler](source/sun_forecast_handler.py).
-    - The data about the photovoltaic system is used to query https://forecast.solar/ via their API for an estimate of power production during the day.
-    - The program calculates how much power will be harvested until the next price minimum. This is done based on the duration until then, the amount of sun until then and the overlapping of the timeframes (duration until next minimum vs. sun shining only during the day). 
-3. Check the amount of power currently remaining in the battery.
-   - This is done in the [SemsPortalApiHandler](source/sems_portal_api_handler.py).
-4. Check the amount of power supposed to be remaining in the battery when reaching the next price minimum.
-    - This is (as many other values) defined in `.env`. More explanation on this can be found below. 
-5. Calculate the difference between these values.
-6. Charge the battery (if necessary) such that reaching the next price minimum is possible.
-   - This is (as well as the main loop) is done in the [InverterChargeController](source/inverter_charge_controller.py).
-   - If charging is necessary, the code calculates the target state of charge, sets the inverter controller accordingly and checks the battery status every 5 minutes.
-   - If no charging is needed, the program will do nothing.
-   - Afterwards, the program will go back to sleep until the next price minimum.
-
 ## Usage
 
 ### Setup

@@ -110,6 +110,7 @@ class LoggerMixin:
         logging.getLogger("asyncio").setLevel(logging.WARNING)
         logging.getLogger("goodwe").setLevel(logging.INFO)
         logging.getLogger("goodwe.protocol").setLevel(logging.INFO)
+        logging.getLogger("tzlocal").setLevel(logging.INFO)
 
     @staticmethod
     def _create_logging_directory_if_necessary(directory_of_logs: str) -> None:

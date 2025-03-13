@@ -9,6 +9,7 @@ from energy_classes import EnergyAmount, Power, StateOfCharge
 from environment_variable_getter import EnvironmentVariableGetter
 from isodate import parse_duration
 from logger import LoggerMixin
+from suntimes import SunTimes
 from time_handler import TimeHandler
 
 
@@ -19,6 +20,8 @@ class SunForecastHandler(LoggerMixin):
         super().__init__()
 
         self.timeframe_duration = None
+        self.headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
+        self.latitude, self.longitude = self._get_latitude_and_longitude()
 
         self.database_handler = DatabaseHandler("solar_forecast")
 
@@ -224,8 +227,7 @@ class SunForecastHandler(LoggerMixin):
         """
         api_base_url = "https://api.solcast.com.au/rooftop_sites/{0}/{1}?format=json"
         url = api_base_url.format(rooftop_id, path)
-        headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
-        response = requests.get(url, timeout=5, headers=headers)
+        response = requests.get(url, timeout=5, headers=self.headers)
         response.raise_for_status()
 
         data = response.json()
@@ -371,3 +373,43 @@ class SunForecastHandler(LoggerMixin):
             current_replace_timestamp += self.timeframe_duration
             sample_data[current_replace_timestamp.isoformat()] = Power.from_kilo_watts(timeslot["pv_estimate"])
         return sample_data
+
+    def get_upcoming_sunset_time(self) -> datetime:
+        """
+        Gets the upcoming sunset time for the specified geographical location.
+
+        This function calculates the time of the upcoming sunset based on the current local time and the provided
+        geographical coordinates (longitude and latitude). If the sunset for the current day has already passed, the
+        function returns the sunset time for the following day.
+
+        Returns:
+            datetime: A datetime object representing the upcoming sunset time in the local timezone.
+        """
+        timestamp_now = TimeHandler.get_time()
+        sun = SunTimes(self.longitude, self.latitude)
+
+        sunset = sun.setlocal(timestamp_now)
+        if timestamp_now > sunset:
+            return sun.setlocal(timestamp_now + timedelta(days=1))
+        return sunset
+
+    def _get_latitude_and_longitude(self) -> tuple[float, float]:
+        """
+        Retrieves latitude and longitude of a rooftop site by making a request to the Solcast API.
+
+        Returns:
+            tuple[float, float]: A tuple containing the latitude and longitude of the requested site.
+        """
+        url = (
+            f"https://api.solcast.com.au/json/reply/GetRooftopSiteByResourceId?resource_id="
+            f"{EnvironmentVariableGetter.get('ROOFTOP_ID_1')}"
+        )
+        response = requests.get(url, timeout=5, headers=self.headers)
+        response.raise_for_status()
+
+        data = response.json()
+
+        latitude = data["site"]["latitude"]
+        longitude = data["site"]["longitude"]
+        self.log.trace(f"Retrieved latitude and longitude: {latitude}, {longitude}")
+        return latitude, longitude

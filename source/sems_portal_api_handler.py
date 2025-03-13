@@ -27,7 +27,7 @@ class SemsPortalApiHandler(LoggerMixin):
         This has to be done every time a request is made to the API since the authentication tokens expire after a few
         seconds.
         """
-        self.log.trace("Logging in into the SEMSPORTAL...")
+        self.log.debug("Logging in into the SEMSPORTAL")
         url = "https://www.semsportal.com/api/v1/Common/CrossLogin"
         headers = {
             "Content-Type": "application/json",
@@ -38,7 +38,7 @@ class SemsPortalApiHandler(LoggerMixin):
             "pwd": EnvironmentVariableGetter.get("SEMSPORTAL_PASSWORD"),
         }
 
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
         response.raise_for_status()
         response = response.json()
 
@@ -97,7 +97,7 @@ class SemsPortalApiHandler(LoggerMixin):
             "date": TimeHandler.get_date_as_string(),
         }
 
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
         response = response.json()
 
@@ -260,7 +260,7 @@ class SemsPortalApiHandler(LoggerMixin):
             "full_script": False,
         }
 
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
         response = response.json()
 

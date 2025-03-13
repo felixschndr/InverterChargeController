@@ -260,19 +260,31 @@ class InverterChargeController(LoggerMixin):
         Args:
             average_power_consumption: The average rate of power consumption during the charging period.
         """
-        energy_rate_after_price_drops_after_average, energy_rate_before_price_rises_over_average = (
-            self._coordinate_charging_when_next_price_minimum_is_unreachable_first_charge()
+        energy_rate_after_price_drops_over_average, energy_rate_before_price_rises_over_average = (
+            self._get_energy_rates_before_and_after_price_spike()
         )
 
+        max_soc = StateOfCharge.from_percentage(100)
+        self.log.info(f"Charging the inverter to {max_soc}")
+        with self._protocol_amount_of_energy_bought():
+            self._charge_inverter(max_soc)
+
+        self.log.info(
+            f"The energy rates before the price spike is at {energy_rate_before_price_rises_over_average.timestamp}"
+            f"--> Waiting until then..."
+        )
+        pause.until(energy_rate_before_price_rises_over_average.timestamp)
+
         self.log.info("Waking up to determine the optimal charging time around the price spike")
-        if energy_rate_after_price_drops_after_average < energy_rate_before_price_rises_over_average:
+        if energy_rate_after_price_drops_over_average < energy_rate_before_price_rises_over_average:
             self._coordinate_charging_when_next_price_minimum_is_unreachable_second_charge_after_spike_cheaper_than_before(
                 average_power_consumption,
-                energy_rate_after_price_drops_after_average,
+                energy_rate_after_price_drops_over_average,
                 energy_rate_before_price_rises_over_average,
             )
+        # TODO
 
-    def _coordinate_charging_when_next_price_minimum_is_unreachable_first_charge(
+    def _get_energy_rates_before_and_after_price_spike(
         self,
     ) -> tuple[EnergyRate, EnergyRate]:
         upcoming_energy_rates = self._get_upcoming_energy_rates()
@@ -289,10 +301,7 @@ class InverterChargeController(LoggerMixin):
             f"--> Will charge now to {self.target_max_soc} and then wait until "
             f"{energy_rate_before_price_rises_over_average.timestamp}"
         )
-        with self._protocol_amount_of_energy_bought():
-            self._charge_inverter(self.target_max_soc)
-        self.log.info(f"Waiting until {energy_rate_before_price_rises_over_average.timestamp}...")
-        pause.until(energy_rate_before_price_rises_over_average.timestamp)
+
         return energy_rate_after_price_drops_after_average, energy_rate_before_price_rises_over_average
 
     def _coordinate_charging_when_next_price_minimum_is_unreachable_second_charge_after_spike_cheaper_than_before(
@@ -301,9 +310,11 @@ class InverterChargeController(LoggerMixin):
         energy_rate_after_price_drops_after_average: EnergyRate,
         energy_rate_before_price_rises_over_average: EnergyRate,
     ) -> None:
-        self.log.debug(
+        # Current time: Right before the price spike
+        self.log.info(
             "The energy rate after the price drops below the average is lower than the rate before "
-            "--> Checking whether it is necessary to charge to reach that point in time"
+            "--> Checking whether it is necessary to charge to reach that point in time "
+            f"({energy_rate_after_price_drops_after_average.timestamp})"
         )
         current_state_of_charge = self.inverter.get_state_of_charge()
         self.log.debug(f"The current state of charge is {current_state_of_charge}")
@@ -332,7 +343,7 @@ class InverterChargeController(LoggerMixin):
             self.log.debug(f"The current state of charge is {current_state_of_charge}")
             minimum_of_soc_until_next_price_minimum, _ = (
                 self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
-                    energy_rate_after_price_drops_after_average.timestamp,
+                    energy_rate_after_price_drops_after_average.timestamp,  # = now
                     self.next_price_minimum.timestamp,
                     average_power_consumption,
                     current_state_of_charge,
@@ -380,13 +391,6 @@ class InverterChargeController(LoggerMixin):
             )
 
         self.log.info(f"The calculated target state of charge is {charging_target_soc}")
-
-        if charging_target_soc > self.target_max_soc:
-            self.log.info(
-                "The target state of charge is more than the maximum allowed charge set in the environment "
-                f"--> Setting it to {self.target_max_soc}"
-            )
-            charging_target_soc = self.target_max_soc
 
         with self._protocol_amount_of_energy_bought():
             self._charge_inverter(charging_target_soc)
@@ -450,6 +454,13 @@ class InverterChargeController(LoggerMixin):
                 charging process.
         """
         charging_progress_check_interval = timedelta(minutes=5)
+
+        if target_state_of_charge > self.target_max_soc:
+            self.log.info(
+                "The target state of charge is higher than the maximum allowed charge set in the environment "
+                f"--> Setting it to {self.target_max_soc}"
+            )
+            target_state_of_charge = self.target_max_soc
 
         if self.inverter.get_state_of_charge().in_percentage >= target_state_of_charge.in_percentage:
             self.log.info(

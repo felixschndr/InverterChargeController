@@ -160,7 +160,7 @@ class SunForecastHandler(LoggerMixin):
 
     def retrieve_solar_data_from_api(self, retrieve_future_data: bool) -> dict[str, Power]:
         """
-        Retrieves solar data from an API over a specified timeframe. The function collects photovoltaic forecasts and/or
+        Retrieves solar data from an API over a specified timeframe. The function collects photovoltaic forecasts or
         historic data for multiple rooftops, processes the data into a dictionary mapping timestamps to cumulative power
         values, and writes relevant data to a database.
 
@@ -173,16 +173,16 @@ class SunForecastHandler(LoggerMixin):
         """
         rooftop_ids = self._get_rooftop_ids()
 
+        self.log.debug("Need to retrieve forecast data" if retrieve_future_data else "Need to retrieve historic data")
+
         solar_data = {}
 
         now = TimeHandler.get_time().isoformat()
         for rooftop_id in rooftop_ids:
             data_for_rooftop = []
             if retrieve_future_data:
-                self.log.debug("Need to retrieve forecast data")
                 data_for_rooftop += self.retrieve_forecast_data_from_api(rooftop_id)
             else:
-                self.log.debug("Need to retrieve historic data")
                 data_for_rooftop += self.retrieve_historic_data_from_api(rooftop_id)
             self.timeframe_duration = parse_duration(data_for_rooftop[0]["period"])
             for timeslot in data_for_rooftop:

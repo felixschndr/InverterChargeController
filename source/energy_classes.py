@@ -26,6 +26,9 @@ class EnergyAmount:
     def __lt__(self, other: EnergyAmount) -> bool:
         return self.watt_hours < other.watt_hours
 
+    def __le__(self, other: EnergyAmount) -> bool:
+        return self.watt_hours <= other.watt_hours
+
     def __gt__(self, other: EnergyAmount) -> bool:
         return self.watt_hours > other.watt_hours
 
@@ -72,8 +75,14 @@ class EnergyRate:
     def __lt__(self, other: EnergyRate) -> bool:
         return self.rate < other.rate
 
+    def __le__(self, other: EnergyRate) -> bool:
+        return self.rate <= other.rate
+
     def __gt__(self, other: EnergyRate) -> bool:
         return self.rate > other.rate
+
+    def __ge__(self, other: EnergyRate) -> bool:
+        return self.rate >= other.rate
 
 
 soc_logger = LoggerMixin("StateOfCharge")
@@ -104,6 +113,9 @@ class StateOfCharge:
 
     def __lt__(self, other: StateOfCharge) -> bool:
         return self.absolute < other.absolute
+
+    def __le__(self, other: StateOfCharge) -> bool:
+        return self.absolute <= other.absolute
 
     def __gt__(self, other: StateOfCharge) -> bool:
         return self.absolute > other.absolute

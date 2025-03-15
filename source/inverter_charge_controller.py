@@ -424,15 +424,20 @@ class InverterChargeController(LoggerMixin):
             self.next_price_minimum.has_to_be_rechecked,
             self._get_solar_data(),
         )
+        """
+        We use StateOfCharge.from_percentage(100) instead of of self.target_max_soc as we want to charge as much as
+        possible without wasting any energy of the sun. Since the sun can "charge" the battery to 100 % and we do not
+        care about the speed of charging we use that.
+        """
         self.log.debug(
             f"Formula for calculating the target state of charge: current ({current_state_of_charge}) + "
-            f"target maximum state of charge ({self.target_max_soc}) - maximum state of charge until the "
+            f"{StateOfCharge.from_percentage(100)} - maximum state of charge until the "
             f"{'next price minimum' if minimum_comes_last else 'upcoming sunset'} "
             f"({maximum_of_soc_until_timeframe_end})"
         )
         return StateOfCharge(
             current_state_of_charge.absolute
-            + self.target_max_soc.absolute
+            + StateOfCharge.from_percentage(100).absolute
             - maximum_of_soc_until_timeframe_end.absolute
         )
 

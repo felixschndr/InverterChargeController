@@ -241,10 +241,13 @@ class InverterChargeController(LoggerMixin):
             self._get_energy_rates_before_and_after_price_spike()
         )
 
-        max_soc = StateOfCharge.from_percentage(100)
-        self.log.info(f"Charging the inverter to {max_soc}")
-        with self._protocol_amount_of_energy_bought():
-            self._charge_inverter(max_soc)
+        target_soc = StateOfCharge.from_percentage(100)
+        self.log.info(f"Charging the inverter to {target_soc}")
+
+        target_soc = self._cap_state_of_charge(target_soc)
+        if target_soc is not None:
+            with self._protocol_amount_of_energy_bought():
+                self._charge_inverter(target_soc)
 
         self.log.info(
             f"The energy rates before the price spike is at {energy_rate_before_price_rises_over_average.timestamp}"
@@ -365,8 +368,10 @@ class InverterChargeController(LoggerMixin):
 
         self.log.info(f"The calculated target state of charge is {charging_target_soc}")
 
-        with self._protocol_amount_of_energy_bought():
-            self._charge_inverter(charging_target_soc)
+        charging_target_soc = self._cap_state_of_charge(charging_target_soc)
+        if charging_target_soc is not None:
+            with self._protocol_amount_of_energy_bought():
+                self._charge_inverter(charging_target_soc)
 
     def _calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_higher_than_next_one(
         self,
@@ -425,7 +430,9 @@ class InverterChargeController(LoggerMixin):
             f"{'next price minimum' if minimum_comes_last else 'upcoming sunset'} "
             f"({maximum_of_soc_until_timeframe_end})"
         )
-        return current_state_of_charge + self.target_max_soc - maximum_of_soc_until_timeframe_end
+        return (
+            current_state_of_charge + self.target_max_soc - maximum_of_soc_until_timeframe_end
+        )  # FIXME: Capped by SOC max
 
     def _charge_inverter(self, target_state_of_charge: StateOfCharge) -> None:
         """
@@ -442,19 +449,6 @@ class InverterChargeController(LoggerMixin):
                 charging process.
         """
         charging_progress_check_interval = timedelta(minutes=5)
-
-        if target_state_of_charge > self.target_max_soc:
-            self.log.info(
-                "The target state of charge is higher than the maximum allowed charge set in the environment "
-                f"--> Setting it to {self.target_max_soc}"
-            )
-            target_state_of_charge = self.target_max_soc
-
-        if self.inverter.get_state_of_charge().in_percentage >= target_state_of_charge.in_percentage:
-            self.log.info(
-                "The current state of charge is higher or equal to the target state of charge" "--> Will not charge"
-            )
-            return
 
         maximum_end_charging_time = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0) + timedelta(hours=2)
 
@@ -530,7 +524,7 @@ class InverterChargeController(LoggerMixin):
         It calculates the energy bought during the session, logs it, and saves the data in the database.
 
         Yields:
-            None: Context manager block is executed.
+            Generator: Context manager block is executed.
         """
         energy_bought_before_charging = self.sems_portal_api_handler.get_energy_buy()
         timestamp_starting_to_charge = TimeHandler.get_time()
@@ -615,6 +609,33 @@ class InverterChargeController(LoggerMixin):
             ]
         )
 
+    def _cap_state_of_charge(self, target_state_of_charge: StateOfCharge) -> Optional[StateOfCharge]:
+        """
+        Caps the target state of charge based on maximum allowed charge in the environment
+        and returns None when the current state of charge is higher than the target state of charge.
+
+        Args:
+            target_state_of_charge (StateOfCharge): Desired state of charge
+
+        Returns:
+            Optional[StateOfCharge]: Returns the capped state of charge if the target state of charge is higher than the
+                current state of charge; otherwise, returns None.
+        """
+        if target_state_of_charge > self.target_max_soc:
+            self.log.info(
+                "The target state of charge is higher than the maximum allowed charge set in the environment "
+                f"--> Setting it to {self.target_max_soc}"
+            )
+            target_state_of_charge = self.target_max_soc
+
+        if self.inverter.get_state_of_charge().in_percentage >= target_state_of_charge.in_percentage:
+            self.log.info(
+                "The current state of charge is higher or equal to the target state of charge --> Will not charge"
+            )
+            return None
+
+        return target_state_of_charge
+
     @property
     def target_min_soc(self) -> StateOfCharge:
         return StateOfCharge.from_percentage(
@@ -683,7 +704,6 @@ class InverterChargeController(LoggerMixin):
     def _get_value_from_cache_if_exists(self, cache_key: str) -> Optional[Any]:
         if cache_key not in self.iteration_cache.keys():
             return None
-        self.log.debug(f"Cache hit for: {cache_key}")
         return self.iteration_cache[cache_key]
 
     def _set_cache_key(self, cache_key: str, value: Any) -> None:

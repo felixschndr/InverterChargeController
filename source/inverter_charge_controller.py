@@ -430,9 +430,11 @@ class InverterChargeController(LoggerMixin):
             f"{'next price minimum' if minimum_comes_last else 'upcoming sunset'} "
             f"({maximum_of_soc_until_timeframe_end})"
         )
-        return (
-            current_state_of_charge + self.target_max_soc - maximum_of_soc_until_timeframe_end
-        )  # FIXME: Capped by SOC max
+        return StateOfCharge(
+            current_state_of_charge.absolute
+            + self.target_max_soc.absolute
+            - maximum_of_soc_until_timeframe_end.absolute
+        )
 
     def _charge_inverter(self, target_state_of_charge: StateOfCharge) -> None:
         """

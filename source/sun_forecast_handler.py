@@ -223,7 +223,7 @@ class SunForecastHandler(LoggerMixin):
         """
         api_base_url = "https://api.solcast.com.au/rooftop_sites/{0}/{1}?format=json"
         url = api_base_url.format(rooftop_id, path)
-        response = requests.get(url, timeout=5, headers=self.headers)
+        response = requests.get(url, timeout=20, headers=self.headers)
         response.raise_for_status()
 
         data = response.json()
@@ -375,7 +375,7 @@ class SunForecastHandler(LoggerMixin):
             f"https://api.solcast.com.au/json/reply/GetRooftopSiteByResourceId?resource_id="
             f"{EnvironmentVariableGetter.get('ROOFTOP_ID_1')}"
         )
-        response = requests.get(url, timeout=5, headers=self.headers)
+        response = requests.get(url, timeout=10, headers=self.headers)
         response.raise_for_status()
 
         data = response.json()

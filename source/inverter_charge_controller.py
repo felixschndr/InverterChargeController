@@ -63,6 +63,7 @@ class InverterChargeController(LoggerMixin):
                     first_iteration = False
                 else:
                     self._do_iteration()
+                    self.iteration_cache = {}
 
                 if self.next_price_minimum.has_to_be_rechecked:
                     now = TimeHandler.get_time(sanitize_seconds=True)
@@ -124,6 +125,13 @@ class InverterChargeController(LoggerMixin):
         current_state_of_charge = self.inverter.get_state_of_charge()
         self.log.info(f"The battery is currently is at {current_state_of_charge}")
 
+        if current_state_of_charge >= self.target_max_soc:
+            self.log.info(
+                f"The current state of charge ({current_state_of_charge}) is greater than the maximum allowed"
+                f"state of charge ({self.target_max_soc}) --> No charging necessary/possible"
+            )
+            return
+
         self.average_power_consumption = self._get_average_power_consumption()
         self.log.info(f"The average power consumption is {self.average_power_consumption}")
 
@@ -164,8 +172,6 @@ class InverterChargeController(LoggerMixin):
             current_energy_rate,
             minimum_of_soc_until_next_price_minimum,
         )
-
-        self.iteration_cache = {}
 
     def coordinate_charging(
         self,

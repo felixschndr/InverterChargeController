@@ -138,22 +138,6 @@ class InverterChargeController(LoggerMixin):
         self.log.info(f"The battery shall be at least at {self.target_min_soc} at all times")
         self.log.info(f"The battery shall be at most be charged up to {self.target_max_soc}")
 
-        minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
-            self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
-                timestamp_now,
-                self.next_price_minimum.timestamp,
-                self.average_power_consumption,
-                current_state_of_charge,
-                self.next_price_minimum.has_to_be_rechecked,
-                self._get_solar_data(timestamp_now, self.next_price_minimum.timestamp),
-            )
-        )
-        self.log.info(
-            f"The expected minimum of state of charge until the next price minimum with the current state of charge is "
-            f"{minimum_of_soc_until_next_price_minimum}, "
-            f"the expected maximum is {maximum_of_soc_until_next_price_minimum}"
-        )
-
         summary_of_energy_vales = {
             "timestamp now": str(timestamp_now),
             "next price minimum": self.next_price_minimum,
@@ -162,23 +146,12 @@ class InverterChargeController(LoggerMixin):
             "average power consumption": self.average_power_consumption.watts,
             "target min soc": self.target_min_soc,
             "target max soc": self.target_max_soc,
-            "minimum of soc until next price minimum": minimum_of_soc_until_next_price_minimum,
-            "maximum of soc until next price minimum": maximum_of_soc_until_next_price_minimum,
         }
         self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
-        self.coordinate_charging(
-            current_state_of_charge,
-            current_energy_rate,
-            minimum_of_soc_until_next_price_minimum,
-        )
+        self.coordinate_charging(current_state_of_charge, current_energy_rate)
 
-    def coordinate_charging(
-        self,
-        current_state_of_charge: StateOfCharge,
-        current_energy_rate: EnergyRate,
-        minimum_of_soc_until_next_price_minimum: StateOfCharge,
-    ) -> None:
+    def coordinate_charging(self, current_state_of_charge: StateOfCharge, current_energy_rate: EnergyRate) -> None:
         """
         Coordinates the charging process based on the current state of charge, power consumption, energy rate,
         calculated min and max state of charges and targets for state of charge.
@@ -187,9 +160,23 @@ class InverterChargeController(LoggerMixin):
         Args:
             current_state_of_charge (StateOfCharge): The current level of charge in the battery.
             current_energy_rate (EnergyRate): The current cost of energy, influencing charging decisions.
-            minimum_of_soc_until_next_price_minimum (StateOfCharge): The calculated minimum SOC in the timespan to the
-                next price minimum.
         """
+        minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
+            self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
+                TimeHandler.get_time(),
+                self.next_price_minimum.timestamp,
+                self.average_power_consumption,
+                current_state_of_charge,
+                self.next_price_minimum.has_to_be_rechecked,
+                self._get_solar_data(),
+            )
+        )
+        self.log.info(
+            f"The expected minimum of state of charge until the next price minimum with the current state of charge is "
+            f"{minimum_of_soc_until_next_price_minimum}, "
+            f"the expected maximum is {maximum_of_soc_until_next_price_minimum}"
+        )
+
         if minimum_of_soc_until_next_price_minimum < self.target_min_soc:
             self.log.info(
                 "The expected minimum state of charge until the next price minimum without additional charging "

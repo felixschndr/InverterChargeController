@@ -98,11 +98,11 @@ class StateOfCharge:
 
     def __post_init__(self):
         if self.absolute.watt_hours > battery_capacity.watt_hours:
-            soc_logger.log.debug(f"Capping the state of charge at the battery capacity (would be {self.absolute})")
+            soc_logger.log.trace(f"Capping the state of charge at the battery capacity (would be {self.absolute})")
             self.absolute = EnergyAmount(battery_capacity.watt_hours)
 
         if self.absolute.watt_hours < 0:
-            soc_logger.log.debug(f"Capping the state of charge at 0 (would be {self.absolute})")
+            soc_logger.log.trace(f"Capping the state of charge at 0 (would be {self.absolute})")
             self.absolute = EnergyAmount(0)
 
     def __add__(self, other: StateOfCharge) -> StateOfCharge:

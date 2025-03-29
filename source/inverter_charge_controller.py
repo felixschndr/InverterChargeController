@@ -127,7 +127,7 @@ class InverterChargeController(LoggerMixin):
 
         if current_state_of_charge >= self.target_max_soc:
             self.log.info(
-                f"The current state of charge ({current_state_of_charge}) is greater than the maximum allowed"
+                f"The current state of charge ({current_state_of_charge}) is greater than the maximum allowed "
                 f"state of charge ({self.target_max_soc}) --> No charging necessary/possible"
             )
             return
@@ -390,7 +390,11 @@ class InverterChargeController(LoggerMixin):
             f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
             f"minimum ({minimum_of_soc_until_next_price_minimum})"
         )
-        return current_state_of_charge + self.target_min_soc - minimum_of_soc_until_next_price_minimum
+        return StateOfCharge(
+            current_state_of_charge.absolute
+            + self.target_min_soc.absolute
+            - minimum_of_soc_until_next_price_minimum.absolute
+        )
 
     def _calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_lower_than_next_one(
         self,

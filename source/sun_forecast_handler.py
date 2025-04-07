@@ -345,24 +345,15 @@ class SunForecastHandler(LoggerMixin):
             sample_data[current_replace_timestamp.isoformat()] = Power.from_kilo_watts(timeslot["pv_estimate"])
         return sample_data
 
-    def get_upcoming_sunset_time(self) -> datetime:
+    def get_tomorrows_sunset_time(self) -> datetime:
         """
-        Gets the upcoming sunset time for the specified geographical location.
-
-        This function calculates the time of the upcoming sunset based on the current local time and the provided
-        geographical coordinates (longitude and latitude). If the sunset for the current day has already passed, the
-        function returns the sunset time for the following day.
+        Gets the time of tomorrow's sunset.
 
         Returns:
-            datetime: A datetime object representing the upcoming sunset time in the local timezone.
+            datetime: The local time of tomorrow's sunset.
         """
-        timestamp_now = TimeHandler.get_time()
         sun = SunTimes(self.longitude, self.latitude)
-
-        sunset = sun.setlocal(timestamp_now)
-        if timestamp_now > sunset:
-            return sun.setlocal(timestamp_now + timedelta(days=1))
-        return sunset
+        return sun.setlocal(TimeHandler.get_date() + timedelta(days=1))
 
     def _get_latitude_and_longitude(self) -> tuple[float, float]:
         """

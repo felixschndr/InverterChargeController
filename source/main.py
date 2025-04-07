@@ -109,8 +109,8 @@ if __name__ == "__main__":
     started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
     if os.path.exists(LOCK_FILE_PATH):
         logger.write_newlines_to_log_file()
-        logger.log.error(
-            f"Attempted to start the inverter charge controller {started_by_systemd}, but it is already running."
+        logger.log.warning(
+            f"Attempted to start the inverter charge controller{started_by_systemd}, but it is already running."
         )
         sys.exit(1)
 

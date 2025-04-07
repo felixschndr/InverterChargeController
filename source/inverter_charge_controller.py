@@ -406,13 +406,8 @@ class InverterChargeController(LoggerMixin):
             f"the current minimum ({current_energy_rate.rate} ct/kWh) "
             "--> Will charge as much as possible without wasting any energy of the sun"
         )
-        upcoming_sunset_time = self.sun_forecast_handler.get_upcoming_sunset_time()
-        timeframe_end = max(self.next_price_minimum.timestamp, upcoming_sunset_time)
-        minimum_comes_last = self.next_price_minimum.timestamp == timeframe_end
-        self.log.debug(
-            f"The timeframe end is {timeframe_end} (next price minimum: {self.next_price_minimum.timestamp}, "
-            f"sunset: {upcoming_sunset_time})"
-        )
+        timeframe_end = self.sun_forecast_handler.get_tomorrows_sunset_time()
+        self.log.debug(f"The timeframe end (tomorrows sunset) is {timeframe_end}")
         _, maximum_of_soc_until_timeframe_end = self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
             TimeHandler.get_time(),
             timeframe_end,
@@ -428,8 +423,7 @@ class InverterChargeController(LoggerMixin):
         """
         self.log.debug(
             f"Formula for calculating the target state of charge: current ({current_state_of_charge}) + "
-            f"{StateOfCharge.from_percentage(100)} - maximum state of charge until the "
-            f"{'next price minimum' if minimum_comes_last else 'upcoming sunset'} "
+            f"{StateOfCharge.from_percentage(100)} - maximum state of charge until tomorrows sunset "
             f"({maximum_of_soc_until_timeframe_end})"
         )
         return StateOfCharge(

@@ -228,19 +228,24 @@ class InverterChargeController(LoggerMixin):
         """
         Handles the coordination of battery charging when the upcoming price minimum cannot be reached.
 
-        This function utilizes the upcoming energy rates to determine the most efficient charging strategy.
+        This function utilizes the upcoming energy rates to determine the most efficient charging strategy. It does this
+        by first charging the battery to the target maximum, and then charging the battery around the price spike.
+        The "price spike" is the sequence of all EnergyRates that are higher than the average price.
         """
-        energy_rate_after_price_drops_over_average, energy_rate_before_price_rises_over_average = (
-            self._get_energy_rates_before_and_after_price_spike()
-        )
-
         target_soc = StateOfCharge.from_percentage(100)
-        self.log.info(f"Charging the inverter to {target_soc}")
+        self.log.info(
+            f"Firstly, charging the inverter to {target_soc}. As additional charging is required, afterwards, check "
+            "the best prices around the price spike to determine the best time to charge"
+        )
 
         target_soc = self._cap_state_of_charge(target_soc)
         if target_soc is not None:
             with self._protocol_amount_of_energy_bought():
                 self._charge_inverter(target_soc)
+
+        energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_below_average = (
+            self._get_energy_rates_before_and_after_price_spike()
+        )
 
         self.log.info(
             f"The energy rates before the price spike is at {energy_rate_before_price_rises_over_average.timestamp}"
@@ -249,79 +254,118 @@ class InverterChargeController(LoggerMixin):
         pause.until(energy_rate_before_price_rises_over_average.timestamp)
 
         self.log.info("Waking up to determine the optimal charging time around the price spike")
-        if energy_rate_after_price_drops_over_average < energy_rate_before_price_rises_over_average:
-            self._coordinate_charging_when_next_price_minimum_is_unreachable_second_charge_after_spike_cheaper_than_before(
-                energy_rate_after_price_drops_over_average,
-                energy_rate_before_price_rises_over_average,
+        if energy_rate_after_price_drops_below_average < energy_rate_before_price_rises_over_average:
+            self.log.info(
+                "The energy rate after the price drops below the average is lower than the rate before it drops over "
+                "the average --> Checking whether it is necessary to charge now to reach after the price spike "
+                f"({energy_rate_after_price_drops_below_average.timestamp})"
             )
-        # TODO
+            self._coordinate_charging_when_next_price_minimum_is_unreachable_and_second_charge_after_spike_cheaper_than_before(
+                energy_rate_after_price_drops_below_average,
+            )
 
-    def _get_energy_rates_before_and_after_price_spike(
-        self,
-    ) -> tuple[EnergyRate, EnergyRate]:
-        upcoming_energy_rates = self._get_upcoming_energy_rates()
-        energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_after_average = (
+        pause.until(energy_rate_after_price_drops_below_average.timestamp)
+        self._coordinate_charging_after_price_spike_until_next_minimum()
+
+    def _get_energy_rates_before_and_after_price_spike(self) -> tuple[EnergyRate, EnergyRate]:
+        energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_below_average = (
             self.tibber_api_handler.get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
-                upcoming_energy_rates, self.next_price_minimum.timestamp
+                self._get_upcoming_energy_rates(), self.next_price_minimum.timestamp
             )
         )
         self.log.info(
             f"The last energy rate before the price rises over the average is "
             f"{energy_rate_before_price_rises_over_average}. "
             f"The first energy rate after the price drops below the average is "
-            f"{energy_rate_after_price_drops_after_average}."
+            f"{energy_rate_after_price_drops_below_average}."
             f"--> Will charge now to {self.target_max_soc} and then wait until "
             f"{energy_rate_before_price_rises_over_average.timestamp}"
         )
 
-        return energy_rate_after_price_drops_after_average, energy_rate_before_price_rises_over_average
+        return energy_rate_before_price_rises_over_average, energy_rate_after_price_drops_below_average
 
-    def _coordinate_charging_when_next_price_minimum_is_unreachable_second_charge_after_spike_cheaper_than_before(
+    def _coordinate_charging_when_next_price_minimum_is_unreachable_and_second_charge_after_spike_cheaper_than_before(
         self,
-        energy_rate_after_price_drops_after_average: EnergyRate,
-        energy_rate_before_price_rises_over_average: EnergyRate,
+        energy_rate_after_price_drops_below_average: EnergyRate,
     ) -> None:
         # Current time: Right before the price spike
         self.log.info(
-            "The energy rate after the price drops below the average is lower than the rate before "
-            "--> Checking whether it is necessary to charge to reach that point in time "
-            f"({energy_rate_after_price_drops_after_average.timestamp})"
+            "The energy rate after the price drops below the average is lower than the rate before it drops over the"
+            "average --> Checking whether it is necessary to charge now to reach after the price spike "
+            f"({energy_rate_after_price_drops_below_average.timestamp})"
         )
         current_state_of_charge = self.inverter.get_state_of_charge()
         self.log.debug(f"The current state of charge is {current_state_of_charge}")
         minimum_of_soc_until_next_price_minimum, _ = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
-                energy_rate_before_price_rises_over_average.timestamp,
-                energy_rate_after_price_drops_after_average.timestamp,
+                TimeHandler.get_time(),
+                energy_rate_after_price_drops_below_average.timestamp,
                 self.average_power_consumption,
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
             )
         )
-        if minimum_of_soc_until_next_price_minimum >= self.target_min_soc:
+        if minimum_of_soc_until_next_price_minimum < self.target_min_soc:
             self.log.info(
-                "The energy rate after the price drops below the average can be reached without charging "
-                f"--> Waiting until {energy_rate_after_price_drops_after_average.timestamp}"
+                "It is not possible to reach after the price spike without charging. "
+                "--> Charging now as few as possible to reach after the price spike "
+                f"({energy_rate_after_price_drops_below_average.timestamp})"
             )
-            pause.until(energy_rate_after_price_drops_after_average.timestamp)
+            self.log.debug(
+                f"Formula for calculating the target state of charge: "
+                f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
+                f"minimum ({minimum_of_soc_until_next_price_minimum})"
+            )
+            charging_target_soc = StateOfCharge(
+                self.target_min_soc.absolute - minimum_of_soc_until_next_price_minimum.absolute
+            )
+            self.log.info(f"The calculated target state of charge is {charging_target_soc}")
+            charging_target_soc = self._cap_state_of_charge(charging_target_soc)
+            if charging_target_soc is not None:
+                with self._protocol_amount_of_energy_bought():
+                    self._charge_inverter(charging_target_soc)
 
             self.log.info(
-                f"Waking up to determine what is necessary to reach the next price minimum "
-                f"({self.next_price_minimum.timestamp})"
+                f"Waiting until after the price spike ({energy_rate_after_price_drops_below_average.timestamp})"
             )
-            current_state_of_charge = self.inverter.get_state_of_charge()
-            self.log.debug(f"The current state of charge is {current_state_of_charge}")
-            minimum_of_soc_until_next_price_minimum, _ = (
-                self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
-                    energy_rate_after_price_drops_after_average.timestamp,  # = now
-                    self.next_price_minimum.timestamp,
-                    self.average_power_consumption,
-                    current_state_of_charge,
-                    self.next_price_minimum.has_to_be_rechecked,
-                    self._get_solar_data(),
-                )
+        else:
+            self.log.info(
+                "It is possible to reach after the price spike without charging. "
+                f"--> Waiting until then ({energy_rate_after_price_drops_below_average.timestamp})"
             )
+
+    def _coordinate_charging_after_price_spike_until_next_minimum(self) -> None:
+        self.log.info(
+            f"Determining what is necessary to reach the next price minimum ({self.next_price_minimum.timestamp})"
+        )
+        current_state_of_charge = self.inverter.get_state_of_charge()
+        self.log.debug(f"The current state of charge is {current_state_of_charge}")
+        minimum_of_soc_until_next_price_minimum, _ = (
+            self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
+                TimeHandler.get_time(),
+                self.next_price_minimum.timestamp,
+                self.average_power_consumption,
+                current_state_of_charge,
+                self.next_price_minimum.has_to_be_rechecked,
+                self._get_solar_data(),
+            )
+        )
+        self.log.debug(
+            f"Formula for calculating the target state of charge: current {current_state_of_charge} + "
+            f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
+            f"minimum ({minimum_of_soc_until_next_price_minimum})"
+        )
+        charging_target_soc = StateOfCharge(
+            current_state_of_charge.absolute
+            + self.target_min_soc.absolute
+            - minimum_of_soc_until_next_price_minimum.absolute
+        )
+        self.log.info(f"The calculated target state of charge is {charging_target_soc}")
+        charging_target_soc = self._cap_state_of_charge(charging_target_soc)
+        if charging_target_soc is not None:
+            with self._protocol_amount_of_energy_bought():
+                self._charge_inverter(charging_target_soc)
 
     def _coordinate_charging_next_price_minimum_is_reachable(
         self,
@@ -375,7 +419,7 @@ class InverterChargeController(LoggerMixin):
         self.log.info(
             f"The price of the current minimum ({current_energy_rate.rate} ct/kWh) is higher than the one of "
             f"the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) "
-            "--> Will only charge the battery to reach the next price minimum"
+            "--> Will only charge the battery as little as possible to reach the next price minimum"
         )
         if minimum_of_soc_until_next_price_minimum > self.target_min_soc:
             self.log.info(

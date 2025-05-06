@@ -34,10 +34,11 @@ class InverterChargeController(LoggerMixin):
 
         self.next_price_minimum = None
         self.average_power_consumption = None
-        # This is a dict which saves the values of a certain operations such as the upcoming energy rates, the
-        # expected power harvested by the sun or the expected power usage
-        # This way if one of the requests to an external system fails (e.g. no Internet access) the prior requests don't
-        # have to be made again. This is especially important for the very limited API calls to the sun forecast API.
+        # This is a dict that saves the values of a certain operations such as the upcoming energy rates, the
+        # expected power harvested by the sun or the expected power usage.
+        # This way if one of the requests to an external system fails (e.g., no Internet access), the prior requests
+        # don't have to be made again.
+        # This is especially important for the very limited API calls to the sun forecast API.
         self.iteration_cache = {}
 
     def start(self) -> None:
@@ -726,7 +727,17 @@ class InverterChargeController(LoggerMixin):
         if average_power_consumption:
             return average_power_consumption
 
-        average_power_consumption = self.sems_portal_api_handler.get_average_power_consumption()
+        if self.absence_handler.check_for_current_absence():
+            self.log.info(
+                "Currently there is an absence, using the power consumption configured in the environment as the basis "
+                "for calculation"
+            )
+            average_power_consumption = Power(float(EnvironmentVariableGetter.get("ABSENCE_POWER_CONSUMPTION", 150)))
+        else:
+            self.log.debug(
+                "Currently there is no absence, using last week's power consumption data as the basis for calculation"
+            )
+            average_power_consumption = self.sems_portal_api_handler.get_average_power_consumption()
         self._set_cache_key(cache_key, average_power_consumption)
         return average_power_consumption
 

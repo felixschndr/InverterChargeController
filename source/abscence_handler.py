@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from energy_classes import EnergyAmount, Power
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
 from time_handler import TimeHandler
@@ -30,7 +29,7 @@ class AbsenceHandler(LoggerMixin):
             self.log.debug("Absence input is empty")
             return False
         if absence_input.count(self.DELIMITER) != 1:
-            raise ValueError(f'The amount of "{self.DELIMITER}" MUST be 1')
+            raise ValueError(f'The amount of "{self.DELIMITER}" in the input MUST be 1')
 
         self.log.trace(f'Raw input is "{absence_input}"')
         absence_start_raw, absence_end_raw = absence_input.replace(" ", "").split(self.DELIMITER)
@@ -45,13 +44,4 @@ class AbsenceHandler(LoggerMixin):
         if absence_start < TimeHandler.get_time() < absence_end:
             return True
 
-        return False
-
-    def calculate_power_usage_for_absence(self, timestamp_start: datetime, timestamp_end: datetime) -> EnergyAmount:
-        absence_power_consumption = Power(float(EnvironmentVariableGetter.get("ABSENCE_POWER_CONSUMPTION", 150)))
-        self.log.debug(f"Power consumption during absence is {absence_power_consumption}")
-        timeframe = timestamp_end - timestamp_start
-        self.log.debug(f"Duration until next minimum is {timeframe}")
-        energy_usage = EnergyAmount.from_watt_seconds(absence_power_consumption.watts * timeframe.total_seconds())
-        self.log.debug(f"Energy usage during absence is {energy_usage}")
-        return energy_usage
+        return absence_start < TimeHandler.get_time() < absence_end

@@ -126,6 +126,7 @@ class SunForecastHandler(LoggerMixin):
             f"the expected maximum of state of charge is {maximum_soc}, "
             f"the expected total amount of energy used is {total_energy_used} "
             f"and the expected total amount of energy harvested is {total_energy_harvested}"
+            f"when starting with a state of charge of {starting_soc}"
         )
         return minimum_soc, maximum_soc
 

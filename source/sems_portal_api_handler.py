@@ -27,7 +27,7 @@ class SemsPortalApiHandler(LoggerMixin):
         This has to be done every time a request is made to the API since the authentication tokens expire after a few
         seconds.
         """
-        self.log.debug("Logging in into the SEMSPORTAL")
+        self.log.trace("Logging in into the SEMSPORTAL")
         url = "https://www.semsportal.com/api/v1/Common/CrossLogin"
         headers = {
             "Content-Type": "application/json",
@@ -83,7 +83,7 @@ class SemsPortalApiHandler(LoggerMixin):
         """
         self._login()
 
-        self.log.debug("Crawling the SEMSPORTAL API for energy consumption data...")
+        self.log.trace("Crawling the SEMSPORTAL API for energy consumption data...")
 
         url = "https://eu.semsportal.com/api/v2/Charts/GetChartByPlant"
         headers = {

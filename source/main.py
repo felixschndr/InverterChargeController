@@ -24,7 +24,7 @@ def lock() -> None:
     """
     with open(LOCK_FILE_PATH, "w") as lock_file:
         lock_file.write(str(os.getpid()))
-    logger.log.debug("Lock file created")
+    logger.log.trace("Lock file created")
 
 
 def unlock() -> None:
@@ -35,7 +35,7 @@ def unlock() -> None:
         return
 
     os.remove(LOCK_FILE_PATH)
-    logger.log.debug("Lock file removed")
+    logger.log.trace("Lock file removed")
 
 
 def write_solar_forecast_and_history_to_db() -> None:

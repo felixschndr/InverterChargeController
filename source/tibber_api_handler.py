@@ -54,7 +54,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             EnergyRate: The next price minimum energy rate.
         """
-        self.log.debug("Finding the price minimum...")
+        self.log.trace("Finding the price minimum...")
         if upcoming_energy_rates is None:
             upcoming_energy_rates = self.get_upcoming_energy_rates()
         if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
@@ -138,7 +138,7 @@ class TibberAPIHandler(LoggerMixin):
             }
         """
         )
-        self.log.debug("Crawling the Tibber API for the electricity prices")
+        self.log.trace("Crawling the Tibber API for the electricity prices")
         response = self.client.execute(query)
         self.log.trace(f"Retrieved data: {response}")
         return response
@@ -206,12 +206,12 @@ class TibberAPIHandler(LoggerMixin):
         for energy_rate in energy_rates_ending_at_first_maximum:
             energy_rates_starting_at_first_maximum.remove(energy_rate)
 
-        self.log.debug(f"Found {first_maximum_energy_rate} to be the first maximum of the upcoming energy rates")
+        self.log.trace(f"Found {first_maximum_energy_rate} to be the first maximum of the upcoming energy rates")
 
         energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
             energy_rates_starting_at_first_maximum
         )
-        self.log.debug(
+        self.log.trace(
             f"Found {energy_rates_between_first_and_second_maximum[-1]} to be the second maximum of the upcoming energy rates"
         )
 

@@ -32,6 +32,7 @@ class InverterChargeController(LoggerMixin):
         self.absence_handler = AbsenceHandler()
         self.database_handler = DatabaseHandler("power_buy")
 
+        self.current_energy_rate = None
         self.next_price_minimum = None
         self.average_power_consumption = None
         # This is a dict that saves the values of a certain operations such as the upcoming energy rates, the
@@ -117,11 +118,18 @@ class InverterChargeController(LoggerMixin):
         self.log.info(
             "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
         )
-        timestamp_now = TimeHandler.get_time()
-        current_energy_rate = self.next_price_minimum
+        self.current_energy_rate = self.next_price_minimum
 
         self.next_price_minimum = self._get_next_price_minimum()
         self.log.info(f"The next price minimum is {self.next_price_minimum}")
+
+        self.tibber_api_handler.set_maximum_charging_duration_of_current_energy_rate(
+            self.current_energy_rate, self._get_upcoming_energy_rates()
+        )
+        self.log.info(
+            f"The maximum charging duration of the current energy rate is "
+            f"{self.current_energy_rate.maximum_charging_duration}"
+        )
 
         current_state_of_charge = self.inverter.get_state_of_charge()
         self.log.info(f"The battery is currently is at {current_state_of_charge}")
@@ -140,9 +148,9 @@ class InverterChargeController(LoggerMixin):
         self.log.info(f"The battery shall be at most be charged up to {self.target_max_soc}")
 
         summary_of_energy_vales = {
-            "timestamp now": str(timestamp_now),
             "next price minimum": self.next_price_minimum,
             "next price minimum has to be rechecked": self.next_price_minimum.has_to_be_rechecked,
+            "maximum charging duration": str(self.current_energy_rate.maximum_charging_duration),
             "current state of charge": current_state_of_charge,
             "average power consumption": self.average_power_consumption.watts,
             "target min soc": self.target_min_soc,
@@ -150,9 +158,9 @@ class InverterChargeController(LoggerMixin):
         }
         self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
-        self.coordinate_charging(current_state_of_charge, current_energy_rate)
+        self.coordinate_charging(current_state_of_charge)
 
-    def coordinate_charging(self, current_state_of_charge: StateOfCharge, current_energy_rate: EnergyRate) -> None:
+    def coordinate_charging(self, current_state_of_charge: StateOfCharge) -> None:
         """
         Coordinates the charging process based on the current state of charge, power consumption, energy rate,
         calculated min and max state of charges and targets for state of charge.
@@ -160,7 +168,6 @@ class InverterChargeController(LoggerMixin):
 
         Args:
             current_state_of_charge (StateOfCharge): The current level of charge in the battery.
-            current_energy_rate (EnergyRate): The current cost of energy, influencing charging decisions.
         """
         minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
@@ -191,7 +198,6 @@ class InverterChargeController(LoggerMixin):
 
         self._coordinate_charging_next_price_minimum_is_reachable(
             current_state_of_charge,
-            current_energy_rate,
             minimum_of_soc_until_next_price_minimum,
         )
 
@@ -371,7 +377,6 @@ class InverterChargeController(LoggerMixin):
     def _coordinate_charging_next_price_minimum_is_reachable(
         self,
         current_state_of_charge: StateOfCharge,
-        current_energy_rate: EnergyRate,
         minimum_of_soc_until_next_price_minimum: StateOfCharge,
     ) -> None:
         """
@@ -384,14 +389,13 @@ class InverterChargeController(LoggerMixin):
 
         Args:
             current_state_of_charge (StateOfCharge): The current level of charge in the battery.
-            current_energy_rate (EnergyRate): The current cost of energy, influencing charging decisions.
             minimum_of_soc_until_next_price_minimum (StateOfCharge): The calculated minimum SOC in the timespan to the
                 next price minimum.
         """
-        if current_energy_rate >= self.next_price_minimum:
+        if self.current_energy_rate >= self.next_price_minimum:
             charging_target_soc = (
                 self._calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_higher_than_next_one(
-                    current_energy_rate, current_state_of_charge, minimum_of_soc_until_next_price_minimum
+                    current_state_of_charge, minimum_of_soc_until_next_price_minimum
                 )
             )
             if charging_target_soc is None:
@@ -399,7 +403,6 @@ class InverterChargeController(LoggerMixin):
         else:
             charging_target_soc = (
                 self._calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_lower_than_next_one(
-                    current_energy_rate,
                     current_state_of_charge,
                 )
             )
@@ -413,12 +416,11 @@ class InverterChargeController(LoggerMixin):
 
     def _calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_higher_than_next_one(
         self,
-        current_energy_rate: EnergyRate,
         current_state_of_charge: StateOfCharge,
         minimum_of_soc_until_next_price_minimum: StateOfCharge,
     ) -> Optional[StateOfCharge]:
         self.log.info(
-            f"The price of the current minimum ({current_energy_rate.rate} ct/kWh) is higher than the one of "
+            f"The price of the current minimum ({self.current_energy_rate.rate} ct/kWh) is higher than the one of "
             f"the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) "
             "--> Will only charge the battery as little as possible to reach the next price minimum"
         )
@@ -442,13 +444,11 @@ class InverterChargeController(LoggerMixin):
         )
 
     def _calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_lower_than_next_one(
-        self,
-        current_energy_rate: EnergyRate,
-        current_state_of_charge: StateOfCharge,
+        self, current_state_of_charge: StateOfCharge
     ) -> StateOfCharge:
         self.log.info(
             f"The price of the upcoming minimum ({self.next_price_minimum.rate} ct/kWh) is higher than the one of "
-            f"the current minimum ({current_energy_rate.rate} ct/kWh) "
+            f"the current minimum ({self.current_energy_rate.rate} ct/kWh) "
             "--> Will charge as much as possible without wasting any energy of the sun"
         )
         timeframe_end = self.sun_forecast_handler.get_tomorrows_sunset_time()
@@ -493,7 +493,9 @@ class InverterChargeController(LoggerMixin):
         """
         charging_progress_check_interval = timedelta(minutes=5)
 
-        maximum_end_charging_time = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0) + timedelta(hours=2)
+        maximum_end_charging_time = TimeHandler.floor_to_quarter(
+            TimeHandler.get_time() + self.current_energy_rate.maximum_charging_duration
+        )
 
         self.log.info("Starting to charge")
         self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)

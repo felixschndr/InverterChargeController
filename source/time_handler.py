@@ -23,3 +23,8 @@ class TimeHandler:
     @staticmethod
     def get_date_as_string() -> str:
         return TimeHandler.get_date().strftime("%Y-%m-%d")
+
+    @staticmethod
+    def floor_to_quarter(timestamp: datetime) -> datetime:
+        minutes = (timestamp.minute // 15) * 15
+        return timestamp.replace(minute=minutes, second=0, microsecond=0)

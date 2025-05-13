@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from environment_variable_getter import EnvironmentVariableGetter
 from logger import LoggerMixin
@@ -67,6 +67,7 @@ class Power:
 class EnergyRate:
     rate: float
     timestamp: datetime
+    maximum_charging_duration: timedelta = timedelta(hours=1)
     has_to_be_rechecked: bool = False
 
     def __repr__(self):

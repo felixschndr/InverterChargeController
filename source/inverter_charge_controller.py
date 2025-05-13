@@ -483,13 +483,13 @@ class InverterChargeController(LoggerMixin):
         Monitors the charging progress at regular intervals and stops the charging process if specific conditions are
         met:
          - Charging limit reached
-         - Maximum charging duration reached (at this point the energy prices would be to high to charge)
-         - The state of the inverter was changed manually
+         - Maximum charging duration reached (at this point the energy prices would be too high to charge)
+         - The operational mode of the inverter was changed manually
          - Too many errors occurred while trying to communicate with the inverter
 
         Args:
-            target_state_of_charge: The desired battery state of charge percentage to reach during the
-                charging process.
+            target_state_of_charge: The desired battery state of charge percentage to reach during the charging
+                process.
         """
         charging_progress_check_interval = timedelta(minutes=5)
 

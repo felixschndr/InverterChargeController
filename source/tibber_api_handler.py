@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from database_handler import DatabaseHandler, InfluxDBField
 from energy_classes import EnergyRate
@@ -23,6 +23,9 @@ class TibberAPIHandler(LoggerMixin):
 
         self.database_handler = DatabaseHandler("energy_prices")
 
+        # 15 min
+        self.energyrates_are_in_15_minute_tacts = False
+
     def get_next_price_minimum(
         self, first_iteration: bool = False, upcoming_energy_rates: list[EnergyRate] = None
     ) -> EnergyRate:
@@ -36,7 +39,7 @@ class TibberAPIHandler(LoggerMixin):
         A maximum is set to only be a maximum if the price is at least MAXIMUM_THRESHOLD € higher than the minimum
         found until this point. This is done since sometimes there is a downward sloping trend in which there are one or
         two rates that are not smaller than the ones before but instead just a little higher (about 0.5-1.5 cents).
-        Without this threshold these values would be interpreted as maximums (that there are not).
+        Without this threshold, these values would be interpreted as maximums (that there are not).
         TLDR: Introduce a maximum threshold to better identify real maximum energy rates, preventing minor fluctuations
         from being misinterpreted as maxima.
 
@@ -57,9 +60,7 @@ class TibberAPIHandler(LoggerMixin):
         self.log.trace("Finding the price minimum...")
         if upcoming_energy_rates is None:
             upcoming_energy_rates = self.get_upcoming_energy_rates()
-        if first_iteration and not self._check_if_next_three_prices_are_greater_than_current_one(
-            upcoming_energy_rates
-        ):
+        if first_iteration and self._check_if_next_prices_are_on_a_decline(upcoming_energy_rates):
             self.log.debug(
                 "This is the first time finding the minimum prices and the prices are currently on a decline. "
                 "Thus the next price minimum is considered (instead of the one after the first maximum)."
@@ -86,11 +87,18 @@ class TibberAPIHandler(LoggerMixin):
         self.log.debug("Fetching the upcoming energy rates from the Tibber API...")
         api_result = self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
+
+        # 15 min
+        self.energyrates_are_in_15_minute_tacts = (
+            all_energy_rates[0].timestamp + timedelta(minutes=20) > all_energy_rates[1].timestamp
+        )
+        self.log.info(f"The energy rates are in 15 minute tacts: {self.energyrates_are_in_15_minute_tacts}")
+
         self.write_energy_rates_to_database(all_energy_rates)
         return self._remove_energy_rates_from_the_past(all_energy_rates)
 
     @staticmethod
-    def _check_if_next_three_prices_are_greater_than_current_one(all_upcoming_energy_rates: list[EnergyRate]) -> bool:
+    def _check_if_next_prices_are_on_a_decline(all_upcoming_energy_rates: list[EnergyRate]) -> bool:
         """
         Args:
             all_upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
@@ -106,7 +114,7 @@ class TibberAPIHandler(LoggerMixin):
         average_of_considered_upcoming_energy_rates = sum(
             energy_rate.rate for energy_rate in considered_upcoming_energy_rates
         ) / len(considered_upcoming_energy_rates)
-        return average_of_considered_upcoming_energy_rates > all_upcoming_energy_rates[0].rate
+        return average_of_considered_upcoming_energy_rates < all_upcoming_energy_rates[0].rate
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
         """
@@ -269,7 +277,7 @@ class TibberAPIHandler(LoggerMixin):
         This is done since the price rates of the next day are only available after ~ 02:00 PM. If the price rates of
         the next day are unavailable while determining the price minimum, it is likely that the price minimum is just
         the last rate of the day but not actually the minimum.
-        In this case we have to check in later (at ~ 02:00 PM) to re-request the prices from the Tibber API to get
+        In this case, we have to check in later (at ~ 02:00 PM) to re-request the prices from the Tibber API to get
         the values of the next day.
 
         Args:
@@ -281,16 +289,22 @@ class TibberAPIHandler(LoggerMixin):
                 the next day, otherwise False.
         """
 
-        is_price_minimum_near_end_of_day = price_minimum.timestamp.hour == 23
+        # 15 min
+        if self.energyrates_are_in_15_minute_tacts:
+            price_minimum_is_near_end_of_day = (
+                price_minimum.timestamp.hour == 23 and price_minimum.timestamp.minute == 45
+            )
+        else:
+            price_minimum_is_near_end_of_day = price_minimum.timestamp.hour == 23
         self.log.trace(
-            f"The price minimum {price_minimum.timestamp} is at the end of the day: {is_price_minimum_near_end_of_day}"
+            f"The price minimum {price_minimum.timestamp} is at the end of the day: {price_minimum_is_near_end_of_day}"
         )
 
         today = datetime.now().date()
         are_tomorrows_rates_unavailable = all(rate.timestamp.date() == today for rate in upcoming_energy_rates)
         self.log.trace(f"The price rates for tomorrow are unavailable: {are_tomorrows_rates_unavailable}")
 
-        return is_price_minimum_near_end_of_day and are_tomorrows_rates_unavailable
+        return price_minimum_is_near_end_of_day and are_tomorrows_rates_unavailable
 
     def get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
         self, upcoming_energy_rates: list[EnergyRate], ending_timestamp: datetime

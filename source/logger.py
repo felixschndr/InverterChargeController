@@ -106,6 +106,7 @@ class LoggerMixin:
         A static method to set the logging level for specific third-party libraries to be less verbose.
         """
         logging.getLogger("gql.transport.aiohttp").setLevel(logging.WARNING)
+        logging.getLogger("gql.dsl").setLevel(logging.INFO)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
         logging.getLogger("asyncio").setLevel(logging.WARNING)
         logging.getLogger("goodwe").setLevel(logging.INFO)

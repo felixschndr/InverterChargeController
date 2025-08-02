@@ -58,6 +58,10 @@ def write_solar_forecast_and_history_to_db() -> None:
             if e.response.status_code != 429:
                 raise e
             logger.log.warning("Too many requests to the solar forecast API --> unable to log solar forecast data")
+        except TimeoutError:
+            logger.log.warning(
+                "Timeout while fetching solar forecast data from the API --> unable to log solar forecast data"
+            )
         except Exception:
             logger.log.error("Failed to log solar forecast data", exc_info=True)
             pass

@@ -191,7 +191,11 @@ class SemsPortalApiHandler(LoggerMixin):
         for days_in_past in range(days_since_newest_value):
             date_to_crawl = today - timedelta(days=days_in_past)
             data = self._retrieve_power_data(date_to_crawl)
-            lines = data["data"]["lines"]
+            try:
+                lines = data["data"]["lines"]
+            except TypeError:
+                self.log.warning(f"Error retrieving power data for {date_to_crawl}: {data}")
+                continue
 
             time_keys = [line["x"] for line in lines[0]["xy"]]
             for time_key in time_keys:

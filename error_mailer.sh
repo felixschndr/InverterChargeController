@@ -11,7 +11,7 @@ if [[ -z ${ERROR_MAIL_ADDRESS} ]]; then
 fi
 
 ###### Search for errors ######
-current_date=$(date '+%Y-%m-%d')
+current_date=$(date '+%Y-%m-%dT')
 search_pattern="ERROR|CRITICAL"
 temp_output=$(mktemp)
 

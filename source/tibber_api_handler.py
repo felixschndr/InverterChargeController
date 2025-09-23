@@ -19,6 +19,7 @@ class TibberAPIHandler(LoggerMixin):
         transport = AIOHTTPTransport(
             url="https://api.tibber.com/v1-beta/gql",
             headers={"Authorization": EnvironmentVariableGetter.get("TIBBER_API_TOKEN")},
+            ssl=True,
         )
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
 

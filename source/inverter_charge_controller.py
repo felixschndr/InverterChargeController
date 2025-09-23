@@ -674,10 +674,10 @@ class InverterChargeController(LoggerMixin):
             target_state_of_charge = self.target_max_soc
 
         current_state_of_charge = self.inverter.get_state_of_charge()
-        if current_state_of_charge.in_percentage >= target_state_of_charge.in_percentage:
+        if current_state_of_charge >= target_state_of_charge:
             self.log.info(
                 f"The current state of charge {current_state_of_charge} is higher or equal than the target state of "
-                f"charge {target_state_of_charge} (rounded to the percent) --> Will not charge"
+                f"charge {target_state_of_charge} --> Will not charge"
             )
             return None
 
@@ -692,7 +692,7 @@ class InverterChargeController(LoggerMixin):
     @property
     def target_max_soc(self) -> StateOfCharge:
         return StateOfCharge.from_percentage(
-            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 15))
+            int(EnvironmentVariableGetter.get("INVERTER_TARGET_MAX_STATE_OF_CHARGE", 95))
         )
 
     """

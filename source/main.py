@@ -42,10 +42,9 @@ def unlock() -> None:
 
 def write_solar_forecast_and_history_to_db() -> None:
     sun_forecast_handler = SunForecastHandler()
-    morning_time = time(hour=5, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
-    evening_time = time(hour=23, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
+
     while True:
-        next_wakeup_time = _get_next_wakeup_time(morning_time, evening_time)
+        next_wakeup_time = _get_next_wakeup_time()
         logger.log.info(f"Next wakeup time to log solar forecast data is at {next_wakeup_time}")
         pause.until(next_wakeup_time)
 
@@ -54,8 +53,7 @@ def write_solar_forecast_and_history_to_db() -> None:
 
         try:
             # We call this function instead of retrieve_solar_data to ensure not writing debug data into the DB
-            need_to_retrieve_future_data = next_wakeup_time.hour == morning_time.hour
-            sun_forecast_handler.retrieve_solar_data_from_api(need_to_retrieve_future_data)
+            sun_forecast_handler.retrieve_solar_data_from_api(False)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 429:
                 raise e
@@ -69,28 +67,13 @@ def write_solar_forecast_and_history_to_db() -> None:
             pass
 
 
-def _get_morning_and_evening_timestamp_of_today(morning_time: time, evening_time: time) -> tuple[datetime, datetime]:
-    today = TimeHandler.get_date()
-    return (
-        datetime.combine(today, morning_time),
-        datetime.combine(today, evening_time),
-    )
-
-
-def _get_next_wakeup_time(morning_time: time, evening_time: time) -> datetime:
-    now = TimeHandler.get_time()
-    next_morning_wakeup_time, next_evening_wakeup_time = _get_morning_and_evening_timestamp_of_today(
-        morning_time, evening_time
-    )
-    if now >= next_morning_wakeup_time:
-        next_morning_wakeup_time += timedelta(days=1)
-    if now >= next_evening_wakeup_time:
+def _get_next_wakeup_time() -> datetime:
+    evening_wakeup_time = time(hour=23, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
+    next_evening_wakeup_time = datetime.combine(TimeHandler.get_date(), evening_wakeup_time)
+    if TimeHandler.get_time() >= next_evening_wakeup_time:
         next_evening_wakeup_time += timedelta(days=1)
 
-    if next_morning_wakeup_time - now < next_evening_wakeup_time - now:
-        return next_morning_wakeup_time
-    else:
-        return next_evening_wakeup_time
+    return next_evening_wakeup_time
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:

@@ -7,13 +7,14 @@ from types import FrameType
 
 import pause
 import requests
-from environment_variable_getter import EnvironmentVariableGetter
-from inverter_charge_controller import InverterChargeController
-from logger import LoggerMixin
 from requests.exceptions import ReadTimeout
-from sun_forecast_handler import SunForecastHandler
-from time_handler import TimeHandler
 from urllib3.exceptions import ReadTimeoutError
+
+from source.environment_variable_getter import EnvironmentVariableGetter
+from source.inverter_charge_controller import InverterChargeController
+from source.logger import LoggerMixin
+from source.sun_forecast_handler import SunForecastHandler
+from source.time_handler import TimeHandler
 
 LOCK_FILE_PATH = "/tmp/inverter_charge_controller.lock"  # nosec B108
 
@@ -45,7 +46,7 @@ def write_solar_forecast_and_history_to_db() -> None:
 
     while True:
         next_wakeup_time = _get_next_wakeup_time()
-        logger.log.info(f"Next wakeup time to log solar forecast data is at {next_wakeup_time}")
+        logger.log.info(f"Next wakeup time to log solar data of the day is at {next_wakeup_time}")
         pause.until(next_wakeup_time)
 
         logger.write_newlines_to_log_file()
@@ -112,7 +113,7 @@ if __name__ == "__main__":
         solar_protocol_thread.start()
 
         # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
-        pause.seconds(1)
+        pause.seconds(2)
 
         inverter_charge_controller = InverterChargeController()
         inverter_charge_controller_thread = threading.Thread(target=inverter_charge_controller.start)

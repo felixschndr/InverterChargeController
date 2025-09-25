@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from environment_variable_getter import EnvironmentVariableGetter
-from logger import LoggerMixin
+from source.environment_variable_getter import EnvironmentVariableGetter
+from source.logger import LoggerMixin
 
 
 @dataclass

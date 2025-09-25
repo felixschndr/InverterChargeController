@@ -1,11 +1,12 @@
 import asyncio
 
 import goodwe
-from energy_classes import EnergyAmount, StateOfCharge
-from environment_variable_getter import EnvironmentVariableGetter
 from goodwe import inverter as GoodweInverter
 from goodwe.et import OperationMode
-from logger import LoggerMixin
+
+from source.energy_classes import EnergyAmount, StateOfCharge
+from source.environment_variable_getter import EnvironmentVariableGetter
+from source.logger import LoggerMixin
 
 
 class Inverter(LoggerMixin):

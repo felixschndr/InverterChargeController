@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from environment_variable_getter import EnvironmentVariableGetter
-from logger import LoggerMixin
-from time_handler import TimeHandler
+from source.environment_variable_getter import EnvironmentVariableGetter
+from source.logger import LoggerMixin
+from source.time_handler import TimeHandler
 
 
 class AbsenceHandler(LoggerMixin):

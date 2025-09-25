@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 
-from database_handler import DatabaseHandler, InfluxDBField
-from energy_classes import EnergyRate
-from environment_variable_getter import EnvironmentVariableGetter
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
-from logger import LoggerMixin
-from time_handler import TimeHandler
+
+from source.database_handler import DatabaseHandler, InfluxDBField
+from source.energy_classes import EnergyRate
+from source.environment_variable_getter import EnvironmentVariableGetter
+from source.logger import LoggerMixin
+from source.time_handler import TimeHandler
 
 
 class TibberAPIHandler(LoggerMixin):
@@ -37,10 +38,10 @@ class TibberAPIHandler(LoggerMixin):
         Looking at the prices trends, it can be seen that the optimal time to charge is the minimum between the first
         maximum and the subsequent maximum.
 
-        A maximum is set to only be a maximum if the price is at least MAXIMUM_THRESHOLD € higher than the minimum
+        A maximum is set to only be a maximum if the price is at least MAXIMUM_THRESHOLD cents higher than the minimum
         found until this point. This is done since sometimes there is a downward sloping trend in which there are one or
         two rates that are not smaller than the ones before but instead just a little higher (about 0.5-1.5 cents).
-        Without this threshold, these values would be interpreted as maximums (that there are not).
+        Without this threshold, these values would be interpreted as maximums (which they are not).
         TLDR: Introduce a maximum threshold to better identify real maximum energy rates, preventing minor fluctuations
         from being misinterpreted as maxima.
 
@@ -54,6 +55,7 @@ class TibberAPIHandler(LoggerMixin):
 
         Args:
             first_iteration: A boolean flag indicating whether this is the first iteration of fetching upcoming prices.
+            upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
 
         Returns:
             EnergyRate: The next price minimum energy rate.
@@ -61,21 +63,29 @@ class TibberAPIHandler(LoggerMixin):
         self.log.trace("Finding the price minimum...")
         if upcoming_energy_rates is None:
             upcoming_energy_rates = self.get_upcoming_energy_rates()
-        if first_iteration and self._check_if_next_prices_are_on_a_decline(upcoming_energy_rates):
-            self.log.debug(
-                "This is the first time finding the minimum prices and the prices are currently on a decline. "
-                "Thus the next price minimum is considered (instead of the one after the first maximum)."
-            )
+
+        if first_iteration:
+            if self._check_if_next_prices_are_on_a_decline(upcoming_energy_rates):
+                self.log.debug(
+                    "This is the first time finding the minimum prices and the prices are currently on a decline. "
+                    "Thus the next price minimum is considered (instead of the one after the first maximum)."
+                )
+            self.log.debug("This is the first iteration. Returning the first minimum before the first maximum.")
             energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
                 upcoming_energy_rates
             )
+            # Return the first minimum (which could be the first element)
+            minimum_of_energy_rates = upcoming_energy_rates[0]
+            for energy_rate in energy_rates_between_first_and_second_maximum:
+                if energy_rate.rate < minimum_of_energy_rates.rate:
+                    minimum_of_energy_rates = energy_rate
         else:
             energy_rates_between_first_and_second_maximum = self._get_energy_rates_between_first_and_second_maximum(
                 upcoming_energy_rates, first_iteration
             )
-        minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
-            energy_rates_between_first_and_second_maximum
-        )
+            minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
+                energy_rates_between_first_and_second_maximum
+            )
 
         if self._check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
             minimum_of_energy_rates, upcoming_energy_rates
@@ -240,7 +250,7 @@ class TibberAPIHandler(LoggerMixin):
             if current_energy_rate > last_energy_rate and (
                 first_run
                 or current_energy_rate.rate
-                > minimum_energy_rate_found_until_now.rate + TibberAPIHandler.MAXIMUM_THRESHOLD
+                >= minimum_energy_rate_found_until_now.rate + TibberAPIHandler.MAXIMUM_THRESHOLD
             ):
                 last_energy_rate_was_maximum = True
 

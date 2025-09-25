@@ -3,7 +3,7 @@ import os
 import pathlib
 from logging.handlers import RotatingFileHandler
 
-from environment_variable_getter import EnvironmentVariableGetter
+from source.environment_variable_getter import EnvironmentVariableGetter
 
 
 class RotatingFileHandlerWithPermissions(RotatingFileHandler):

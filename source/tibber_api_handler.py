@@ -72,10 +72,9 @@ class TibberAPIHandler(LoggerMixin):
                 )
             self.log.debug("This is the first iteration. Returning the first minimum before the first maximum.")
             energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
-                upcoming_energy_rates
+                upcoming_energy_rates, first_run=True
             )
-            # Return the first minimum (which could be the first element)
-            minimum_of_energy_rates = upcoming_energy_rates[0]
+            minimum_of_energy_rates = energy_rates_between_first_and_second_maximum[0]
             for energy_rate in energy_rates_between_first_and_second_maximum:
                 if energy_rate.rate < minimum_of_energy_rates.rate:
                     minimum_of_energy_rates = energy_rate

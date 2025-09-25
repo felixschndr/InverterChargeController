@@ -7,5 +7,7 @@ suppress-non-returning = true
 kwargs-ignore-function-pattern-extend = (options|load_only)$
 per-file-ignores =
     inverter:E402
+    tests/*:ANN001,ANN201, ANN401
+    test_*:ANN001,ANN201
 extend-exclude =
     .venv/

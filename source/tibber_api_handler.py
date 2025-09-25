@@ -65,11 +65,6 @@ class TibberAPIHandler(LoggerMixin):
             upcoming_energy_rates = self.get_upcoming_energy_rates()
 
         if first_iteration:
-            if self._check_if_next_prices_are_on_a_decline(upcoming_energy_rates):
-                self.log.debug(
-                    "This is the first time finding the minimum prices and the prices are currently on a decline. "
-                    "Thus the next price minimum is considered (instead of the one after the first maximum)."
-                )
             self.log.debug("This is the first iteration. Returning the first minimum before the first maximum.")
             energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
                 upcoming_energy_rates, first_run=True
@@ -105,25 +100,6 @@ class TibberAPIHandler(LoggerMixin):
 
         self.write_energy_rates_to_database(all_energy_rates)
         return self._remove_energy_rates_from_the_past(all_energy_rates)
-
-    @staticmethod
-    def _check_if_next_prices_are_on_a_decline(all_upcoming_energy_rates: list[EnergyRate]) -> bool:
-        """
-        Args:
-            all_upcoming_energy_rates (list[EnergyRate]): List of upcoming energy rates.
-
-        Returns:
-            bool: True if the average of the second, third, and fourth rates is higher than the first rate.
-        """
-        future_energy_rates_to_consider = 3
-        if len(all_upcoming_energy_rates) < future_energy_rates_to_consider + 1:
-            return False  # Not enough data to compare, should never happen
-
-        considered_upcoming_energy_rates = all_upcoming_energy_rates[1 : future_energy_rates_to_consider + 1]
-        average_of_considered_upcoming_energy_rates = sum(
-            energy_rate.rate for energy_rate in considered_upcoming_energy_rates
-        ) / len(considered_upcoming_energy_rates)
-        return average_of_considered_upcoming_energy_rates < all_upcoming_energy_rates[0].rate
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
         """

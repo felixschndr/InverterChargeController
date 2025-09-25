@@ -16,8 +16,8 @@ search_pattern="ERROR|CRITICAL"
 temp_output=$(mktemp)
 
 grep -A10 -n "${current_date}" "${logfile}" | grep -A10 -E "${search_pattern}" > "${temp_output}"
-if [[ $(wc -l < "${temp_output}") != 0 ]] || ! pgrep -f "/home/chrctrl/app/source/main.py" >/dev/null; then
-	if ! pgrep -f "/home/chrctrl/app/source/main.py" >/dev/null; then
+if [[ $(wc -l < "${temp_output}") != 0 ]] || ! pgrep -f "/home/chrctrl/app/.venv/bin/python3.11 -m source.main" >/dev/null; then
+	if ! pgrep -f "/home/chrctrl/app/.venv/bin/python3.11 -m source.main" >/dev/null; then
 		subject="Der InverterChargeController laeuft nicht"
 	else
 		subject="Fehler beim InverterChargeController"

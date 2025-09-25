@@ -4,7 +4,8 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/home/chrctrl/app/.venv/bin/python3.11 /home/chrctrl/app/source/main.py
+ExecStart=/home/chrctrl/app/.venv/bin/python3.11 -m source.main
+WorkingDirectory=/home/chrctrl/app
 User=chrctrl
 StandardOutput=null
 

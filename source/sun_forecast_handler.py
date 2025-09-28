@@ -258,37 +258,36 @@ class SunForecastHandler(LoggerMixin):
         power_usage_increase_factor: float = 1.00,
     ) -> EnergyAmount:
         """
-        Calculates the energy usage within a specific timeframe based on time-specific power consumption data.
-
-        The method calculates the energy consumption based on the specified start time, duration of the timeframe, and
-        the average power consumption for the specific time of day.
+        The method calculates energy usage by first determining the average power consumption values relevant to the
+        timeframe, and then computes total energy consumption over the timeframe's duration while considering the
+        increase factor.
 
         Args:
-            timeframe_start (datetime): The starting datetime of the timeframe for which the energy usage needs to be
-                calculated.
-            timeframe_duration (timedelta): The duration of the timeframe for which the energy usage is to be calculated.
-            average_power_consumption_per_time_of_day (dict[time, Power]): Dictionary mapping times of day to average
-                power consumption values.
-            power_usage_increase_factor (float): Factor to increase power usage by.
+            timeframe_start (datetime): The starting datetime of the timeframe over which energy usage is calculated.
+            timeframe_duration (timedelta): The duration of the timeframe for energy usage calculation.
+            average_power_consumption_per_time_of_day (dict[time, Power]): A mapping from specific times of the day to
+                average power consumption values (Power) at those times.
+            power_usage_increase_factor (float): A multiplier applied to the energy usage to account for increased power
+                usage. Defaults to 1.00.
 
         Returns:
-            EnergyAmount: The calculated energy usage in the provided timeframe.
+            EnergyAmount: The total energy amount used during the given timeframe.
         """
+        relevant_power_consumptions = []
 
-        # Find the closest time in the dictionary to the timeframe start time
-        # FIXME: there are multiple valid values
-        timeframe_start_time = timeframe_start.time()
-        closest_time = min(
-            average_power_consumption_per_time_of_day.keys(),
-            key=lambda time_group_start: abs(
-                TimeHandler.calculate_time_difference(time_group_start, timeframe_start_time)
-            ),
-        )
+        rounded_starting_minutes = (timeframe_start.minute // 5) * 5
+        current_timeframe_start = timeframe_start.replace(minute=rounded_starting_minutes, second=0, microsecond=0)
 
-        power_consumption = average_power_consumption_per_time_of_day[closest_time]
+        while current_timeframe_start < timeframe_start + timeframe_duration:
+            relevant_power_consumptions.append(
+                average_power_consumption_per_time_of_day[current_timeframe_start.time()]
+            )
+            current_timeframe_start += timedelta(minutes=5)
+
+        average_power_consumption = sum(relevant_power_consumptions) / len(relevant_power_consumptions)
 
         return EnergyAmount.from_watt_seconds(
-            power_consumption.watts * timeframe_duration.total_seconds() * power_usage_increase_factor
+            average_power_consumption.watts * timeframe_duration.total_seconds() * power_usage_increase_factor
         )
 
     def _get_energy_harvested_in_timeframe_from_solar_data(
@@ -381,7 +380,3 @@ class SunForecastHandler(LoggerMixin):
         longitude = data["site"]["longitude"]
         self.log.trace(f"Retrieved latitude and longitude: {latitude}, {longitude}")
         return latitude, longitude
-
-
-s = SunForecastHandler()
-print(s._get_debug_solar_data())

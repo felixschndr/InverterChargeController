@@ -1,12 +1,6 @@
 {
   "forecasts": [
-    {
-      "pv_estimate": 0,
-      "pv_estimate10": 0,
-      "pv_estimate90": 0,
-      "period_end": "2025-01-05T23:30:00.0000000Z",
-      "period": "PT30M"
-    },
+
     {
       "pv_estimate": 0,
       "pv_estimate10": 0,

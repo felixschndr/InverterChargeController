@@ -131,7 +131,7 @@ class SunForecastHandler(LoggerMixin):
             f"the expected maximum of state of charge is {maximum_soc}, "
             f"the expected total amount of energy used is {total_energy_used} "
             f"and the expected total amount of energy harvested is {total_energy_harvested} "
-            f"when starting with a state of charge of {starting_soc}"
+            f"when calculating with a starting state of charge of {starting_soc}"
         )
         return minimum_soc, maximum_soc
 
@@ -276,6 +276,7 @@ class SunForecastHandler(LoggerMixin):
         """
 
         # Find the closest time in the dictionary to the timeframe start time
+        # FIXME: there are multiple valid values
         timeframe_start_time = timeframe_start.time()
         closest_time = min(
             average_power_consumption_per_time_of_day.keys(),
@@ -339,16 +340,15 @@ class SunForecastHandler(LoggerMixin):
             the values are `Power` objects representing the estimated solar power generation
             for the corresponding time period.
         """
-        current_replace_timestamp = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0)
+        current_replace_timestamp = TimeHandler.get_time(sanitize_seconds=True).replace(hour=0, minute=0)
         sample_data_path = os.path.join(Path(__file__).parent.parent, "sample_solar_forecast.json")
         sample_data = {}
         with open(sample_data_path, "r") as file:
             sample_input_data = json.load(file)["forecasts"]
         self.timeframe_duration = parse_duration(sample_input_data[0]["period"])
         for timeslot in sample_input_data:
-            timeslot["period_end"] = current_replace_timestamp.isoformat()
-            current_replace_timestamp += self.timeframe_duration
             sample_data[current_replace_timestamp.isoformat()] = Power.from_kilo_watts(timeslot["pv_estimate"])
+            current_replace_timestamp += self.timeframe_duration
         return sample_data
 
     def get_tomorrows_sunset_time(self) -> datetime:
@@ -381,3 +381,7 @@ class SunForecastHandler(LoggerMixin):
         longitude = data["site"]["longitude"]
         self.log.trace(f"Retrieved latitude and longitude: {latitude}, {longitude}")
         return latitude, longitude
+
+
+s = SunForecastHandler()
+print(s._get_debug_solar_data())

@@ -295,9 +295,7 @@ class SemsPortalApiHandler(LoggerMixin):
         """
         return int([line for line in lines[line_index]["xy"] if line["x"] == time_key][0]["y"])
 
-    def get_average_power_consumption_per_time_of_day_since(
-        self, time_in_past: timedelta = timedelta(weeks=5)
-    ) -> dict[time, Power]:
+    def get_average_power_consumption_per_time_of_day_since(self, timestamp_in_past: datetime) -> dict[time, Power]:
         """
         Processes power consumption data from the database and calculates average power usage by time of day.
 
@@ -309,10 +307,8 @@ class SemsPortalApiHandler(LoggerMixin):
         Returns:
             dict: A dictionary with times as keys and average power usage as values
         """
-        power_data = self.database_handler.get_values_since(
-            TimeHandler.get_time(sanitize_seconds=True) - time_in_past, "timestamp"
-        )
-        self.log.debug(f"Retrieved {len(power_data)} power data records from database for the last {time_in_past}")
+        power_data = self.database_handler.get_values_since(timestamp_in_past, "timestamp")
+        self.log.debug(f"Retrieved {len(power_data)} power data records from database since {timestamp_in_past}")
 
         time_groups = {}
 

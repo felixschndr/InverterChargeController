@@ -734,7 +734,9 @@ class InverterChargeController(LoggerMixin):
                 "Currently there is no absence, using the data from the past as the basis for calculation the power consumption"
             )
             average_power_consumption_per_time_of_day = (
-                self.sems_portal_api_handler.get_average_power_consumption_per_time_of_day_since()
+                self.sems_portal_api_handler.get_average_power_consumption_per_time_of_day_since(
+                    TimeHandler.get_time(sanitize_seconds=True) - timedelta(weeks=5)
+                )
             )
         self._set_cache_key(cache_key, average_power_consumption_per_time_of_day)
         return average_power_consumption_per_time_of_day

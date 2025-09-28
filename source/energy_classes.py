@@ -55,8 +55,14 @@ class Power:
     def __str__(self):
         return f"{int(self.watts)} W"
 
-    def __iadd__(self, other: Power) -> Power:
+    def __add__(self, other: Power) -> Power:
         return Power(self.watts + other.watts)
+
+    def __radd__(self, other: int) -> Power:
+        return Power(self.watts + other)
+
+    def __truediv__(self, other: int) -> Power:
+        return Power(round(self.watts / other, ndigits=2))
 
     @staticmethod
     def from_kilo_watts(kilo_watts: float) -> Power:

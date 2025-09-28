@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.flux_table import FluxRecord
 from influxdb_client.client.write_api import SYNCHRONOUS
 from urllib3.exceptions import NewConnectionError
 
@@ -75,3 +76,35 @@ class DatabaseHandler(LoggerMixin):
             return datetime.fromtimestamp(0, tz=TimeHandler.get_timezone())
 
         return datetime.fromisoformat(result[0].records[0].values[field_to_sort_by])
+
+    def get_values_since(self, since_datetime: datetime, column_name: str) -> list[FluxRecord]:
+        """
+        Gets all values from the measurement where the specified column has a value greater than the given datetime.
+
+        Args:
+            since_datetime (datetime): The datetime to filter values by.
+            column_name (str): The column name to compare with the datetime.
+
+        Returns:
+            list: A list of records where the specified column value is greater than the given datetime.
+                 Returns an empty list if no results are found or if there's a connection error.
+        """
+        self.log.trace(f"Getting values from {self.measurement} since {since_datetime} for column {column_name}")
+        query = f"""
+        from(bucket: "{self.bucket}")
+        |> range(start: 0)
+        |> filter(fn: (r) => r._measurement == "{self.measurement}")
+        |> pivot(rowKey:["_time"], columnKey:["_field"], valueColumn:"_value")
+        |> filter(fn: (r) => r["{column_name}"] > "{since_datetime.isoformat()}")
+        """
+
+        try:
+            result = self.query_api.query(query)
+        except NewConnectionError:
+            self.log.warning("Connection to database failed (ignoring)", exc_info=True)
+            return []
+
+        if len(result) == 0:
+            return []
+
+        return [record for record in result[0].records]

@@ -294,3 +294,42 @@ class SemsPortalApiHandler(LoggerMixin):
             int: The integer representation of the value ('y') corresponding to the provided time key.
         """
         return int([line for line in lines[line_index]["xy"] if line["x"] == time_key][0]["y"])
+
+    def get_power_consumption(self, time_in_past: timedelta = timedelta(weeks=5)) -> dict[datetime.time, Power]:
+        """
+        Processes power consumption data from the database and calculates average power usage by time of day.
+
+        This method:
+        1. Retrieves power data from the database for now - time_in_past
+        2. Groups the data by the time part of the timestamp (ignoring the date)
+        3. Calculates the average power consumption for each time group
+
+        Returns:
+            dict: A dictionary with times as keys and average power usage as values
+        """
+        power_data = self.database_handler.get_values_since(
+            TimeHandler.get_time(sanitize_seconds=True) - time_in_past, "timestamp"
+        )
+        self.log.debug(f"Retrieved {len(power_data)} power data records from database for the last {time_in_past}")
+
+        time_groups = {}
+
+        for record in power_data:
+            timestamp = record.values.get("timestamp")
+            if not timestamp:
+                continue
+            time = datetime.fromisoformat(timestamp).time()
+
+            if time not in time_groups:
+                time_groups[time] = []
+            time_groups[time].append(record)
+
+        result = {}
+        for time, records in sorted(time_groups.items()):
+            total_power = sum(Power(record.values.get("power_usage_in_watts", 0)) for record in records)
+            result[time] = total_power / len(records) if records else Power(0)
+
+        result_human_readable = ", ".join(f"{t}: {p}" for t, p in result.items())
+        self.log.debug(f"Calculated average power consumption for each time of day: {result_human_readable}")
+
+        return result

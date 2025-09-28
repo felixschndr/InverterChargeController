@@ -65,7 +65,6 @@ def write_solar_forecast_and_history_to_db() -> None:
             )
         except Exception:
             logger.log.error("Failed to log solar forecast data", exc_info=True)
-            pass
 
 
 def _get_next_wakeup_time() -> datetime:

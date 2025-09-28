@@ -61,8 +61,6 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=2, seconds=30)
         while True:
             try:
-                self.sems_portal_api_handler.write_values_to_database()
-
                 if first_iteration:
                     self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration=True)
                     first_iteration = False
@@ -120,7 +118,8 @@ class InverterChargeController(LoggerMixin):
         """
         self.write_newlines_to_log_file()
         self.log.info(
-            "Waiting is over, now is the a price minimum. Checking what has to be done to reach the next minimum..."
+            f"Waiting is over, now is a price minimum ({self.next_price_minimum.rate} ct/kWh). Checking what has to be "
+            f"done to reach the next minimum..."
         )
         self.current_energy_rate = self.next_price_minimum
 
@@ -145,6 +144,7 @@ class InverterChargeController(LoggerMixin):
             )
             return
 
+        self.sems_portal_api_handler.write_values_to_database()
         self.average_power_consumption_per_time_of_day = self._get_average_power_consumption_per_time_of_day()
 
         self.log.info(f"The battery shall be at least at {self.target_min_soc} at all times")
@@ -163,7 +163,7 @@ class InverterChargeController(LoggerMixin):
         """
         minimum_of_soc_until_next_price_minimum, maximum_of_soc_until_next_price_minimum = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
-                TimeHandler.get_time(),
+                TimeHandler.get_time(sanitize_seconds=True),
                 self.next_price_minimum.timestamp,
                 self.average_power_consumption_per_time_of_day,
                 current_state_of_charge,
@@ -202,7 +202,7 @@ class InverterChargeController(LoggerMixin):
         """
         minimum_of_soc_until_next_price_minimum, _ = (
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
-                TimeHandler.get_time(),
+                TimeHandler.get_time(sanitize_seconds=True),
                 self.next_price_minimum.timestamp,
                 self.average_power_consumption_per_time_of_day,
                 self.target_max_soc,
@@ -351,7 +351,7 @@ class InverterChargeController(LoggerMixin):
             )
         )
         self.log.debug(
-            f"Formula for calculating the target state of charge: current {current_state_of_charge} + "
+            f"Formula for calculating the target state of charge: current state of charge {current_state_of_charge} + "
             f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
             f"minimum ({minimum_of_soc_until_next_price_minimum})"
         )
@@ -425,7 +425,7 @@ class InverterChargeController(LoggerMixin):
             return None
 
         self.log.debug(
-            f"Formula for calculating the target state of charge: current {current_state_of_charge} + "
+            f"Formula for calculating the target state of charge: current state of charge {current_state_of_charge} + "
             f"target minimum state of charge ({self.target_min_soc}) - minimum state of charge until next price "
             f"minimum ({minimum_of_soc_until_next_price_minimum})"
         )
@@ -446,7 +446,7 @@ class InverterChargeController(LoggerMixin):
         timeframe_end = self.sun_forecast_handler.get_tomorrows_sunset_time()
         self.log.debug(f"The timeframe end (tomorrows sunset) is {timeframe_end}")
         _, maximum_of_soc_until_timeframe_end = self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
-            TimeHandler.get_time(),
+            TimeHandler.get_time(sanitize_seconds=True),
             timeframe_end,
             self.average_power_consumption_per_time_of_day,
             current_state_of_charge,
@@ -459,8 +459,8 @@ class InverterChargeController(LoggerMixin):
         care about the speed of charging we use that.
         """
         self.log.debug(
-            f"Formula for calculating the target state of charge: current ({current_state_of_charge}) + "
-            f"{StateOfCharge.from_percentage(100)} - maximum state of charge until tomorrows sunset "
+            f"Formula for calculating the target state of charge: current state of charge ({current_state_of_charge}) +"
+            f" {StateOfCharge.from_percentage(100)} - maximum state of charge until tomorrows sunset "
             f"({maximum_of_soc_until_timeframe_end})"
         )
         return StateOfCharge(

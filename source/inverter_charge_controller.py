@@ -1,7 +1,7 @@
 import socket
 import sys
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any, Generator, Optional
 
 import pause
@@ -35,7 +35,7 @@ class InverterChargeController(LoggerMixin):
 
         self.current_energy_rate = None
         self.next_price_minimum = None
-        self.average_power_consumption = None
+        self.average_power_consumption_per_time_of_day = None
         # This is a dict that saves the values of a certain operations such as the upcoming energy rates, the
         # expected power harvested by the sun or the expected power usage.
         # This way if one of the requests to an external system fails (e.g., no Internet access), the prior requests
@@ -61,6 +61,8 @@ class InverterChargeController(LoggerMixin):
         duration_to_wait_in_cause_of_error = timedelta(minutes=2, seconds=30)
         while True:
             try:
+                self.sems_portal_api_handler.write_values_to_database()
+
                 if first_iteration:
                     self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration=True)
                     first_iteration = False
@@ -84,8 +86,6 @@ class InverterChargeController(LoggerMixin):
                     # This without the _if_ before being true does happen when we fetched the prices and the ones for
                     # tomorrow were unavailable, however, we also needed to charge, and now it is passed 2 PM
                     self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration=True)
-
-                self.sems_portal_api_handler.write_values_to_database()
 
                 self.log.info(
                     f"The next price minimum is {self.next_price_minimum.timestamp} --> Waiting until then..."
@@ -145,22 +145,10 @@ class InverterChargeController(LoggerMixin):
             )
             return
 
-        self.average_power_consumption = self._get_average_power_consumption()
-        self.log.info(f"The average power consumption is {self.average_power_consumption}")
+        self.average_power_consumption_per_time_of_day = self._get_average_power_consumption_per_time_of_day()
 
         self.log.info(f"The battery shall be at least at {self.target_min_soc} at all times")
         self.log.info(f"The battery shall be at most be charged up to {self.target_max_soc}")
-
-        summary_of_energy_vales = {
-            "next price minimum": self.next_price_minimum,
-            "next price minimum has to be rechecked": self.next_price_minimum.has_to_be_rechecked,
-            "maximum charging duration": str(self.current_energy_rate.maximum_charging_duration),
-            "current state of charge": current_state_of_charge,
-            "average power consumption": self.average_power_consumption.watts,
-            "target min soc": self.target_min_soc,
-            "target max soc": self.target_max_soc,
-        }
-        self.log.debug(f"Summary of energy values: {summary_of_energy_vales}")
 
         self.coordinate_charging(current_state_of_charge)
 
@@ -177,7 +165,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(),
                 self.next_price_minimum.timestamp,
-                self.average_power_consumption,
+                self.average_power_consumption_per_time_of_day,
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -216,7 +204,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(),
                 self.next_price_minimum.timestamp,
-                self.average_power_consumption,
+                self.average_power_consumption_per_time_of_day,
                 self.target_max_soc,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -311,7 +299,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(),
                 energy_rate_after_price_drops_below_average.timestamp,
-                self.average_power_consumption,
+                self.average_power_consumption_per_time_of_day,
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -356,7 +344,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(),
                 self.next_price_minimum.timestamp,
-                self.average_power_consumption,
+                self.average_power_consumption_per_time_of_day,
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -460,7 +448,7 @@ class InverterChargeController(LoggerMixin):
         _, maximum_of_soc_until_timeframe_end = self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
             TimeHandler.get_time(),
             timeframe_end,
-            self.average_power_consumption,
+            self.average_power_consumption_per_time_of_day,
             current_state_of_charge,
             self.next_price_minimum.has_to_be_rechecked,
             self._get_solar_data(),
@@ -727,25 +715,29 @@ class InverterChargeController(LoggerMixin):
         self._set_cache_key(cache_key, next_price_minimum)
         return next_price_minimum
 
-    def _get_average_power_consumption(self) -> Power:
-        cache_key = "average_power_consumption"
-        average_power_consumption = self._get_value_from_cache_if_exists(cache_key)
-        if average_power_consumption:
-            return average_power_consumption
+    def _get_average_power_consumption_per_time_of_day(self) -> dict[time, Power]:
+        cache_key = "average_power_consumption_per_time_of_day"
+        average_power_consumption_per_time_of_day = self._get_value_from_cache_if_exists(cache_key)
+        if average_power_consumption_per_time_of_day:
+            return average_power_consumption_per_time_of_day
 
         if self.absence_handler.check_for_current_absence():
             self.log.info(
                 "Currently there is an absence, using the power consumption configured in the environment as the basis "
                 "for calculation"
             )
-            average_power_consumption = Power(float(EnvironmentVariableGetter.get("ABSENCE_POWER_CONSUMPTION", 150)))
+            average_power_consumption_per_time_of_day = Power(
+                float(EnvironmentVariableGetter.get("ABSENCE_POWER_CONSUMPTION", 150))
+            )
         else:
             self.log.debug(
-                "Currently there is no absence, using last week's power consumption data as the basis for calculation"
+                "Currently there is no absence, using the data from the past as the basis for calculation the power consumption"
             )
-            average_power_consumption = self.sems_portal_api_handler.get_average_power_consumption()
-        self._set_cache_key(cache_key, average_power_consumption)
-        return average_power_consumption
+            average_power_consumption_per_time_of_day = (
+                self.sems_portal_api_handler.get_average_power_consumption_per_time_of_day_since()
+            )
+        self._set_cache_key(cache_key, average_power_consumption_per_time_of_day)
+        return average_power_consumption_per_time_of_day
 
     def _get_solar_data(self) -> dict[str, Power]:
         cache_key = "solar_data"

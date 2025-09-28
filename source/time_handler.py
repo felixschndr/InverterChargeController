@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from dateutil.tz import tz, tzfile
 
@@ -28,3 +28,10 @@ class TimeHandler:
     def floor_to_quarter(timestamp: datetime) -> datetime:
         minutes = (timestamp.minute // 15) * 15
         return timestamp.replace(minute=minutes, second=0, microsecond=0)
+
+    @staticmethod
+    def calculate_time_difference(start_time: time, end_time: time) -> float:
+        current_date = TimeHandler.get_date()
+        combined_start = datetime.combine(current_date, start_time)
+        combined_end = datetime.combine(current_date, end_time)
+        return (combined_start - combined_end).total_seconds()

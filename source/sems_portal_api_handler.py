@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 import requests
 
@@ -295,7 +295,9 @@ class SemsPortalApiHandler(LoggerMixin):
         """
         return int([line for line in lines[line_index]["xy"] if line["x"] == time_key][0]["y"])
 
-    def get_power_consumption(self, time_in_past: timedelta = timedelta(weeks=5)) -> dict[datetime.time, Power]:
+    def get_average_power_consumption_per_time_of_day_since(
+        self, time_in_past: timedelta = timedelta(weeks=5)
+    ) -> dict[time, Power]:
         """
         Processes power consumption data from the database and calculates average power usage by time of day.
 
@@ -318,16 +320,16 @@ class SemsPortalApiHandler(LoggerMixin):
             timestamp = record.values.get("timestamp")
             if not timestamp:
                 continue
-            time = datetime.fromisoformat(timestamp).time()
+            time_of_day = datetime.fromisoformat(timestamp).time()
 
-            if time not in time_groups:
-                time_groups[time] = []
-            time_groups[time].append(record)
+            if time_of_day not in time_groups:
+                time_groups[time_of_day] = []
+            time_groups[time_of_day].append(record)
 
         result = {}
-        for time, records in sorted(time_groups.items()):
+        for time_of_day, records in sorted(time_groups.items()):
             total_power = sum(Power(record.values.get("power_usage_in_watts", 0)) for record in records)
-            result[time] = total_power / len(records) if records else Power(0)
+            result[time_of_day] = total_power / len(records) if records else Power(0)
 
         result_human_readable = ", ".join(f"{t}: {p}" for t, p in result.items())
         self.log.debug(f"Calculated average power consumption for each time of day: {result_human_readable}")

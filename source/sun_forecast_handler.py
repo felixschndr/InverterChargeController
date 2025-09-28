@@ -30,21 +30,22 @@ class SunForecastHandler(LoggerMixin):
         self,
         timeframe_start: datetime,
         timeframe_end: datetime,
-        average_power_usage: Power,
+        average_power_consumption_per_time_of_day: dict[time, Power],
         starting_soc: StateOfCharge,
         minimum_has_to_rechecked: bool,
         solar_data: dict[str, Power],
     ) -> tuple[StateOfCharge, StateOfCharge]:
         """
         Calculates the minimum state of charge (SOC) and maximum state of charge within a specified timeframe.
-        It considers average power usage, initial SOC and optionally adjusts for higher power usage in cases where the
-        pricing for the next day is unavailable. This function uses solar data and iteratively computes power usage and
-        generation for subintervals within the timeframe.
+        It considers average power consumption per time of day, initial SOC and optionally adjusts for higher power usage
+        in cases where the pricing for the next day is unavailable. This function uses solar data and iteratively computes
+        power usage and generation for subintervals within the timeframe.
 
         Args:
             timeframe_start: The starting timestamp of the timeframe.
             timeframe_end: The ending timestamp of the timeframe.
-            average_power_usage: The average power consumption over the timeframe.
+            average_power_consumption_per_time_of_day: Dictionary mapping times of day to average power consumption
+                values.
             starting_soc: The battery's state of charge at the beginning of the timeframe.
             minimum_has_to_rechecked: Whether to increase the power usage by POWER_USAGE_INCREASE_FACTOR
             solar_data: A dictionary where keys represent specific times and values represent the forecasted power at
@@ -90,7 +91,10 @@ class SunForecastHandler(LoggerMixin):
             current_timeframe_end = current_timeframe_start + current_timeframe_duration
 
             energy_usage_during_timeframe = self._calculate_energy_usage_in_timeframe(
-                current_timeframe_start, current_timeframe_duration, average_power_usage, power_usage_increase_factor
+                current_timeframe_start,
+                current_timeframe_duration,
+                average_power_consumption_per_time_of_day,
+                power_usage_increase_factor,
             )
             total_energy_used += energy_usage_during_timeframe
             energy_harvested_during_timeframe = self._get_energy_harvested_in_timeframe_from_solar_data(
@@ -250,41 +254,41 @@ class SunForecastHandler(LoggerMixin):
     def _calculate_energy_usage_in_timeframe(
         timeframe_start: datetime,
         timeframe_duration: timedelta,
-        average_power_consumption: Power,
+        average_power_consumption_per_time_of_day: dict[time, Power],
         power_usage_increase_factor: float = 1.00,
     ) -> EnergyAmount:
         """
-        Calculates the energy usage within a specific timeframe considering day and night power usage factors.
+        Calculates the energy usage within a specific timeframe based on time-specific power consumption data.
 
         The method calculates the energy consumption based on the specified start time, duration of the timeframe, and
-        the average power consumption. It applies different power usage factors for daytime and nighttime, depending on
-        the given timeframe.
+        the average power consumption for the specific time of day.
 
         Args:
             timeframe_start (datetime): The starting datetime of the timeframe for which the energy usage needs to be
                 calculated.
             timeframe_duration (timedelta): The duration of the timeframe for which the energy usage is to be calculated.
-            average_power_consumption (Power): The average power consumption during the specified timeframe.
+            average_power_consumption_per_time_of_day (dict[time, Power]): Dictionary mapping times of day to average
+                power consumption values.
+            power_usage_increase_factor (float): Factor to increase power usage by.
 
         Returns:
             EnergyAmount: The calculated energy usage in the provided timeframe.
         """
-        day_start = time(6, 0)
-        night_start = time(18, 0)
-        factor_energy_usage_during_the_day = float(EnvironmentVariableGetter.get("POWER_USAGE_FACTOR", 0.6))
-        factor_energy_usage_during_the_night = 1 - factor_energy_usage_during_the_day
 
-        if not 0 <= factor_energy_usage_during_the_day <= 1:
-            raise ValueError(
-                f'The "POWER_USAGE_FACTOR" has to be between 0 and 1 (actual: {factor_energy_usage_during_the_day})!'
-            )
-
-        average_power_usage = EnergyAmount.from_watt_seconds(
-            average_power_consumption.watts * timeframe_duration.total_seconds() * power_usage_increase_factor * 2
+        # Find the closest time in the dictionary to the timeframe start time
+        timeframe_start_time = timeframe_start.time()
+        closest_time = min(
+            average_power_consumption_per_time_of_day.keys(),
+            key=lambda time_group_start: abs(
+                TimeHandler.calculate_time_difference(time_group_start, timeframe_start_time)
+            ),
         )
-        if day_start <= timeframe_start.time() < night_start:
-            return average_power_usage * factor_energy_usage_during_the_day
-        return average_power_usage * factor_energy_usage_during_the_night
+
+        power_consumption = average_power_consumption_per_time_of_day[closest_time]
+
+        return EnergyAmount.from_watt_seconds(
+            power_consumption.watts * timeframe_duration.total_seconds() * power_usage_increase_factor
+        )
 
     def _get_energy_harvested_in_timeframe_from_solar_data(
         self, timeframe_end: datetime, timeframe_duration: timedelta, solar_data: dict[str, Power]

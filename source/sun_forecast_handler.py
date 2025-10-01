@@ -22,7 +22,9 @@ class SunForecastHandler(LoggerMixin):
 
         self.timeframe_duration = None
         self.headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
-        self.latitude, self.longitude = self._get_latitude_and_longitude()
+
+        self.latitude = float(EnvironmentVariableGetter.get("LATITUDE"))
+        self.longitude = float(EnvironmentVariableGetter.get("LONGITUDE"))
 
         self.database_handler = DatabaseHandler("solar_forecast")
 
@@ -360,25 +362,3 @@ class SunForecastHandler(LoggerMixin):
         """
         sun = SunTimes(self.longitude, self.latitude)
         return sun.setlocal(TimeHandler.get_date() + timedelta(days=1))
-
-    def _get_latitude_and_longitude(self) -> tuple[float, float]:
-        """
-        Retrieves latitude and longitude of a rooftop site by making a request to the Solcast API.
-
-        Returns:
-            tuple[float, float]: A tuple containing the latitude and longitude of the requested site.
-        """
-        url = (
-            f"https://api.solcast.com.au/json/reply/GetRooftopSiteByResourceId?resource_id="
-            f"{EnvironmentVariableGetter.get('ROOFTOP_ID_1')}"
-        )
-        self.log.debug(f"Making an API request to solcast api: {url}")
-        response = requests.get(url, timeout=10, headers=self.headers)
-        response.raise_for_status()
-
-        data = response.json()
-
-        latitude = data["site"]["latitude"]
-        longitude = data["site"]["longitude"]
-        self.log.trace(f"Retrieved latitude and longitude: {latitude}, {longitude}")
-        return latitude, longitude

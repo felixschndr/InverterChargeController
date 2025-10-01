@@ -11,7 +11,7 @@ from source.time_handler import TimeHandler
 
 
 class TibberAPIHandler(LoggerMixin):
-    MAXIMUM_THRESHOLD = 3  # in cents/kWh
+    MAXIMUM_THRESHOLD = 4  # in cents/kWh
     MINIMUM_CHARGING_DURATION = timedelta(hours=1)
 
     def __init__(self):
@@ -25,8 +25,6 @@ class TibberAPIHandler(LoggerMixin):
         self.client = Client(transport=transport, fetch_schema_from_transport=True)
 
         self.database_handler = DatabaseHandler("energy_prices")
-
-        self.energy_rates_are_in_15_minute_tacts = False
 
     def get_next_price_minimum(
         self, first_iteration: bool = False, upcoming_energy_rates: list[EnergyRate] = None
@@ -92,11 +90,6 @@ class TibberAPIHandler(LoggerMixin):
         self.log.debug("Fetching the upcoming energy rates from the Tibber API...")
         api_result = self._fetch_upcoming_prices_from_api()
         all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
-
-        self.energy_rates_are_in_15_minute_tacts = (
-            all_energy_rates[0].timestamp + timedelta(minutes=20) > all_energy_rates[1].timestamp
-        )
-        self.log.debug(f"The energy rates are in 15 minute tacts: {self.energy_rates_are_in_15_minute_tacts}")
 
         self.write_energy_rates_to_database(all_energy_rates)
         return self._remove_energy_rates_from_the_past(all_energy_rates)
@@ -169,10 +162,10 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             A list of EnergyRate objects that have timestamps in the future relative to the beginning of the current hour.
         """
-        beginning_of_current_hour = TimeHandler.get_time(sanitize_seconds=True).replace(minute=0)
+        current_time = TimeHandler.get_time()
 
         upcoming_energy_rates = [
-            energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > beginning_of_current_hour
+            energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > current_time
         ]
         self.log.debug(f"The Upcoming energy rates are {upcoming_energy_rates}")
         return upcoming_energy_rates
@@ -274,11 +267,7 @@ class TibberAPIHandler(LoggerMixin):
                 the next day, otherwise False.
         """
 
-        price_minimum_is_near_end_of_day = price_minimum.timestamp.hour == 23
-        if self.energy_rates_are_in_15_minute_tacts:
-            price_minimum_is_near_end_of_day = (
-                price_minimum_is_near_end_of_day and price_minimum.timestamp.minute == 45
-            )
+        price_minimum_is_near_end_of_day = price_minimum.timestamp.hour == 23 and price_minimum.timestamp.minute == 45
         self.log.trace(
             f"The price minimum {price_minimum.timestamp} is at the end of the day: {price_minimum_is_near_end_of_day}"
         )
@@ -342,8 +331,9 @@ class TibberAPIHandler(LoggerMixin):
     def _get_average_price_of_energy_rates(energy_rates: list[EnergyRate]) -> float:
         return sum(energy_rate.rate for energy_rate in energy_rates) / len(energy_rates)
 
+    @staticmethod
     def set_maximum_charging_duration_of_current_energy_rate(
-        self, current_energy_rate: EnergyRate, upcoming_energy_rates: list[EnergyRate]
+        current_energy_rate: EnergyRate, upcoming_energy_rates: list[EnergyRate]
     ) -> None:
         """
         Determines and sets the maximum possible charging duration for a given current energy rate based on the upcoming
@@ -366,14 +356,8 @@ class TibberAPIHandler(LoggerMixin):
             if upcoming_energy_rate.rate > current_energy_rate.rate + TibberAPIHandler.MAXIMUM_THRESHOLD:
                 break
 
-        cheap_energy_duration = upcoming_energy_rate.timestamp - current_energy_rate.timestamp
-        if self.energy_rates_are_in_15_minute_tacts:
-            cheap_energy_duration += timedelta(minutes=15)
-        else:
-            cheap_energy_duration += timedelta(hours=1)
-
-        current_energy_rate.maximum_charging_duration = max(
-            TibberAPIHandler.MINIMUM_CHARGING_DURATION, cheap_energy_duration
+        current_energy_rate.maximum_charging_duration = (
+            upcoming_energy_rate.timestamp - current_energy_rate.timestamp + timedelta(minutes=15)
         )
 
     def write_energy_rates_to_database(self, energy_rates: list[EnergyRate]) -> None:

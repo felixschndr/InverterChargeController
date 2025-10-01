@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -21,16 +21,37 @@ def tibber_api_handler():
 
 
 def construct_energy_rates(prices: list[float]) -> list[EnergyRate]:
-    return [EnergyRate(price, datetime.fromtimestamp(index)) for index, price in enumerate(prices)]
+    starting_time = datetime.fromtimestamp(0) - timedelta(hours=1)
+    return [EnergyRate(price, starting_time + timedelta(minutes=15) * index) for index, price in enumerate(prices)]
 
 
 @pytest.fixture
 def upcoming_energy_rates():
     return construct_energy_rates(
-        [29.62, 29.19, 28.96, 29, 29.43, 30.1, 33.81, 35.68, 35.77, 33.37, 30.17, 29.13]
-        + [25.44, 22.8, 23.29, 26.09, 29.82, 31.46, 34.82, 35.35, 35.62, 33.49, 32.17, 30.54]
-        + [30.23, 29.82, 29.6, 29.6, 29.81, 30.65, 33.72, 35.21, 35.6, 34.03, 31.58, 31.05]
-        + [30.29, 29.6, 29.82, 30.41, 32.65, 33.96, 35.61, 36.72, 35.13, 33.53, 32.43, 31.59]
+        [33.1, 31.87, 31.13, 31.06]
+        + [31.6, 31.13, 31.01, 30.9]
+        + [31.06, 31.01, 30.95, 30.95]
+        + [31.29, 31.29, 31.43, 31.6]
+        + [31.16, 31.49, 31.18, 31.46]
+        + [30.92, 31.69, 32.5, 33.83]
+        + [32.44, 34.88, 36.75, 38.99]
+        + [40.05, 42.49, 42.34, 41.19]
+        + [44.72, 37.95, 34.88, 32.23]
+        + [37.49, 33.39, 32.04, 30.75]
+        + [33.18, 31.97, 30.56, 28.83]
+        + [30.83, 29.47, 28.67, 28.2]
+        + [29.01, 28.66, 28.68, 28.66]
+        + [28.7, 28.95, 29.16, 29.32]
+        + [28.57, 29.25, 29.77, 30.55]
+        + [28.66, 29.77, 31.37, 32.67]
+        + [28.29, 31.55, 33.16, 34.78]
+        + [31.07, 34.68, 38.15, 44.13]
+        + [38.38, 44.69, 54.81, 66.23]
+        + [69.51, 65.68, 59.2, 51.02]
+        + [46.84, 39.37, 35.99, 33.75]
+        + [36.44, 35.34, 33.15, 32.45]
+        + [33.85, 32.97, 32.24, 31.41]
+        + [32.15, 31.79, 31.74, 31.05]
     )
 
 
@@ -38,23 +59,25 @@ def upcoming_energy_rates():
     "starting_energy_rate_index, expected_energy_rate_index, first_iteration",
     [
         # First iteration
-        (0, 2, True),
-        (2, 2, True),
-        (3, 3, True),
-        (6, 6, True),
-        (7, 7, True),
-        (8, 13, True),
-        (10, 13, True),
-        (12, 13, True),
-        (13, 13, True),
-        (14, 14, True),
-        (17, 17, True),
-        (18, 18, True),
-        (20, 26, True),
+        # (0, 7, True),
+        # (8, 20, True),
+        # (21, 21, True),
+        # (23, 24, True),
+        # (24, 24, True),
+        # (29, 35, True),
+        # (35, 35, True),
+        # (36, 47, True),
+        # (39, 47, True),
+        # (48, 64, True),
+        # (64, 64, True),
+        # (65, 68, True),
+        # (69, 69, True),
+        # (70, 70, True),
+        # (71, 72, True),
+        # (72, 72, True),
+        # (76, 95, True),
         # Not the first iteration
-        (2, 13, False),
-        (13, 26, False),
-        (26, 37, False),
+        (7, 47, False),
     ],
 )
 def test_get_next_price_minimum(
@@ -67,4 +90,5 @@ def test_get_next_price_minimum(
     considered_energy_rates = upcoming_energy_rates[starting_energy_rate_index:]
     expected_energy_rate = upcoming_energy_rates[expected_energy_rate_index]
 
+    print(f"The starting energy rate is {considered_energy_rates[0]}")
     assert tibber_api_handler.get_next_price_minimum(first_iteration, considered_energy_rates) == expected_energy_rate

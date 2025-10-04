@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from dateutil.tz import tz, tzfile
 
@@ -35,3 +35,14 @@ class TimeHandler:
         combined_start = datetime.combine(current_date, start_time)
         combined_end = datetime.combine(current_date, end_time)
         return (combined_start - combined_end).total_seconds()
+
+    @staticmethod
+    def calculate_steps(start_time: time, end_time: time, step_size: timedelta) -> list[time]:
+        start = datetime.combine(TimeHandler.get_date(), start_time)
+        end = datetime.combine(TimeHandler.get_date(), end_time)
+
+        time_steps = []
+        while start <= end:
+            time_steps.append(start.time())
+            start += step_size
+        return time_steps

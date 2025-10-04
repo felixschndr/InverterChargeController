@@ -35,7 +35,7 @@ class InverterChargeController(LoggerMixin):
 
         self.current_energy_rate = None
         self.next_price_minimum = None
-        self.average_power_consumption_per_time_of_day = None
+
         # This is a dict that saves the values of a certain operations such as the upcoming energy rates, the
         # expected power harvested by the sun or the expected power usage.
         # This way if one of the requests to an external system fails (e.g., no Internet access), the prior requests
@@ -145,7 +145,6 @@ class InverterChargeController(LoggerMixin):
             return
 
         self.sems_portal_api_handler.write_values_to_database()
-        self.average_power_consumption_per_time_of_day = self._get_average_power_consumption_per_time_of_day()
 
         self.log.info(f"The battery shall be at least at {self.target_min_soc} at all times")
         self.log.info(f"The battery shall be at most be charged up to {self.target_max_soc}")
@@ -165,7 +164,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(sanitize_seconds=True),
                 self.next_price_minimum.timestamp,
-                self.average_power_consumption_per_time_of_day,
+                self._get_average_power_consumption_per_time_of_day(),
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -204,7 +203,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(sanitize_seconds=True),
                 self.next_price_minimum.timestamp,
-                self.average_power_consumption_per_time_of_day,
+                self._get_average_power_consumption_per_time_of_day(),
                 self.target_max_soc,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -299,7 +298,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(),
                 energy_rate_after_price_drops_below_average.timestamp,
-                self.average_power_consumption_per_time_of_day,
+                self._get_average_power_consumption_per_time_of_day(),
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -344,7 +343,7 @@ class InverterChargeController(LoggerMixin):
             self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
                 TimeHandler.get_time(),
                 self.next_price_minimum.timestamp,
-                self.average_power_consumption_per_time_of_day,
+                self._get_average_power_consumption_per_time_of_day(),
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
                 self._get_solar_data(),
@@ -448,7 +447,7 @@ class InverterChargeController(LoggerMixin):
         _, maximum_of_soc_until_timeframe_end = self.sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
             TimeHandler.get_time(sanitize_seconds=True),
             timeframe_end,
-            self.average_power_consumption_per_time_of_day,
+            self._get_average_power_consumption_per_time_of_day(),
             current_state_of_charge,
             self.next_price_minimum.has_to_be_rechecked,
             self._get_solar_data(),
@@ -726,9 +725,13 @@ class InverterChargeController(LoggerMixin):
                 "Currently there is an absence, using the power consumption configured in the environment as the basis "
                 "for calculation"
             )
-            average_power_consumption_per_time_of_day = Power(
-                float(EnvironmentVariableGetter.get("ABSENCE_POWER_CONSUMPTION", 150))
-            )
+            power_consumption = Power(float(EnvironmentVariableGetter.get("ABSENCE_POWER_CONSUMPTION", 150)))
+            average_power_consumption_per_time_of_day = {
+                time_step: power_consumption
+                for time_step in TimeHandler.calculate_steps(
+                    time(hour=0, minute=0), time(hour=23, minute=55), timedelta(minutes=5)
+                )
+            }
         else:
             self.log.debug(
                 "Currently there is no absence, using the data from the past as the basis for calculation the power consumption"

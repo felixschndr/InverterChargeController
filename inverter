@@ -73,7 +73,7 @@ if sys.argv[1] == "--mode":
         new_mode = OperationMode[sys.argv[2]]
         inverter = Inverter()
         inverter.log.name += " User"
-        last_mode = inverter.get_operation_mode(True).name
+        last_mode = inverter.get_operation_mode(log_new_mode=True).name
         inverter.set_operation_mode(new_mode)
         print(f"last mode: {last_mode}\nnew mode: {new_mode.name}")
     except Exception as e:
@@ -84,9 +84,9 @@ if sys.argv[1] == "--tibber":
     try:
         tibber_api_handler = TibberAPIHandler()
         api_result = tibber_api_handler._fetch_upcoming_prices_from_api()
-        all_energy_rates = tibber_api_handler._extract_energy_rates_from_api_response(api_result)
-        tibber_api_handler._remove_energy_rates_from_the_past(all_energy_rates)
-        tibber_api_handler.write_energy_rates_to_database(all_energy_rates)
+        all_quarter_hourly_energy_rates = tibber_api_handler._extract_energy_rates_from_api_response(api_result)
+        tibber_api_handler._remove_energy_rates_from_the_past(all_quarter_hourly_energy_rates)
+        tibber_api_handler.write_energy_rates_to_database(all_quarter_hourly_energy_rates)
     except Exception as e:
         logger.log.exception(e)
         exit(1)

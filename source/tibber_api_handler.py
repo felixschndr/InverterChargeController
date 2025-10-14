@@ -88,10 +88,10 @@ class TibberAPIHandler(LoggerMixin):
     def get_upcoming_energy_rates(self) -> list[EnergyRate]:
         self.log.debug("Fetching the upcoming energy rates from the Tibber API...")
         api_result = self._fetch_upcoming_prices_from_api()
-        all_energy_rates = self._extract_energy_rates_from_api_response(api_result)
-
-        self.write_energy_rates_to_database(all_energy_rates)
-        return self._remove_energy_rates_from_the_past(all_energy_rates)
+        all_quarter_hourly_energy_rates = self._extract_energy_rates_from_api_response(api_result)
+        self.write_energy_rates_to_database(all_quarter_hourly_energy_rates)
+        all_hourly_energy_rates = self._aggregate_to_hourly_rates(all_quarter_hourly_energy_rates)
+        return self._remove_energy_rates_from_the_past(all_hourly_energy_rates)
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
         """
@@ -107,7 +107,7 @@ class TibberAPIHandler(LoggerMixin):
                 viewer {
                     homes {
                         currentSubscription {
-                            priceInfo (resolution: HOURLY) {
+                            priceInfo (resolution: QUARTER_HOURLY) {
                                 today {
                                     total
                                     startsAt
@@ -387,3 +387,25 @@ class TibberAPIHandler(LoggerMixin):
                     InfluxDBField("rate_start_timestamp", energy_rate.timestamp.isoformat()),
                 ]
             )
+
+    def _aggregate_to_hourly_rates(
+        self,
+        quarter_hourly_energy_rates: list[EnergyRate],
+    ) -> list[EnergyRate]:
+        hourly_rates_map = {}
+        for quarter_rate in quarter_hourly_energy_rates:
+            current_hour = quarter_rate.timestamp.replace(minute=0)
+            if current_hour not in hourly_rates_map:
+                hourly_rates_map[current_hour] = []
+            hourly_rates_map[current_hour].append(quarter_rate.rate)
+
+        for hour_key, rates in hourly_rates_map.items():
+            average_rate = round(sum(rates) / len(rates), ndigits=2)
+            hourly_rates_map[hour_key] = EnergyRate(average_rate, hour_key)
+
+        hourly_rates_list = list(hourly_rates_map.values())
+        self.log.trace(
+            f"Aggregated the quarter hourly energy rates to hourly rates: {quarter_hourly_energy_rates} --> "
+            f"{hourly_rates_list}"
+        )
+        return hourly_rates_list

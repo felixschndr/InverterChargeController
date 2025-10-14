@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -68,3 +68,25 @@ def test_get_next_price_minimum(
     expected_energy_rate = upcoming_energy_rates[expected_energy_rate_index]
 
     assert tibber_api_handler.get_next_price_minimum(first_iteration, considered_energy_rates) == expected_energy_rate
+
+
+def test_aggregate_to_hourly_rates(tibber_api_handler):
+    starting_time = datetime.fromtimestamp(0)
+    quarter_hourly_rates = [
+        EnergyRate(10, starting_time + timedelta(minutes=0)),
+        EnergyRate(15, starting_time + timedelta(minutes=15)),
+        EnergyRate(20, starting_time + timedelta(minutes=30)),
+        EnergyRate(25, starting_time + timedelta(minutes=45)),
+        EnergyRate(10, starting_time + timedelta(hours=1, minutes=0)),
+        EnergyRate(10, starting_time + timedelta(hours=1, minutes=15)),
+        EnergyRate(10, starting_time + timedelta(hours=1, minutes=30)),
+        EnergyRate(10.951, starting_time + timedelta(hours=1, minutes=45)),
+        EnergyRate(15, starting_time + timedelta(hours=2, minutes=0)),
+    ]
+    expected_hourly_rates = [
+        EnergyRate(17.5, starting_time),
+        EnergyRate(10.24, starting_time + timedelta(hours=1)),
+        EnergyRate(15.0, starting_time + timedelta(hours=2)),
+    ]
+
+    assert tibber_api_handler._aggregate_to_hourly_rates(quarter_hourly_rates) == expected_hourly_rates

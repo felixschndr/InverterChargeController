@@ -20,8 +20,9 @@ def tibber_api_handler():
     return tibber_api_handler
 
 
-def construct_energy_rates(prices: list[float]) -> list[EnergyRate]:
-    return [EnergyRate(price, datetime.fromtimestamp(index)) for index, price in enumerate(prices)]
+def construct_energy_rates(prices: list[float], step: timedelta = timedelta(hours=1)) -> list[EnergyRate]:
+    starting_time = datetime.fromtimestamp(0)
+    return [EnergyRate(price, starting_time + (index * step)) for index, price in enumerate(prices)]
 
 
 @pytest.fixture
@@ -71,22 +72,7 @@ def test_get_next_price_minimum(
 
 
 def test_aggregate_to_hourly_rates(tibber_api_handler):
-    starting_time = datetime.fromtimestamp(0)
-    quarter_hourly_rates = [
-        EnergyRate(10, starting_time + timedelta(minutes=0)),
-        EnergyRate(15, starting_time + timedelta(minutes=15)),
-        EnergyRate(20, starting_time + timedelta(minutes=30)),
-        EnergyRate(25, starting_time + timedelta(minutes=45)),
-        EnergyRate(10, starting_time + timedelta(hours=1, minutes=0)),
-        EnergyRate(10, starting_time + timedelta(hours=1, minutes=15)),
-        EnergyRate(10, starting_time + timedelta(hours=1, minutes=30)),
-        EnergyRate(10.951, starting_time + timedelta(hours=1, minutes=45)),
-        EnergyRate(15, starting_time + timedelta(hours=2, minutes=0)),
-    ]
-    expected_hourly_rates = [
-        EnergyRate(17.5, starting_time),
-        EnergyRate(10.24, starting_time + timedelta(hours=1)),
-        EnergyRate(15.0, starting_time + timedelta(hours=2)),
-    ]
+    quarter_hourly_rates = construct_energy_rates([10, 15, 20, 25, 10, 10, 10, 10.951, 15], timedelta(minutes=15))
+    expected_hourly_rates = construct_energy_rates([17.5, 10.24, 15.0], timedelta(hours=1))
 
     assert tibber_api_handler._aggregate_to_hourly_rates(quarter_hourly_rates) == expected_hourly_rates

@@ -7,6 +7,7 @@ from typing import Any, Generator, Optional
 import pause
 from aiohttp import ClientError
 from goodwe import InverterError, OperationMode
+from gql.transport.exceptions import TransportError
 from requests.exceptions import RequestException
 
 from source.abscence_handler import AbsenceHandler
@@ -91,7 +92,7 @@ class InverterChargeController(LoggerMixin):
 
                 pause.until(self.next_price_minimum.timestamp)
 
-            except (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError):
+            except (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError, TransportError):
                 self.log.warning(
                     f"An exception occurred while trying to fetch data from a different system. "
                     f"Waiting for {duration_to_wait_in_cause_of_error} to try again...",

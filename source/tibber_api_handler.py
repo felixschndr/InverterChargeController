@@ -21,7 +21,7 @@ class TibberAPIHandler(LoggerMixin):
             headers={"Authorization": EnvironmentVariableGetter.get("TIBBER_API_TOKEN")},
             ssl=True,
         )
-        self.client = Client(transport=transport, fetch_schema_from_transport=True)
+        self.client = Client(transport=transport, fetch_schema_from_transport=True, execute_timeout=30)
 
         self.database_handler = DatabaseHandler("energy_prices")
 

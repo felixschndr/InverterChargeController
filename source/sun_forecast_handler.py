@@ -321,7 +321,15 @@ class SunForecastHandler(LoggerMixin):
             power_during_timeslot = solar_data[timeframe_end.isoformat()]
             return EnergyAmount.from_watt_seconds(power_during_timeslot.watts * timeframe_duration.total_seconds())
         except KeyError as e:
-            # This should never happen
+            now = datetime.now(TimeHandler.get_timezone())
+            yesterday = now - timedelta(days=1)
+            tomorrow = now + timedelta(days=1)
+
+            if yesterday.utcoffset() != tomorrow.utcoffset():
+                returned_energy_amount = EnergyAmount.from_watt_seconds(0)
+                self.log.info(f"A time shift is detected. Using {returned_energy_amount} as a workaround.")
+                return returned_energy_amount
+
             self.log.critical(
                 f"The timeframe end {timeframe_end} is not found in the provided solar data {solar_data}",
                 exc_info=True,
@@ -360,5 +368,5 @@ class SunForecastHandler(LoggerMixin):
         Returns:
             datetime: The local time of tomorrow's sunset.
         """
-        sun = SunTimes(self.longitude, self.latitude)
+        sun = SunTimes(longitude=self.longitude, latitude=self.latitude)
         return sun.setlocal(TimeHandler.get_date() + timedelta(days=1))

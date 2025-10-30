@@ -66,17 +66,13 @@ class TibberAPIHandler(LoggerMixin):
             energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
                 upcoming_energy_rates
             )
-            minimum_of_energy_rates = energy_rates_between_first_and_second_maximum[0]
-            for energy_rate in energy_rates_between_first_and_second_maximum:
-                if energy_rate.rate < minimum_of_energy_rates.rate:
-                    minimum_of_energy_rates = energy_rate
         else:
             energy_rates_between_first_and_second_maximum = self._get_energy_rates_between_first_and_second_maximum(
                 upcoming_energy_rates
             )
-            minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
-                energy_rates_between_first_and_second_maximum
-            )
+        minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
+            energy_rates_between_first_and_second_maximum
+        )
 
         if self._check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
             minimum_of_energy_rates, upcoming_energy_rates
@@ -90,8 +86,11 @@ class TibberAPIHandler(LoggerMixin):
         api_result = self._fetch_upcoming_prices_from_api()
         all_quarter_hourly_energy_rates = self._extract_energy_rates_from_api_response(api_result)
         self.write_energy_rates_to_database(all_quarter_hourly_energy_rates)
-        all_hourly_energy_rates = self._aggregate_to_hourly_rates(all_quarter_hourly_energy_rates)
-        return self._remove_energy_rates_from_the_past(all_hourly_energy_rates)
+        upcoming_quarter_hourly_energy_rates = self._remove_energy_rates_from_the_past(all_quarter_hourly_energy_rates)
+        self.log.debug(f"The upcoming quarter hourly energy rates are {upcoming_quarter_hourly_energy_rates}")
+        upcoming_hourly_energy_rates = self._aggregate_to_hourly_rates(upcoming_quarter_hourly_energy_rates)
+        self.log.debug(f"The aggregated hourly energy rates are {upcoming_hourly_energy_rates}")
+        return upcoming_hourly_energy_rates
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
         """
@@ -151,7 +150,8 @@ class TibberAPIHandler(LoggerMixin):
         self.log.trace(f"Extracted the the energy rates from the API response {upcoming_energy_rates}")
         return upcoming_energy_rates
 
-    def _remove_energy_rates_from_the_past(self, all_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
+    @staticmethod
+    def _remove_energy_rates_from_the_past(all_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
         """
         Returns a list of energy rates that are dated in the past relative to the current hour.
 
@@ -163,11 +163,7 @@ class TibberAPIHandler(LoggerMixin):
         """
         current_time = TimeHandler.get_time()
 
-        upcoming_energy_rates = [
-            energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > current_time
-        ]
-        self.log.debug(f"The Upcoming energy rates are {upcoming_energy_rates}")
-        return upcoming_energy_rates
+        return [energy_rate for energy_rate in all_energy_rates if energy_rate.timestamp > current_time]
 
     def _get_energy_rates_between_first_and_second_maximum(
         self, upcoming_energy_rates: list[EnergyRate]

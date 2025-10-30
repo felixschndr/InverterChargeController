@@ -364,7 +364,7 @@ class TibberAPIHandler(LoggerMixin):
         Args:
             energy_rates (list[EnergyRate]): A list of EnergyRate objects to be written to the database.
         """
-        self.log.debug("Writing prices to database...")
+        self.log.debug("Writing prices to the database...")
 
         newest_saved_energy_rate = self.database_handler.get_newest_value_of_measurement("rate_start_timestamp")
         if newest_saved_energy_rate is None:

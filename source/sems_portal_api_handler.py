@@ -187,7 +187,7 @@ class SemsPortalApiHandler(LoggerMixin):
             days_since_newest_value = maximum_fetch_days
 
         days_since_newest_value += 1  # Since range starts at 0 and does not include the end
-        self.log.debug(f"Writing values to database for the last {days_since_newest_value} day(s)")
+        self.log.debug(f"Writing values to the database for the last {days_since_newest_value} day(s)")
 
         for days_in_past in range(days_since_newest_value):
             date_to_crawl = today - timedelta(days=days_in_past)
@@ -328,6 +328,6 @@ class SemsPortalApiHandler(LoggerMixin):
             result[time_of_day] = total_power / len(records) if records else Power(0)
 
         result_human_readable = ", ".join(f"{t}: {p}" for t, p in result.items())
-        self.log.debug(f"Calculated average power consumption for each time of day: {result_human_readable}")
+        self.log.trace(f"Calculated average power consumption for each time of day: {result_human_readable}")
 
         return result

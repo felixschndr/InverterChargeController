@@ -122,6 +122,9 @@ class InverterChargeController(LoggerMixin):
             f"Waiting is over, now is a price minimum ({self.next_price_minimum.rate} ct/kWh). Checking what has to be "
             f"done to reach the next minimum..."
         )
+
+        self.sems_portal_api_handler.write_values_to_database()
+
         self.current_energy_rate = self.next_price_minimum
 
         self.next_price_minimum = self._get_next_price_minimum()
@@ -144,8 +147,6 @@ class InverterChargeController(LoggerMixin):
                 f"state of charge ({self.target_max_soc}) --> No charging necessary/possible"
             )
             return
-
-        self.sems_portal_api_handler.write_values_to_database()
 
         self.log.info(f"The battery shall be at least at {self.target_min_soc} at all times")
         self.log.info(f"The battery shall be at most be charged up to {self.target_max_soc}")

@@ -40,7 +40,7 @@ class DatabaseHandler(LoggerMixin):
         for field_to_insert in fields_to_insert:
             point = point.field(field_to_insert.name, field_to_insert.value)
 
-        self.log.trace(f"Writing to database: {point}")
+        self.log.trace(f"Writing to the database: {point}")
         try:
             self.write_api.write(bucket=self.bucket, record=point)
         except NewConnectionError:

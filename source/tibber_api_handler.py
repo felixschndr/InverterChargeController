@@ -62,9 +62,9 @@ class TibberAPIHandler(LoggerMixin):
             upcoming_energy_rates = self.get_upcoming_energy_rates()
 
         if first_iteration:
-            self.log.debug("This is the first iteration. Returning the first minimum before the first maximum.")
+            self.log.debug("This is the first iteration, returning the first minimum before the first maximum")
             energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
-                upcoming_energy_rates, first_run=True
+                upcoming_energy_rates
             )
             minimum_of_energy_rates = energy_rates_between_first_and_second_maximum[0]
             for energy_rate in energy_rates_between_first_and_second_maximum:
@@ -72,7 +72,7 @@ class TibberAPIHandler(LoggerMixin):
                     minimum_of_energy_rates = energy_rate
         else:
             energy_rates_between_first_and_second_maximum = self._get_energy_rates_between_first_and_second_maximum(
-                upcoming_energy_rates, first_iteration
+                upcoming_energy_rates
             )
             minimum_of_energy_rates = self.get_global_minimum_of_energy_rates(
                 energy_rates_between_first_and_second_maximum
@@ -170,7 +170,7 @@ class TibberAPIHandler(LoggerMixin):
         return upcoming_energy_rates
 
     def _get_energy_rates_between_first_and_second_maximum(
-        self, upcoming_energy_rates: list[EnergyRate], first_iteration: bool
+        self, upcoming_energy_rates: list[EnergyRate]
     ) -> list[EnergyRate]:
         """
         Returns a list of the upcoming energy rates starting from the first maximum rate (excluding the rates leading up
@@ -182,9 +182,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             List of EnergyRate objects that start between the first and second maximum energy rates.
         """
-        energy_rates_ending_at_first_maximum = self._find_energy_rates_till_first_maximum(
-            upcoming_energy_rates, first_iteration
-        )
+        energy_rates_ending_at_first_maximum = self._find_energy_rates_till_first_maximum(upcoming_energy_rates)
 
         first_maximum_energy_rate = energy_rates_ending_at_first_maximum.pop()
         energy_rates_starting_at_first_maximum = upcoming_energy_rates.copy()
@@ -203,9 +201,7 @@ class TibberAPIHandler(LoggerMixin):
         return energy_rates_between_first_and_second_maximum
 
     @staticmethod
-    def _find_energy_rates_till_first_maximum(
-        upcoming_energy_rates: list[EnergyRate], first_run: bool = False
-    ) -> list[EnergyRate]:
+    def _find_energy_rates_till_first_maximum(upcoming_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
         last_energy_rate = minimum_energy_rate_found_until_now = upcoming_energy_rates[0]
         last_energy_rate_was_maximum = False
         energy_rates_till_maximum = []
@@ -215,8 +211,7 @@ class TibberAPIHandler(LoggerMixin):
                 minimum_energy_rate_found_until_now = current_energy_rate
 
             if current_energy_rate > last_energy_rate and (
-                first_run
-                or current_energy_rate.rate
+                current_energy_rate.rate
                 >= minimum_energy_rate_found_until_now.rate + TibberAPIHandler.MAXIMUM_THRESHOLD
             ):
                 last_energy_rate_was_maximum = True

@@ -394,10 +394,23 @@ class InverterChargeController(LoggerMixin):
             if charging_target_soc is None:
                 return
         else:
-            charging_target_soc = (
+            charging_target_soc_from_iteration_till_next_price_minimum = (
+                self.target_min_soc - minimum_of_soc_until_next_price_minimum
+            )
+
+            charging_target_soc_from_iteration_till_tomorrows_sunset = (
                 self._calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_lower_than_next_one(
                     current_state_of_charge,
                 )
+            )
+            self.log.debug(
+                f"The target state of charge from the iteration till next price minimum is "
+                f"{charging_target_soc_from_iteration_till_next_price_minimum}, the target state of charge from the "
+                f"iteration till tomorrows sunset is {charging_target_soc_from_iteration_till_tomorrows_sunset}"
+            )
+            charging_target_soc = max(
+                charging_target_soc_from_iteration_till_next_price_minimum,
+                charging_target_soc_from_iteration_till_tomorrows_sunset,
             )
 
         self.log.info(f"The calculated target state of charge is {charging_target_soc}")

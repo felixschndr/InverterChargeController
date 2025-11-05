@@ -3,448 +3,399 @@
 
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
-      "pv_estimate90": 0,
       "period_end": "2025-01-06T00:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T00:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T01:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T01:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T02:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T02:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T03:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T03:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T04:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T04:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T05:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T05:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T06:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0,
-      "pv_estimate10": 0,
+      "pv_estimate": 0.0031,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T06:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0,
-      "pv_estimate10": 0,
+      "pv_estimate": 0.1878,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T07:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0,
-      "pv_estimate10": 0,
+      "pv_estimate": 1.4169,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T07:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.0222,
+      "pv_estimate": 1.9906,
       "pv_estimate10": 0.0127,
       "pv_estimate90": 0.0381,
       "period_end": "2025-01-06T08:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.0753,
+      "pv_estimate": 2.2122,
       "pv_estimate10": 0.0408,
       "pv_estimate90": 0.116,
       "period_end": "2025-01-06T08:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.1411,
+      "pv_estimate": 2.8667,
       "pv_estimate10": 0.0815,
       "pv_estimate90": 0.256,
       "period_end": "2025-01-06T09:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.2223,
+      "pv_estimate": 3.1833,
       "pv_estimate10": 0.1129,
       "pv_estimate90": 0.407,
       "period_end": "2025-01-06T09:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.2481,
+      "pv_estimate": 3.4367,
       "pv_estimate10": 0.1147,
       "pv_estimate90": 0.4706,
       "period_end": "2025-01-06T10:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.2793,
+      "pv_estimate": 3.4365,
       "pv_estimate10": 0.1195,
       "pv_estimate90": 0.528,
       "period_end": "2025-01-06T10:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.3244,
+      "pv_estimate": 2.9632,
       "pv_estimate10": 0.1288,
       "pv_estimate90": 0.5977,
       "period_end": "2025-01-06T11:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.3713,
+      "pv_estimate": 2.3252,
       "pv_estimate10": 0.1451,
       "pv_estimate90": 0.6643,
       "period_end": "2025-01-06T11:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.4259,
+      "pv_estimate": 2.159,
       "pv_estimate10": 0.1843,
       "pv_estimate90": 0.8248,
       "period_end": "2025-01-06T12:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.4205,
+      "pv_estimate": 1.8985,
       "pv_estimate10": 0.1788,
       "pv_estimate90": 0.8751,
       "period_end": "2025-01-06T12:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.3415,
+      "pv_estimate": 2.1451,
       "pv_estimate10": 0.1347,
       "pv_estimate90": 0.7277,
       "period_end": "2025-01-06T13:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.278,
+      "pv_estimate": 0.9808,
       "pv_estimate10": 0.1155,
       "pv_estimate90": 0.635,
       "period_end": "2025-01-06T13:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.2064,
+      "pv_estimate": 1.563,
       "pv_estimate10": 0.0948,
       "pv_estimate90": 0.5456,
       "period_end": "2025-01-06T14:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.1392,
+      "pv_estimate": 1.527,
       "pv_estimate10": 0.0681,
       "pv_estimate90": 0.4148,
       "period_end": "2025-01-06T14:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.0898,
+      "pv_estimate": 0.8394,
       "pv_estimate10": 0.0449,
       "pv_estimate90": 0.2518,
       "period_end": "2025-01-06T15:00:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0.0329,
+      "pv_estimate": 0.6472,
       "pv_estimate10": 0.015,
       "pv_estimate90": 0.0683,
       "period_end": "2025-01-06T15:30:00.0000000Z",
       "period": "PT30M"
     },
     {
-      "pv_estimate": 0,
-      "pv_estimate10": 0,
+      "pv_estimate": 0.0326,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T16:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T16:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T17:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T17:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T18:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T18:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T19:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T19:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T20:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T20:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T21:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T21:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T22:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T22:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T23:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-06T23:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T00:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T00:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T01:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T01:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T02:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T02:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T03:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T03:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T04:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T04:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T05:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T05:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T06:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T06:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T07:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T07:30:00.0000000Z",
       "period": "PT30M"
@@ -563,112 +514,96 @@
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T16:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T16:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T17:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T17:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T18:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T18:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T19:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T19:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T20:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T20:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T21:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T22:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T22:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T23:00:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-07T23:30:00.0000000Z",
       "period": "PT30M"
     },
     {
       "pv_estimate": 0,
-      "pv_estimate10": 0,
       "pv_estimate90": 0,
       "period_end": "2025-01-08T00:00:00.0000000Z",
       "period": "PT30M"

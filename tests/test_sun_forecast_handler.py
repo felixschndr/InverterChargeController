@@ -325,3 +325,11 @@ def test_calculate_energy_usage_in_timeframe(average_power_consumption_per_time_
     assert expected_energy_usage == SunForecastHandler._calculate_energy_usage_in_timeframe(
         timeframe_start, timeframe_duration, average_power_consumption_per_time_of_day
     )
+
+
+def test_make_debug_api_request():
+    sun_forecast_handler = SunForecastHandler()
+    sun_forecast_handler._add_trace_loglevel()
+
+    data = sun_forecast_handler.retrieve_solar_data_from_api(retrieve_future_data=True)
+    print(data)

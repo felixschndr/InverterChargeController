@@ -26,12 +26,15 @@ class InverterChargeController(LoggerMixin):
     def __init__(self):
         super().__init__()
 
+        try:
+            self.absence_handler = AbsenceHandler()
+        except ValueError:
+            sys.exit(1)
         self.timezone = TimeHandler.get_timezone()
         self.sems_portal_api_handler = SemsPortalApiHandler()
         self.sun_forecast_handler = SunForecastHandler()
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
-        self.absence_handler = AbsenceHandler()
         self.database_handler = DatabaseHandler("power_buy")
 
         self.current_energy_rate = None
@@ -735,7 +738,7 @@ class InverterChargeController(LoggerMixin):
         if average_power_consumption_per_time_of_day:
             return average_power_consumption_per_time_of_day
 
-        if self.absence_handler.check_for_current_absence():
+        if self.absence_handler.currently_is_an_absence():
             self.log.info(
                 "Currently there is an absence, using the power consumption configured in the environment as the basis "
                 "for calculation"

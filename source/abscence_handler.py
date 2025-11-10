@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from source.environment_variable_getter import EnvironmentVariableGetter
 from source.logger import LoggerMixin
@@ -11,23 +12,26 @@ class AbsenceHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-    def check_for_current_absence(self) -> bool:
-        absence_input = ""
+        self.absence_input = EnvironmentVariableGetter.get("ABSENCE_TIMEFRAME", "")
         try:
-            absence_input = EnvironmentVariableGetter.get("ABSENCE_TIMEFRAME", "")
-            return self._check_for_current_absence(absence_input)
-        except ValueError:
+            self.absence_start, self.absence_end = self._parse_absence_input(self.absence_input)
+        except ValueError as e:
             self.log.error(
-                f'Improperly configured: "{absence_input}" is not a valid configuration! '
+                f'Improperly configured: "{self.absence_input}" is not a valid configuration! '
                 "Read the README for instructions.",
                 exc_info=True,
             )
-            return False
+            raise e
 
-    def _check_for_current_absence(self, absence_input: str) -> bool:
+    def currently_is_an_absence(self) -> bool:
+        if not self.absence_start:
+            return False
+        return self.absence_start < TimeHandler.get_time() < self.absence_end
+
+    def _parse_absence_input(self, absence_input: str) -> Optional[tuple[datetime, datetime]]:
         if not absence_input:
             self.log.debug("Absence input is empty")
-            return False
+            return None
         if absence_input.count(self.DELIMITER) != 1:
             raise ValueError(f'The amount of "{self.DELIMITER}" in the input MUST be 1')
 
@@ -41,7 +45,4 @@ class AbsenceHandler(LoggerMixin):
             if timestamp.tzinfo is None:
                 raise ValueError(f'"{absence_start_raw}" has no timezone information')
 
-        if absence_start < TimeHandler.get_time() < absence_end:
-            return True
-
-        return absence_start < TimeHandler.get_time() < absence_end
+        return absence_start, absence_end

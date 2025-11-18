@@ -23,6 +23,8 @@ from source.time_handler import TimeHandler
 
 
 class InverterChargeController(LoggerMixin):
+    WAKEUP_TIME_BEFORE_PRICE_MINIMUM = timedelta(minutes=8)
+
     def __init__(self):
         super().__init__()
 
@@ -40,7 +42,7 @@ class InverterChargeController(LoggerMixin):
         self.current_energy_rate = None
         self.next_price_minimum = None
 
-        # This is a dict that saves the values of a certain operations such as the upcoming energy rates, the
+        # This is a dict that saves the values of certain operations such as the upcoming energy rates, the
         # expected power harvested by the sun or the expected power usage.
         # This way if one of the requests to an external system fails (e.g., no Internet access), the prior requests
         # don't have to be made again.
@@ -89,9 +91,20 @@ class InverterChargeController(LoggerMixin):
                     # tomorrow were unavailable, however, we also needed to charge, and now it is past 2 PM
                     self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
 
-                self.log.info(
-                    f"The next price minimum is {self.next_price_minimum.timestamp} --> Waiting until then..."
+                # A price minimum is always on the hour
+                # The rate limit for the solar forecast is shared with all free users
+                # Thus, we wake up a few minutes before the new hour to not run into the rate limit
+                time_before_next_price_minimum = (
+                    self.next_price_minimum.timestamp - InverterChargeController.WAKEUP_TIME_BEFORE_PRICE_MINIMUM
                 )
+                self.log.info(
+                    f"The next price minimum is {self.next_price_minimum.timestamp} --> Waiting until {time_before_next_price_minimum} to fetch the solar forecast..."
+                )
+
+                pause.until(time_before_next_price_minimum)
+                self.log.info("Waking up to fetch the solar forecast")
+                _ = self._get_solar_data()
+                self.log.debug(f"Waiting until the next price minimum {self.next_price_minimum.timestamp}...")
 
                 pause.until(self.next_price_minimum.timestamp)
 
@@ -159,7 +172,7 @@ class InverterChargeController(LoggerMixin):
     def coordinate_charging(self, current_state_of_charge: StateOfCharge) -> None:
         """
         Coordinates the charging process based on the current state of charge, power consumption, energy rate,
-        calculated min and max state of charges and targets for state of charge.
+        calculated min and max state of charges, and targets for state of charge.
         Determines whether the next price minimum is reachable and initiates corresponding charging strategies.
 
         Args:
@@ -232,7 +245,7 @@ class InverterChargeController(LoggerMixin):
         Handles the coordination of battery charging when the upcoming price minimum cannot be reached.
 
         This function utilizes the upcoming energy rates to determine the most efficient charging strategy. It does this
-        by first charging the battery to the target maximum, and then charging the battery around the price spike.
+        by first charging the battery to the target maximum and then charging the battery around the price spike.
         The "price spike" is the sequence of all EnergyRates that are higher than the average price.
         """
         target_soc = StateOfCharge.from_percentage(100)
@@ -525,7 +538,7 @@ class InverterChargeController(LoggerMixin):
                 # Can't set the mode of the inverter as it is unresponsive
                 break
 
-            # Account for program execution times, this way the check happens at 5-minute intervals and delays do not
+            # Account for program execution times, this way the check happens at 5-minute intervals, and delays do not
             # add up (minor cosmetics)
             pause.seconds(charging_progress_check_interval.total_seconds() - TimeHandler.get_time().second)
 
@@ -665,7 +678,7 @@ class InverterChargeController(LoggerMixin):
 
     def _cap_state_of_charge(self, target_state_of_charge: StateOfCharge) -> Optional[StateOfCharge]:
         """
-        Caps the target state of charge based on maximum allowed charge in the environment
+        Caps the target state of charge based on the maximum allowed charge in the environment
         and returns None when the current state of charge is higher than the target state of charge.
 
         Args:

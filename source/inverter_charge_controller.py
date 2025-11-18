@@ -78,16 +78,16 @@ class InverterChargeController(LoggerMixin):
 
                     if now <= time_to_sleep_to:
                         self.log.info(
-                            f"The price minimum {self.next_price_minimum} has to re-checked "
+                            f"The price minimum {self.next_price_minimum} has to be re-checked "
                             f"--> Waiting until {time_to_sleep_to}..."
                         )
                         pause.until(time_to_sleep_to)
                         self.write_newlines_to_log_file()
-                        self.log.info("Waking up since the price minimum has to re-checked")
+                        self.log.info("Waking up since the price minimum has to be re-checked")
 
                     # This without the _if_ before being true does happen when we fetched the prices and the ones for
-                    # tomorrow were unavailable, however, we also needed to charge, and now it is passed 2 PM
-                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration=True)
+                    # tomorrow were unavailable, however, we also needed to charge, and now it is past 2 PM
+                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
 
                 self.log.info(
                     f"The next price minimum is {self.next_price_minimum.timestamp} --> Waiting until then..."

@@ -744,12 +744,12 @@ class InverterChargeController(LoggerMixin):
                 "for calculation"
             )
             power_consumption = Power(float(EnvironmentVariableGetter.get("ABSENCE_POWER_CONSUMPTION", 150)))
-            average_power_consumption_per_time_of_day = {
-                time_step: power_consumption
-                for time_step in TimeHandler.calculate_steps(
-                    time(hour=0, minute=0), time(hour=23, minute=55), timedelta(minutes=5)
-                )
-            }
+            average_power_consumption_per_time_of_day = dict.fromkeys(
+                list(
+                    TimeHandler.calculate_steps(time(hour=0, minute=0), time(hour=23, minute=55), timedelta(minutes=5))
+                ),
+                power_consumption,
+            )
         else:
             self.log.debug(
                 "Currently there is no absence, using the data from the past as the basis for calculation the power consumption"

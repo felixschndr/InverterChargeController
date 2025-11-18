@@ -338,7 +338,7 @@ class TibberAPIHandler(LoggerMixin):
         Args:
             current_energy_rate (EnergyRate): The current energy rate input for which the maximum charging duration
                 needs to be set.
-            upcoming_energy_rates (list[EnergyRate]: A list of upcoming energy rates that are used to compare and
+            upcoming_energy_rates (list[EnergyRate]): A list of upcoming energy rates that are used to compare and
                 calculate the charging duration.
         """
         upcoming_energy_rate = current_energy_rate

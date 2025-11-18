@@ -107,4 +107,4 @@ class DatabaseHandler(LoggerMixin):
         if len(result) == 0:
             return []
 
-        return [record for record in result[0].records]
+        return list(result[0].records)

@@ -39,7 +39,7 @@ class EnvironmentVariableGetter:
             if default_value is not None:
                 return default_value
 
-            raise RuntimeError(f'The environment variable "{name_of_variable}" is not set!')
+            raise ValueError(f'The environment variable "{name_of_variable}" is not set!')
 
     @staticmethod
     def _cast_string_to_bool(value: str) -> bool | str:

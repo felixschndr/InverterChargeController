@@ -1,7 +1,7 @@
 import asyncio
 
 import goodwe
-from goodwe import inverter as GoodweInverter
+from goodwe import Inverter as GoodweInverter
 from goodwe.et import OperationMode
 
 from source.energy_classes import EnergyAmount, StateOfCharge

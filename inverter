@@ -34,7 +34,7 @@ def print_help_and_exit() -> None:
     print("You have to supply one of the following arguments:")
     print(" --status                    Get the current state of charge and operation mode of the inverter")
     print(" --mode {GENERAL,ECO_CHARGE} Set the operation mode of the inverter")
-    print(" --tibber                    Fetches, displays the tibber rates and writes them to the database")
+    print(" --tibber                    Fetches the tibber rates and writes them to the database")
     print("")
     print("It uses all the variables defined in the .env file")
     sys.exit(1)

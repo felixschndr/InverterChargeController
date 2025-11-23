@@ -102,6 +102,7 @@ class InverterChargeController(LoggerMixin):
                 )
 
                 pause.until(time_before_next_price_minimum)
+                self.write_newlines_to_log_file()
                 self.log.info("Waking up to fetch the solar forecast")
                 _ = self._get_solar_data()
                 self.log.debug(f"Waiting until the next price minimum {self.next_price_minimum.timestamp}...")

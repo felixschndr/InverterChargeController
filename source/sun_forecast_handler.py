@@ -23,10 +23,18 @@ class SunForecastHandler(LoggerMixin):
         self.timeframe_duration = None
         self.headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
 
+        self.charge_and_discharge_efficiency = self._get_charge_and_discharge_efficiency()
         self.latitude = float(EnvironmentVariableGetter.get("LATITUDE"))
         self.longitude = float(EnvironmentVariableGetter.get("LONGITUDE"))
-
         self.database_handler = DatabaseHandler("solar_forecast")
+
+    def _get_charge_and_discharge_efficiency(self) -> float:
+        env_name = "INVERTER_CHARGE_DISCHARGE_EFFICIENCY"
+        efficiency = float(EnvironmentVariableGetter.get(env_name, 90)) / 100
+        if efficiency < 0 or efficiency > 100:
+            raise ValueError(f'The environment variable "{env_name}" must be set to a value between 0 and 100')
+        self.log.info(f"Using a charge and discharge efficiency of {efficiency}%")
+        return efficiency
 
     def calculate_min_and_max_of_soc_in_timeframe(
         self,
@@ -103,11 +111,19 @@ class SunForecastHandler(LoggerMixin):
                 current_timeframe_end, current_timeframe_duration, solar_data
             )
             total_energy_harvested += energy_harvested_during_timeframe
-            soc_after_current_timeframe = StateOfCharge(
-                soc_after_current_timeframe.absolute
-                - energy_usage_during_timeframe
-                + energy_harvested_during_timeframe
-            )
+
+            # Apply charge/discharge losses:
+            # If there is a surplus (harvest > usage), only a fraction ends up stored in the battery.
+            # If there is a deficit (usage > harvest), more energy must be taken from the battery.
+            net_energy = energy_harvested_during_timeframe - energy_usage_during_timeframe
+
+            if net_energy.watt_hours >= 0:
+                effective_change = net_energy * self.charge_and_discharge_efficiency
+                soc_after_current_timeframe = StateOfCharge(soc_after_current_timeframe.absolute + effective_change)
+            else:
+                deficit = net_energy * -1
+                effective_draw = deficit * (1.0 / self.charge_and_discharge_efficiency)
+                soc_after_current_timeframe = StateOfCharge(soc_after_current_timeframe.absolute - effective_draw)
 
             if soc_after_current_timeframe < minimum_soc:
                 log_text = " (new minimum)"

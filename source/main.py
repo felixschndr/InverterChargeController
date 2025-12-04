@@ -17,23 +17,20 @@ from source.sun_forecast_handler import SunForecastHandler
 from source.time_handler import TimeHandler
 
 LOCK_FILE_PATH = "/tmp/inverter_charge_controller.lock"  # nosec B108
+# The rate limit for the solar forecast is shared with all free users
+# Thus, we wake up a few minutes before/after the new hour to not run into the rate limit
+SOLAR_FORECAST_Check_OFFSET = timedelta(minutes=8)
 
 logger = LoggerMixin("Main")
 
 
 def lock() -> None:
-    """
-    Writes the current process ID to a lock file to indicate the process is active.
-    """
     with open(LOCK_FILE_PATH, "w") as lock_file:
         lock_file.write(str(os.getpid()))
     logger.log.trace("Lock file created")
 
 
 def unlock() -> None:
-    """
-    Removes the lock file if it exists and thus unlocking the process.
-    """
     if not os.path.exists(LOCK_FILE_PATH):
         return
 
@@ -43,9 +40,11 @@ def unlock() -> None:
 
 def write_solar_forecast_and_history_to_db() -> None:
     sun_forecast_handler = SunForecastHandler()
+    morning_time = time(hour=5, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
+    evening_time = time(hour=23, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
 
     while True:
-        next_wakeup_time = _get_next_wakeup_time()
+        next_wakeup_time = _get_next_wakeup_time(morning_time, evening_time)
         logger.log.info(f"Next wakeup time to log solar data of the day is at {next_wakeup_time}")
         pause.until(next_wakeup_time)
 
@@ -54,7 +53,8 @@ def write_solar_forecast_and_history_to_db() -> None:
 
         try:
             # We call this function instead of retrieve_solar_data to ensure not writing debug data into the DB
-            sun_forecast_handler.retrieve_solar_data_from_api(False)
+            need_to_retrieve_future_data = next_wakeup_time.hour == morning_time.hour
+            sun_forecast_handler.retrieve_solar_data_from_api(need_to_retrieve_future_data)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 429:
                 raise e
@@ -67,23 +67,31 @@ def write_solar_forecast_and_history_to_db() -> None:
             logger.log.error("Failed to log solar forecast data", exc_info=True)
 
 
-def _get_next_wakeup_time() -> datetime:
-    evening_wakeup_time = time(hour=23, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
-    next_evening_wakeup_time = datetime.combine(TimeHandler.get_date(), evening_wakeup_time)
-    if TimeHandler.get_time() >= next_evening_wakeup_time:
+def _get_morning_and_evening_timestamp_of_today(morning_time: time, evening_time: time) -> tuple[datetime, datetime]:
+    today = TimeHandler.get_date()
+    return (
+        datetime.combine(today, morning_time) - SOLAR_FORECAST_Check_OFFSET,
+        datetime.combine(today, evening_time) + SOLAR_FORECAST_Check_OFFSET,
+    )
+
+
+def _get_next_wakeup_time(morning_time: time, evening_time: time) -> datetime:
+    now = TimeHandler.get_time()
+    next_morning_wakeup_time, next_evening_wakeup_time = _get_morning_and_evening_timestamp_of_today(
+        morning_time, evening_time
+    )
+    if now >= next_morning_wakeup_time:
+        next_morning_wakeup_time += timedelta(days=1)
+    if now >= next_evening_wakeup_time:
         next_evening_wakeup_time += timedelta(days=1)
 
-    return next_evening_wakeup_time
+    if next_morning_wakeup_time - now < next_evening_wakeup_time - now:
+        return next_morning_wakeup_time
+    else:
+        return next_evening_wakeup_time
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
-    """
-    Logs the signals SIGINT and SIGTERM and then exits.
-
-    Args:
-        signal_number: The number representing the signal received.
-        _frame: The current stack frame when the signal was received.
-    """
     logger.write_newlines_to_log_file()
     logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
     unlock()
@@ -114,7 +122,7 @@ if __name__ == "__main__":
         # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
         pause.seconds(2)
 
-        inverter_charge_controller = InverterChargeController()
+        inverter_charge_controller = InverterChargeController(solar_forecast_check_offset=SOLAR_FORECAST_Check_OFFSET)
         inverter_charge_controller_thread = threading.Thread(target=inverter_charge_controller.start)
         inverter_charge_controller_thread.start()
         inverter_charge_controller_thread.join()

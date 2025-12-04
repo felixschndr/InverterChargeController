@@ -29,7 +29,7 @@ class InverterChargeController(LoggerMixin):
     DURATION_TO_WAIT_IN_CASE_OF_ERROR = timedelta(minutes=2, seconds=30)
     EXCEPTIONS_TO_CATCH = (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError, TransportError)
 
-    def __init__(self, solar_forecast_check_offset: timedelta):
+    def __init__(self):
         super().__init__()
 
         try:
@@ -42,7 +42,6 @@ class InverterChargeController(LoggerMixin):
         self.inverter = Inverter()
         self.tibber_api_handler = TibberAPIHandler()
         self.database_handler = DatabaseHandler("power_buy")
-        self.solar_forecast_check_offset = solar_forecast_check_offset
 
         self.current_energy_rate = None
         self.next_price_minimum = None
@@ -97,7 +96,7 @@ class InverterChargeController(LoggerMixin):
                     # tomorrow were unavailable, however, we also needed to charge, and now it is past 2 PM
                     self.next_price_minimum = self.retry(self.tibber_api_handler.get_next_price_minimum)
 
-                time_before_next_price_minimum = self.next_price_minimum.timestamp - self.solar_forecast_check_offset
+                time_before_next_price_minimum = self.next_price_minimum.timestamp - TimeHandler.get_random_duration()
                 self.log.info(
                     f"The next price minimum is {self.next_price_minimum.timestamp} --> Waiting until {time_before_next_price_minimum} to fetch the solar forecast..."
                 )

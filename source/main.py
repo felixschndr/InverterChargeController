@@ -69,10 +69,7 @@ def write_solar_forecast_and_history_to_db() -> None:
 
 def _get_morning_and_evening_timestamp_of_today(morning_time: time, evening_time: time) -> tuple[datetime, datetime]:
     today = TimeHandler.get_date()
-    return (
-        datetime.combine(today, morning_time) - SOLAR_FORECAST_Check_OFFSET,
-        datetime.combine(today, evening_time) + SOLAR_FORECAST_Check_OFFSET,
-    )
+    return datetime.combine(today, morning_time), datetime.combine(today, evening_time)
 
 
 def _get_next_wakeup_time(morning_time: time, evening_time: time) -> datetime:
@@ -86,9 +83,9 @@ def _get_next_wakeup_time(morning_time: time, evening_time: time) -> datetime:
         next_evening_wakeup_time += timedelta(days=1)
 
     if next_morning_wakeup_time - now < next_evening_wakeup_time - now:
-        return next_morning_wakeup_time
+        return next_morning_wakeup_time - TimeHandler.get_random_duration()
     else:
-        return next_evening_wakeup_time
+        return next_evening_wakeup_time + TimeHandler.get_random_duration()
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
@@ -122,7 +119,7 @@ if __name__ == "__main__":
         # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
         pause.seconds(2)
 
-        inverter_charge_controller = InverterChargeController(solar_forecast_check_offset=SOLAR_FORECAST_Check_OFFSET)
+        inverter_charge_controller = InverterChargeController()
         inverter_charge_controller_thread = threading.Thread(target=inverter_charge_controller.start)
         inverter_charge_controller_thread.start()
         inverter_charge_controller_thread.join()

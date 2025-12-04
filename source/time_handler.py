@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from random import randint
 
 from dateutil.tz import tz, tzfile
 
@@ -46,3 +47,11 @@ class TimeHandler:
             time_steps.append(start.time())
             start += step_size
         return time_steps
+
+    @staticmethod
+    def get_random_duration(
+        min_duration: timedelta = timedelta(minutes=5), max_duration: timedelta = timedelta(minutes=10)
+    ) -> timedelta:
+        difference = max_duration - min_duration
+        random_duration = timedelta(seconds=randint(0, int(difference.total_seconds())))  # nosec B311
+        return min_duration + random_duration

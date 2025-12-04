@@ -2,7 +2,7 @@ import socket
 import sys
 from contextlib import contextmanager
 from datetime import datetime, time, timedelta
-from typing import Any, Generator, Optional
+from typing import Any, Callable, Generator, Optional, ParamSpec, TypeVar
 
 import pause
 from aiohttp import ClientError
@@ -21,9 +21,14 @@ from source.sun_forecast_handler import SunForecastHandler
 from source.tibber_api_handler import TibberAPIHandler
 from source.time_handler import TimeHandler
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
 
 class InverterChargeController(LoggerMixin):
     WAKEUP_TIME_BEFORE_PRICE_MINIMUM = timedelta(minutes=8)
+    DURATION_TO_WAIT_IN_CASE_OF_ERROR = timedelta(minutes=2, seconds=30)
+    EXCEPTIONS_TO_CATCH = (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError, TransportError)
 
     def __init__(self):
         super().__init__()
@@ -64,14 +69,15 @@ class InverterChargeController(LoggerMixin):
             SystemExit: If an unexpected error occurs, the program will exit with a status code of 1.
         """
         first_iteration = True
-        duration_to_wait_in_cause_of_error = timedelta(minutes=2, seconds=30)
         while True:
             try:
                 if first_iteration:
-                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum(first_iteration=True)
+                    self.next_price_minimum = self.retry(
+                        self.tibber_api_handler.get_next_price_minimum, first_iteration=True
+                    )
                     first_iteration = False
                 else:
-                    self._do_iteration()
+                    self.retry(self._do_iteration)
                     self.iteration_cache = {}
 
                 if self.next_price_minimum.has_to_be_rechecked:
@@ -89,7 +95,7 @@ class InverterChargeController(LoggerMixin):
 
                     # This without the _if_ before being true does happen when we fetched the prices and the ones for
                     # tomorrow were unavailable, however, we also needed to charge, and now it is past 2 PM
-                    self.next_price_minimum = self.tibber_api_handler.get_next_price_minimum()
+                    self.next_price_minimum = self.retry(self.tibber_api_handler.get_next_price_minimum)
 
                 # A price minimum is always on the hour
                 # The rate limit for the solar forecast is shared with all free users
@@ -104,18 +110,10 @@ class InverterChargeController(LoggerMixin):
                 pause.until(time_before_next_price_minimum)
                 self.write_newlines_to_log_file()
                 self.log.info("Waking up to fetch the solar forecast")
-                _ = self._get_solar_data()
+                _ = self.retry(self._get_solar_data)
                 self.log.debug(f"Waiting until the next price minimum {self.next_price_minimum.timestamp}...")
 
                 pause.until(self.next_price_minimum.timestamp)
-
-            except (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError, TransportError):
-                self.log.warning(
-                    f"An exception occurred while trying to fetch data from a different system. "
-                    f"Waiting for {duration_to_wait_in_cause_of_error} to try again...",
-                    exc_info=True,
-                )
-                pause.seconds(duration_to_wait_in_cause_of_error.total_seconds())
 
             except Exception:
                 self.log.critical("An unexpected error occurred. Exiting now...", exc_info=True)
@@ -793,3 +791,27 @@ class InverterChargeController(LoggerMixin):
 
     def _set_cache_key(self, cache_key: str, value: Any) -> None:
         self.iteration_cache[cache_key] = value
+
+    def retry(
+        self,
+        func: Callable[P, R],
+        *args: P.args,
+        retries: int = 10,
+        exceptions: tuple = EXCEPTIONS_TO_CATCH,
+        **kwargs: P.kwargs,
+    ) -> R:
+        for attempt in range(retries):
+            try:
+                return func(*args, **kwargs)
+            except exceptions:
+                if attempt == retries - 1:
+                    self.log.critical(f"A call errored {retries} times in a row. Giving up...")
+                    sys.exit(1)
+
+                self.log.warning(
+                    f"An exception occurred while trying to fetch data from a different system. "
+                    f"Waiting for {InverterChargeController.DURATION_TO_WAIT_IN_CASE_OF_ERROR} to try again...",
+                    exc_info=True,
+                )
+                pause.seconds(InverterChargeController.DURATION_TO_WAIT_IN_CASE_OF_ERROR.total_seconds())
+        return None

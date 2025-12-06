@@ -40,8 +40,8 @@ def unlock() -> None:
 
 def write_solar_forecast_and_history_to_db() -> None:
     sun_forecast_handler = SunForecastHandler()
-    morning_time = time(hour=5, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
-    evening_time = time(hour=23, minute=0, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
+    morning_time = time(hour=4, minute=52, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
+    evening_time = time(hour=23, minute=8, second=0, microsecond=0, tzinfo=TimeHandler.get_timezone())
 
     while True:
         next_wakeup_time = _get_next_wakeup_time(morning_time, evening_time)
@@ -83,9 +83,9 @@ def _get_next_wakeup_time(morning_time: time, evening_time: time) -> datetime:
         next_evening_wakeup_time += timedelta(days=1)
 
     if next_morning_wakeup_time - now < next_evening_wakeup_time - now:
-        return next_morning_wakeup_time - TimeHandler.get_random_duration()
+        return next_morning_wakeup_time
     else:
-        return next_evening_wakeup_time + TimeHandler.get_random_duration()
+        return next_evening_wakeup_time
 
 
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:

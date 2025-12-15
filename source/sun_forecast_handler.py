@@ -33,7 +33,7 @@ class SunForecastHandler(LoggerMixin):
         efficiency = float(EnvironmentVariableGetter.get(env_name, 90)) / 100
         if efficiency < 0 or efficiency > 100:
             raise ValueError(f'The environment variable "{env_name}" must be set to a value between 0 and 100')
-        self.log.info(f"Using a charge and discharge efficiency of {efficiency}%")
+        self.log.info(f"Using a charge and discharge efficiency of {efficiency} %")
         return efficiency
 
     def calculate_min_and_max_of_soc_in_timeframe(

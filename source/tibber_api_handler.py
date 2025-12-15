@@ -11,8 +11,6 @@ from source.time_handler import TimeHandler
 
 
 class TibberAPIHandler(LoggerMixin):
-    MAXIMUM_THRESHOLD = 3  # in cents/kWh
-
     def __init__(self):
         super().__init__()
 
@@ -32,7 +30,7 @@ class TibberAPIHandler(LoggerMixin):
         This method performs a series of operations to determine the most cost-effective time to charge by analyzing
         upcoming energy rates retrieved from the Tibber API and returns its timestamp.
 
-        Looking at the prices trends, it can be seen that the optimal time to charge is the minimum between the first
+        Looking at the price trends, it can be seen that the optimal time to charge is the minimum between the first
         maximum and the subsequent maximum.
 
         A maximum is set to only be a maximum if the price is at least MAXIMUM_THRESHOLD cents higher than the minimum
@@ -196,19 +194,19 @@ class TibberAPIHandler(LoggerMixin):
 
         return energy_rates_between_first_and_second_maximum
 
-    @staticmethod
-    def _find_energy_rates_till_first_maximum(upcoming_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
+    def _find_energy_rates_till_first_maximum(self, upcoming_energy_rates: list[EnergyRate]) -> list[EnergyRate]:
         last_energy_rate = minimum_energy_rate_found_until_now = upcoming_energy_rates[0]
         last_energy_rate_was_maximum = False
         energy_rates_till_maximum = []
+
+        threshold_for_price_maximum = self.calculate_threshold_for_price_maximum(upcoming_energy_rates)
 
         for current_energy_rate in upcoming_energy_rates:
             if current_energy_rate < minimum_energy_rate_found_until_now:
                 minimum_energy_rate_found_until_now = current_energy_rate
 
             if current_energy_rate > last_energy_rate and (
-                current_energy_rate.rate
-                >= minimum_energy_rate_found_until_now.rate + TibberAPIHandler.MAXIMUM_THRESHOLD
+                current_energy_rate.rate >= minimum_energy_rate_found_until_now.rate + threshold_for_price_maximum
             ):
                 last_energy_rate_was_maximum = True
 
@@ -286,7 +284,7 @@ class TibberAPIHandler(LoggerMixin):
                 - The energy rate after the price is higher than the average price up to the provided timestamp.
         """
         average_price = self._get_average_price_of_energy_rates(upcoming_energy_rates)
-        self.log.debug(f"The average price of all upcoming energy rates is {average_price}")
+        self.log.debug(f"The average price of all upcoming energy rates is {average_price} ct/kWh")
 
         upcoming_energy_rates_until_ending_timestamp = [
             energy_rate for energy_rate in upcoming_energy_rates if energy_rate.timestamp <= ending_timestamp
@@ -317,13 +315,24 @@ class TibberAPIHandler(LoggerMixin):
             energy_rate_after_the_price_is_higher_than_the_average,
         )
 
-    @staticmethod
-    def _get_average_price_of_energy_rates(energy_rates: list[EnergyRate]) -> float:
-        return sum(energy_rate.rate for energy_rate in energy_rates) / len(energy_rates)
+    def calculate_threshold_for_price_maximum(self, upcoming_energy_rates: list[EnergyRate]) -> float:
+        minimum_price_spike_threshold = 3  # in cents/kWh
+
+        upcoming_energy_rates = upcoming_energy_rates[0:12]
+        minimum_energy_rate = min(upcoming_energy_rates, key=lambda energy_rate: energy_rate.rate)
+        maximum_energy_rate = max(upcoming_energy_rates, key=lambda energy_rate: energy_rate.rate)
+        threshold = min(
+            round((maximum_energy_rate.rate - minimum_energy_rate.rate) / 2, 1), minimum_price_spike_threshold
+        )
+        self.log.debug(f"The threshold for a price maximum is {threshold} cents/kWh")
+        return threshold
 
     @staticmethod
+    def _get_average_price_of_energy_rates(energy_rates: list[EnergyRate]) -> float:
+        return round(sum(energy_rate.rate for energy_rate in energy_rates) / len(energy_rates), 1)
+
     def set_maximum_charging_duration_of_current_energy_rate(
-        current_energy_rate: EnergyRate, upcoming_energy_rates: list[EnergyRate]
+        self, current_energy_rate: EnergyRate, upcoming_energy_rates: list[EnergyRate]
     ) -> None:
         """
         Determines and sets the maximum possible charging duration for a given current energy rate based on the upcoming
@@ -341,9 +350,10 @@ class TibberAPIHandler(LoggerMixin):
             upcoming_energy_rates (list[EnergyRate]): A list of upcoming energy rates that are used to compare and
                 calculate the charging duration.
         """
+        threshold_for_price_maximum = self.calculate_threshold_for_price_maximum(upcoming_energy_rates)
         upcoming_energy_rate = current_energy_rate
         for upcoming_energy_rate in upcoming_energy_rates:
-            if upcoming_energy_rate.rate > current_energy_rate.rate + TibberAPIHandler.MAXIMUM_THRESHOLD:
+            if upcoming_energy_rate.rate > current_energy_rate.rate + threshold_for_price_maximum:
                 break
 
         current_energy_rate.maximum_charging_duration = (

@@ -27,6 +27,7 @@ R = TypeVar("R")
 
 class InverterChargeController(LoggerMixin):
     DURATION_TO_WAIT_IN_CASE_OF_ERROR = timedelta(minutes=2, seconds=30)
+    TIME_OF_RECHECKING_A_PRICE_MINIMUM = time(hour=15, minute=0)
     EXCEPTIONS_TO_CATCH = (ClientError, RequestException, socket.gaierror, InverterError, TimeoutError, TransportError)
 
     def __init__(self):
@@ -81,7 +82,11 @@ class InverterChargeController(LoggerMixin):
 
                 if self.next_price_minimum.has_to_be_rechecked:
                     now = TimeHandler.get_time(sanitize_seconds=True)
-                    time_to_sleep_to = now.replace(hour=14, minute=0)
+                    time_to_sleep_to = datetime.combine(
+                        date=TimeHandler.get_date(),
+                        time=InverterChargeController.TIME_OF_RECHECKING_A_PRICE_MINIMUM,
+                        tzinfo=TimeHandler.get_timezone(),
+                    )
 
                     if now <= time_to_sleep_to:
                         self.log.info(
@@ -93,7 +98,8 @@ class InverterChargeController(LoggerMixin):
                         self.log.info("Waking up since the price minimum has to be re-checked")
 
                     # This without the _if_ before being true does happen when we fetched the prices and the ones for
-                    # tomorrow were unavailable, however, we also needed to charge, and now it is past 2 PM
+                    # tomorrow were unavailable, however, we also needed to charge, and now it is past
+                    # TIME_OF_RECHECKING_A_PRICE_MINIMUM
                     self.next_price_minimum = self.retry(self.tibber_api_handler.get_next_price_minimum)
 
                 time_before_next_price_minimum = self.next_price_minimum.timestamp - TimeHandler.get_random_duration()

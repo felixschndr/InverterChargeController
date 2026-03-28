@@ -109,15 +109,25 @@ def test_get_next_price_minimum(
 def test_get_next_price_minimum_from_logged_energy_rates(
     tibber_api_handler, log, first_iteration, expected_time_of_minimum
 ):
+    result = tibber_api_handler.get_next_price_minimum(first_iteration, _convert_log_to_energy_rates(log))
+
+    assert str(result.timestamp) == expected_time_of_minimum
+
+
+@pytest.mark.parametrize("first_iteration", [True, False])
+def test_debug_get_next_price_minimum_from_logged_energy_rates(tibber_api_handler, first_iteration):
+    log = "INSERT_LOG_HERE"
+
+    print(tibber_api_handler.get_next_price_minimum(first_iteration, _convert_log_to_energy_rates(log)))
+
+
+def _convert_log_to_energy_rates(log: str) -> list[EnergyRate]:
     log_as_array = log.replace("[", "").replace("]", "").split(", ")
     upcoming_energy_rates = []
     for log_entry in log_as_array:
         price, timestamp = log_entry.split(" ct/kWh at ")
         upcoming_energy_rates.append(EnergyRate(float(price), datetime.fromisoformat(timestamp)))
-
-    result = tibber_api_handler.get_next_price_minimum(first_iteration, upcoming_energy_rates)
-
-    assert str(result.timestamp) == expected_time_of_minimum
+    return upcoming_energy_rates
 
 
 def test_aggregate_to_hourly_rates(tibber_api_handler):

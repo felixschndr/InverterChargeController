@@ -181,12 +181,12 @@ class TibberAPIHandler(LoggerMixin):
         """
         energy_rates_ending_at_first_maximum = self._find_energy_rates_till_first_maximum(upcoming_energy_rates)
 
-        first_maximum_energy_rate = energy_rates_ending_at_first_maximum.pop()
-        energy_rates_starting_at_first_maximum = upcoming_energy_rates.copy()
-        for energy_rate in energy_rates_ending_at_first_maximum:
-            energy_rates_starting_at_first_maximum.remove(energy_rate)
+        index_of_first_maximum = len(energy_rates_ending_at_first_maximum) - 1
+        energy_rates_starting_at_first_maximum = upcoming_energy_rates[index_of_first_maximum:]
 
-        self.log.trace(f"Found {first_maximum_energy_rate} to be the first maximum of the upcoming energy rates")
+        self.log.trace(
+            f"Found {energy_rates_starting_at_first_maximum[0]} to be the first maximum of the upcoming energy rates"
+        )
 
         energy_rates_between_first_and_second_maximum = self._find_energy_rates_till_first_maximum(
             energy_rates_starting_at_first_maximum

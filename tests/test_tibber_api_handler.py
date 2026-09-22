@@ -200,3 +200,32 @@ def test_a_minimum_needs_a_recheck_only_at_the_end_of_a_day_without_rates_for_to
         )
 
     assert needs_a_recheck is expected_to_need_a_recheck
+
+
+def test_the_rates_between_the_first_and_second_maximum_start_at_the_first_maximum(tibber_api_handler):
+    upcoming_energy_rates = construct_energy_rates([10, 12, 20, 15, 11, 13, 25, 18, 12])
+
+    rates_between_the_maxima = tibber_api_handler._get_energy_rates_between_first_and_second_maximum(
+        upcoming_energy_rates
+    )
+
+    assert [energy_rate.rate for energy_rate in rates_between_the_maxima] == [20, 15, 11, 13, 25]
+    assert rates_between_the_maxima[0] is upcoming_energy_rates[2]
+
+
+def test_prices_repeating_before_the_first_maximum_do_not_shift_the_starting_point(tibber_api_handler):
+    upcoming_energy_rates = construct_energy_rates([10, 10, 20, 15, 10, 13, 25, 18, 12])
+
+    rates_between_the_maxima = tibber_api_handler._get_energy_rates_between_first_and_second_maximum(
+        upcoming_energy_rates
+    )
+
+    assert rates_between_the_maxima[0] is upcoming_energy_rates[2]
+
+
+def test_the_rates_between_the_maxima_are_the_whole_list_when_it_holds_a_single_rate(tibber_api_handler):
+    upcoming_energy_rates = construct_energy_rates([10])
+
+    assert tibber_api_handler._get_energy_rates_between_first_and_second_maximum(upcoming_energy_rates) == (
+        upcoming_energy_rates
+    )

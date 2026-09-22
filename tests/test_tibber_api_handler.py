@@ -230,3 +230,33 @@ def test_the_rates_between_the_maxima_are_the_whole_list_when_it_holds_a_single_
     assert tibber_api_handler._get_energy_rates_between_first_and_second_maximum(upcoming_energy_rates) == (
         upcoming_energy_rates
     )
+
+
+def get_grid_fee_delta(tibber_api_handler: TibberAPIHandler, windows: str, hour: int) -> float:
+    with patch("source.tibber_api_handler.EnvironmentVariableGetter.get", return_value=windows):
+        return tibber_api_handler._get_grid_fee_delta(datetime(2026, 1, 1, hour, 0, tzinfo=timezone.utc))
+
+
+@pytest.mark.parametrize(
+    "hour, expected_delta",
+    [
+        (9, 0.0),  # standard tariff
+        (10, -5.4),  # the low tariff starts
+        (13, -5.4),
+        (14, 0.0),  # the low tariff has ended
+        (17, 4.15),  # the high tariff starts
+        (22, 0.0),  # the high tariff has ended
+    ],
+)
+def test_get_grid_fee_delta(tibber_api_handler, hour, expected_delta):
+    windows = "10:00-14:00=-5.40,17:00-22:00=4.15"
+    assert get_grid_fee_delta(tibber_api_handler, windows, hour) == expected_delta
+
+
+@pytest.mark.parametrize("hour, expected_delta", [(22, 0.0), (23, -5.24), (3, -5.24), (5, 0.0)])
+def test_get_grid_fee_delta_of_window_wrapping_around_midnight(tibber_api_handler, hour, expected_delta):
+    assert get_grid_fee_delta(tibber_api_handler, "23:00-05:00=-5.24", hour) == expected_delta
+
+
+def test_get_grid_fee_delta_is_zero_when_unconfigured(tibber_api_handler):
+    assert get_grid_fee_delta(tibber_api_handler, "", 12) == 0.0

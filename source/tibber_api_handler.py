@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -141,15 +141,52 @@ class TibberAPIHandler(LoggerMixin):
         prices_raw = api_result["viewer"]["homes"][0]["currentSubscription"]["priceInfo"]
         upcoming_energy_rates = []
         for price in [*(prices_raw["today"]), *(prices_raw["tomorrow"])]:
+            timestamp = datetime.fromisoformat(price["startsAt"])
             upcoming_energy_rates.append(
                 EnergyRate(
-                    rate=round(price["total"] * 100, 2),
-                    timestamp=datetime.fromisoformat(price["startsAt"]),
+                    rate=round(price["total"] * 100 + self._get_grid_fee_delta(timestamp), 2),
+                    timestamp=timestamp,
                 )
             )
 
         self.log.trace(f"Extracted the the energy rates from the API response {upcoming_energy_rates}")
         return upcoming_energy_rates
+
+    def _get_grid_fee_delta(self, timestamp: datetime) -> float:
+        """
+        Returns the time-variable grid fee surcharge or discount for a timestamp, in cents/kWh.
+
+        The price the Tibber API reports already contains the grid operator's standard tariff. Under module 3 of
+        § 14a EnWG the grid fee instead varies by time of day, so only the difference to the standard tariff has to be
+        applied here. The windows are set by the grid operator for a whole calendar year and are published in its price
+        list; there is no vendor neutral API to retrieve them, so they are configured by hand.
+
+        The comparison uses the wall clock time of the timestamp, which is what the grid operator's windows refer to.
+        The Tibber API reports its timestamps in the home's local timezone, so no conversion is needed.
+
+        Args:
+            timestamp (datetime): The start of the period to look up the grid fee for.
+
+        Returns:
+            float: The difference to the standard tariff in cents/kWh, 0.0 outside of any configured window.
+        """
+        windows = EnvironmentVariableGetter.get("GRID_FEE_WINDOWS", "")
+        for window in filter(None, windows.split(",")):
+            timespan, _, delta = window.partition("=")
+            start, end = (time.fromisoformat(value) for value in timespan.split("-"))
+            if start < end:
+                is_in_window = start <= timestamp.time() < end
+            else:
+                is_in_window = not end <= timestamp.time() < start  # the window wraps around midnight
+
+            if is_in_window:
+                self.log.trace(
+                    f"{timestamp} falls into the grid fee window {timespan}, applying {delta} cents/kWh on top of "
+                    "the price reported by Tibber"
+                )
+                return float(delta)
+
+        return 0.0
 
     @staticmethod
     def _remove_energy_rates_from_the_past(all_energy_rates: list[EnergyRate]) -> list[EnergyRate]:

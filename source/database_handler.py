@@ -22,7 +22,7 @@ class DatabaseHandler(LoggerMixin):
     def __init__(self, measurement: str):
         super().__init__()
 
-        self.url = "http://localhost:8086"
+        self.url = EnvironmentVariableGetter.get("INFLUXDB_URL")
         self.token = EnvironmentVariableGetter.get("INFLUXDB_TOKEN")
         self.org = "default"
         self.bucket = "default"

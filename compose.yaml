@@ -3,13 +3,46 @@ services:
     image: ghcr.io/felixschndr/inverterchargecontroller
     restart: unless-stopped
 
-    network_mode: host
-
     environment:
       TZ: Europe/Berlin
+      # Do NOT put this into the .env: the controller re-reads that file on every lookup and it takes precedence
+      # over the environment, which would point the container at its own localhost.
+      INFLUXDB_URL: http://influxdb:8086
 
     volumes:
       # Mounted as a file, not passed via "environment" or "env_file": the controller re-reads it on
       # every lookup, so editing it takes effect without recreating the container.
       - ./.env:/app/.env:ro
       - ./logs:/app/logs
+
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
+  influxdb:
+    image: influxdb:2
+    restart: unless-stopped
+
+    environment:
+      TZ: Europe/Berlin
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      # The org and the bucket are hardcoded in source/database_handler.py, they have to keep these names.
+      DOCKER_INFLUXDB_INIT_ORG: default
+      DOCKER_INFLUXDB_INIT_BUCKET: default
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+
+    ports:
+      # Only needed to reach the database from the host, e.g. for the influx commands in the README.
+      - "8086:8086"
+
+    volumes:
+      - ./data/influxdb-data:/var/lib/influxdb2
+
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

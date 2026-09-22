@@ -5,3 +5,4 @@
 .env.override
 logs/
 **/.DS_Store
+data/

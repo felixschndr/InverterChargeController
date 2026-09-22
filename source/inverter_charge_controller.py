@@ -10,7 +10,7 @@ from goodwe import InverterError, OperationMode
 from gql.transport.exceptions import TransportError
 from requests.exceptions import RequestException
 
-from source.abscence_handler import AbsenceHandler
+from source.absence_handler import AbsenceHandler
 from source.database_handler import DatabaseHandler, InfluxDBField
 from source.energy_classes import EnergyAmount, EnergyRate, Power, StateOfCharge
 from source.environment_variable_getter import EnvironmentVariableGetter

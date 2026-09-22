@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from source.abscence_handler import AbsenceHandler
+from source.absence_handler import AbsenceHandler
 
 ABSENCE_TIMEFRAME = "2026-04-18T06:00:00+0200;2026-04-25T07:00:00+0200"
 
@@ -46,7 +46,7 @@ def test_absence_handler_reports_an_absence_only_inside_the_configured_timeframe
 ):
     absence_handler = absence_handler_factory(ABSENCE_TIMEFRAME)
 
-    with patch("source.abscence_handler.TimeHandler.get_time", return_value=current_time):
+    with patch("source.absence_handler.TimeHandler.get_time", return_value=current_time):
         assert absence_handler.currently_is_an_absence() is expected_to_be_an_absence
 
 

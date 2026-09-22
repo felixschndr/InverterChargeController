@@ -79,18 +79,6 @@ class EnergyRate:
     def __repr__(self):
         return f"{self.rate} ct/kWh at {self.timestamp}"
 
-    def __lt__(self, other: EnergyRate) -> bool:
-        return self.rate < other.rate
-
-    def __le__(self, other: EnergyRate) -> bool:
-        return self.rate <= other.rate
-
-    def __gt__(self, other: EnergyRate) -> bool:
-        return self.rate > other.rate
-
-    def __ge__(self, other: EnergyRate) -> bool:
-        return self.rate >= other.rate
-
 
 soc_logger = LoggerMixin("StateOfCharge")
 battery_capacity = EnergyAmount(int(EnvironmentVariableGetter.get("INVERTER_BATTERY_CAPACITY")))

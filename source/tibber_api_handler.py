@@ -207,15 +207,15 @@ class TibberAPIHandler(LoggerMixin):
         threshold_for_price_maximum = self.calculate_threshold_for_price_maximum(upcoming_energy_rates)
 
         for current_energy_rate in upcoming_energy_rates:
-            if current_energy_rate < minimum_energy_rate_found_until_now:
+            if current_energy_rate.rate < minimum_energy_rate_found_until_now.rate:
                 minimum_energy_rate_found_until_now = current_energy_rate
 
-            if current_energy_rate > last_energy_rate and (
+            if current_energy_rate.rate > last_energy_rate.rate and (
                 current_energy_rate.rate >= minimum_energy_rate_found_until_now.rate + threshold_for_price_maximum
             ):
                 last_energy_rate_was_maximum = True
 
-            if current_energy_rate < last_energy_rate and last_energy_rate_was_maximum:
+            if current_energy_rate.rate < last_energy_rate.rate and last_energy_rate_was_maximum:
                 break
 
             energy_rates_till_maximum.append(current_energy_rate)

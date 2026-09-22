@@ -270,7 +270,7 @@ class InverterChargeController(LoggerMixin):
         pause.until(energy_rate_before_price_rises_over_average.timestamp)
 
         self.log.info("Waking up to determine the optimal charging time around the price spike")
-        if energy_rate_after_price_drops_below_average < energy_rate_before_price_rises_over_average:
+        if energy_rate_after_price_drops_below_average.rate < energy_rate_before_price_rises_over_average.rate:
             self.log.info(
                 "The energy rate after the price drops below the average is lower than the rate before it drops over "
                 "the average --> Checking whether it is necessary to charge now to reach after the price spike "
@@ -401,7 +401,7 @@ class InverterChargeController(LoggerMixin):
             minimum_of_soc_until_next_price_minimum (StateOfCharge): The calculated minimum SOC in the timespan to the
                 next price minimum.
         """
-        if self.current_energy_rate >= self.next_price_minimum:
+        if self.current_energy_rate.rate >= self.next_price_minimum.rate:
             charging_target_soc = (
                 self._calculate_target_soc_next_price_minimum_is_reachable_and_current_minimum_is_higher_than_next_one(
                     current_state_of_charge, minimum_of_soc_until_next_price_minimum

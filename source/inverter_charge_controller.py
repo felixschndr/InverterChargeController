@@ -185,7 +185,7 @@ class InverterChargeController(LoggerMixin):
                 self._get_average_power_consumption_per_time_of_day(),
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
-                self._get_solar_data(),
+                *self._get_solar_data(),
             )
         )
         self.log.info(
@@ -224,7 +224,7 @@ class InverterChargeController(LoggerMixin):
                 self._get_average_power_consumption_per_time_of_day(),
                 self.target_max_soc,
                 self.next_price_minimum.has_to_be_rechecked,
-                self._get_solar_data(),
+                *self._get_solar_data(),
             )
         )
         if minimum_of_soc_until_next_price_minimum >= self.target_min_soc:
@@ -319,7 +319,7 @@ class InverterChargeController(LoggerMixin):
                 self._get_average_power_consumption_per_time_of_day(),
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
-                self._get_solar_data(),
+                *self._get_solar_data(),
             )
         )
         if minimum_of_soc_until_next_price_minimum < self.target_min_soc:
@@ -364,7 +364,7 @@ class InverterChargeController(LoggerMixin):
                 self._get_average_power_consumption_per_time_of_day(),
                 current_state_of_charge,
                 self.next_price_minimum.has_to_be_rechecked,
-                self._get_solar_data(),
+                *self._get_solar_data(),
             )
         )
         self.log.debug(
@@ -481,7 +481,7 @@ class InverterChargeController(LoggerMixin):
             self._get_average_power_consumption_per_time_of_day(),
             current_state_of_charge,
             self.next_price_minimum.has_to_be_rechecked,
-            self._get_solar_data(),
+            *self._get_solar_data(),
         )
         """
         We use StateOfCharge.from_percentage(100) instead of of self.target_max_soc as we want to charge as much as
@@ -796,7 +796,7 @@ class InverterChargeController(LoggerMixin):
         self._set_cache_key(cache_key, average_power_consumption_per_time_of_day)
         return average_power_consumption_per_time_of_day
 
-    def _get_solar_data(self) -> dict[str, Power]:
+    def _get_solar_data(self) -> tuple[dict[str, Power], timedelta]:
         cache_key = "solar_data"
         solar_data = self._get_value_from_cache_if_exists(cache_key)
         if solar_data:

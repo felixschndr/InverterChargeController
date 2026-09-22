@@ -20,7 +20,6 @@ class SunForecastHandler(LoggerMixin):
     def __init__(self):
         super().__init__()
 
-        self.timeframe_duration = None
         self.headers = {"Authorization": f"Bearer {EnvironmentVariableGetter.get('SOLCAST_API_KEY')}"}
 
         self.charge_and_discharge_efficiency = self._get_charge_and_discharge_efficiency()
@@ -46,6 +45,7 @@ class SunForecastHandler(LoggerMixin):
         starting_soc: StateOfCharge,
         minimum_has_to_rechecked: bool,
         solar_data: dict[str, Power],
+        solar_data_period_duration: timedelta,
     ) -> tuple[StateOfCharge, StateOfCharge]:
         """
         Calculates the minimum state of charge (SOC) and maximum state of charge within a specified timeframe.
@@ -62,6 +62,7 @@ class SunForecastHandler(LoggerMixin):
             minimum_has_to_rechecked: Whether to increase the power usage by POWER_USAGE_INCREASE_FACTOR
             solar_data: A dictionary where keys represent specific times and values represent the forecasted power at
                 those times.
+            solar_data_period_duration: The duration of a single period of the solar data.
 
         Returns:
             A tuple containing:
@@ -91,14 +92,14 @@ class SunForecastHandler(LoggerMixin):
         first_iteration = True
         while True:
             if first_iteration:
-                next_step_minutes = int(self.timeframe_duration.total_seconds() / 60)
+                next_step_minutes = int(solar_data_period_duration.total_seconds() / 60)
                 next_half_hour_timestamp = timeframe_start.replace(minute=next_step_minutes, second=0)
                 if timeframe_start.minute >= next_step_minutes:
-                    next_half_hour_timestamp += self.timeframe_duration
+                    next_half_hour_timestamp += solar_data_period_duration
                 current_timeframe_duration = next_half_hour_timestamp - current_timeframe_start
                 first_iteration = False
             else:
-                current_timeframe_duration = self.timeframe_duration
+                current_timeframe_duration = solar_data_period_duration
 
             current_timeframe_end = current_timeframe_start + current_timeframe_duration
 
@@ -155,7 +156,7 @@ class SunForecastHandler(LoggerMixin):
         )
         return minimum_soc, maximum_soc
 
-    def retrieve_solar_data(self, retrieve_future_data: bool) -> dict[str, Power]:
+    def retrieve_solar_data(self, retrieve_future_data: bool) -> tuple[dict[str, Power], timedelta]:
         """
         Retrieves solar data for a specified timeframe either from the solar forecast API or a debug solar output
         depending on the configuration and API response.
@@ -167,7 +168,8 @@ class SunForecastHandler(LoggerMixin):
             retrieve_future_data: Whether to retrieve data for the future or the past.
 
         Returns:
-            A dictionary where keys represent specific times and values represent the forecasted power at those times.
+            A dictionary where keys represent specific times and values represent the forecasted power at those times,
+            together with the duration of a single period of that data.
 
         Raises:
             requests.exceptions.HTTPError: Raised if an HTTP error other than 429 occurs while fetching solar data from
@@ -184,7 +186,7 @@ class SunForecastHandler(LoggerMixin):
             self.log.warning("Too many requests to the solar forecast API, using the debug solar output instead")
             return self._get_debug_solar_data()
 
-    def retrieve_solar_data_from_api(self, retrieve_future_data: bool) -> dict[str, Power]:
+    def retrieve_solar_data_from_api(self, retrieve_future_data: bool) -> tuple[dict[str, Power], timedelta]:
         """
         Retrieves solar data from an API over a specified timeframe. The function collects photovoltaic forecasts or
         historic data for multiple rooftops, processes the data into a dictionary mapping timestamps to cumulative power
@@ -210,10 +212,10 @@ class SunForecastHandler(LoggerMixin):
                 data_for_rooftop += self.retrieve_forecast_data_from_api(rooftop_id)
             else:
                 data_for_rooftop += self.retrieve_historic_data_from_api(rooftop_id)
-            self.timeframe_duration = parse_duration(data_for_rooftop[0]["period"])
+            period_duration = parse_duration(data_for_rooftop[0]["period"])
             for timeslot in data_for_rooftop:
                 period_start = (
-                    datetime.fromisoformat(timeslot["period_end"]).astimezone() - self.timeframe_duration
+                    datetime.fromisoformat(timeslot["period_end"]).astimezone() - period_duration
                 ).isoformat()
                 if period_start not in solar_data.keys():
                     solar_data[period_start] = Power(0)
@@ -228,7 +230,7 @@ class SunForecastHandler(LoggerMixin):
                     ]
                 )
 
-        return solar_data
+        return solar_data, period_duration
 
     def retrieve_forecast_data_from_api(self, rooftop_id: str) -> list[dict]:
         return self._retrieve_data_from_api(rooftop_id, "forecasts")
@@ -374,7 +376,7 @@ class SunForecastHandler(LoggerMixin):
             )
             raise e
 
-    def _get_debug_solar_data(self) -> dict[str, Power]:
+    def _get_debug_solar_data(self) -> tuple[dict[str, Power], timedelta]:
         """
         Retrieves debug solar data for testing or fallback purposes.
 
@@ -393,11 +395,11 @@ class SunForecastHandler(LoggerMixin):
         sample_data = {}
         with open(sample_data_path, "r") as file:
             sample_input_data = json.load(file)["forecasts"]
-        self.timeframe_duration = parse_duration(sample_input_data[0]["period"])
+        period_duration = parse_duration(sample_input_data[0]["period"])
         for timeslot in sample_input_data:
             sample_data[current_replace_timestamp.isoformat()] = Power.from_kilo_watts(timeslot["pv_estimate"])
-            current_replace_timestamp += self.timeframe_duration
-        return sample_data
+            current_replace_timestamp += period_duration
+        return sample_data, period_duration
 
     def get_tomorrows_sunset_time(self) -> datetime:
         """

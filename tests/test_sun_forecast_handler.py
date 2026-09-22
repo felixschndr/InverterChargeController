@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from source.energy_classes import EnergyAmount, Power
+from source.energy_classes import EnergyAmount, Power, StateOfCharge
 from source.sun_forecast_handler import SunForecastHandler
 
 
@@ -404,3 +404,41 @@ def test_calculate_energy_usage_in_timeframe_substitutes_the_overall_average_for
 
     assert energy_usage.watt_hours == pytest.approx(expected_energy_usage.watt_hours)
     handler_stub.log.warning.assert_called_once()
+
+
+@pytest.fixture
+def sun_forecast_handler() -> SunForecastHandler:
+    return SunForecastHandler()
+
+
+def test_calculate_min_and_max_of_soc_in_timeframe_does_not_need_solar_data_to_be_retrieved_first(
+    sun_forecast_handler, average_power_consumption_per_time_of_day
+):
+    timeframe_start = datetime.datetime(2020, 1, 1, 0, 0)
+    period_duration = datetime.timedelta(minutes=30)
+    timeframe_end = timeframe_start + datetime.timedelta(hours=2)
+    solar_data_without_any_sun = {
+        (timeframe_start + period_duration * index).isoformat(): Power(0) for index in range(1, 6)
+    }
+    starting_soc = StateOfCharge.from_percentage(50)
+
+    minimum_soc, maximum_soc = sun_forecast_handler.calculate_min_and_max_of_soc_in_timeframe(
+        timeframe_start,
+        timeframe_end,
+        average_power_consumption_per_time_of_day,
+        starting_soc,
+        False,
+        solar_data_without_any_sun,
+        period_duration,
+    )
+
+    assert maximum_soc == starting_soc
+    assert minimum_soc < starting_soc
+
+
+def test_get_debug_solar_data_returns_a_period_duration_that_matches_its_timestamps(sun_forecast_handler):
+    solar_data, period_duration = sun_forecast_handler._get_debug_solar_data()
+
+    timestamps = sorted(datetime.datetime.fromisoformat(timestamp) for timestamp in solar_data)
+    assert period_duration == datetime.timedelta(minutes=30)
+    assert timestamps[1] - timestamps[0] == period_duration

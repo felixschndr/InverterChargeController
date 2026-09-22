@@ -103,8 +103,7 @@ class TibberAPIHandler(LoggerMixin):
         Returns:
             dict: A dictionary containing the electricity prices for today and tomorrow.
         """
-        query = gql(
-            """
+        query = gql("""
             {
                 viewer {
                     homes {
@@ -123,8 +122,7 @@ class TibberAPIHandler(LoggerMixin):
                     }
                 }
             }
-        """
-        )
+        """)
         self.log.trace("Crawling the Tibber API for the electricity prices")
         response = self.client.execute(query)
         self.log.trace(f"Retrieved data: {response}")

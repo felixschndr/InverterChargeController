@@ -1,7 +1,7 @@
 import os
 import pathlib
 import signal
-import subprocess
+import subprocess  # nosec B404
 import sys
 
 import pytest
@@ -26,7 +26,7 @@ def lock_file_path(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> s
 
 @pytest.fixture
 def other_instance_holding_the_lock(lock_file_path):
-    other_instance = subprocess.Popen(
+    other_instance = subprocess.Popen(  # nosec B603
         [sys.executable, "-c", HOLD_THE_LOCK_UNTIL_KILLED, lock_file_path],
         stdout=subprocess.PIPE,
         text=True,

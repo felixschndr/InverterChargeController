@@ -509,6 +509,9 @@ class InverterChargeController(LoggerMixin):
          - The operational mode of the inverter was changed manually
          - Too many errors occurred while trying to communicate with the inverter
 
+        Whichever way the charging process ends, including an unexpected exception, the inverter is set back to its
+        normal operation mode. The only exception is a mode change made by the user, which is left untouched.
+
         Args:
             target_state_of_charge: The desired battery state of charge percentage to reach during the charging
                 process.
@@ -519,67 +522,85 @@ class InverterChargeController(LoggerMixin):
             TimeHandler.get_time() + self.current_energy_rate.maximum_charging_duration
         )
 
-        self.log.info("Starting to charge")
-        self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
-
-        self.log.info(
-            f"Set the inverter to charge, the target state of charge is {target_state_of_charge}. "
-            f"End of charging is {maximum_end_charging_time.strftime('%H:%M:%S')} at the latest. "
-            f"Checking the charging progress every {charging_progress_check_interval}..."
-        )
-
         error_counter = 0
-        while True:
-            if error_counter == 3:
-                self.log.error(
-                    f"An error occurred {error_counter} times while trying to get the current state of charge"
-                    f"--> Stopping the charging process"
-                )
-                # Can't set the mode of the inverter as it is unresponsive
-                break
+        operation_mode_was_changed_by_the_user = False
+        try:
+            self.log.info("Starting to charge")
+            self.inverter.set_operation_mode(OperationMode.ECO_CHARGE)
 
-            # Account for program execution times, this way the check happens at 5-minute intervals, and delays do not
-            # add up (minor cosmetics)
-            pause.seconds(charging_progress_check_interval.total_seconds() - TimeHandler.get_time().second)
+            self.log.info(
+                f"Set the inverter to charge, the target state of charge is {target_state_of_charge}. "
+                f"End of charging is {maximum_end_charging_time.strftime('%H:%M:%S')} at the latest. "
+                f"Checking the charging progress every {charging_progress_check_interval}..."
+            )
 
-            try:
-                if self.inverter.get_operation_mode() != OperationMode.ECO_CHARGE:
-                    self.log.warning(
-                        "The operation mode of the inverter was changed by the user --> Stopping the charging progress"
+            while True:
+                if error_counter == 3:
+                    self.log.error(
+                        f"An error occurred {error_counter} times while trying to get the current state of charge"
+                        f"--> Stopping the charging process"
                     )
                     break
 
-                current_state_of_charge = self.inverter.get_state_of_charge()
+                # Account for program execution times, this way the check happens at 5-minute intervals, and delays do
+                # not add up (minor cosmetics)
+                pause.seconds(charging_progress_check_interval.total_seconds() - TimeHandler.get_time().second)
 
-                error_counter = 0
-            except InverterError:
-                self.log.warning(
-                    f"An exception occurred while trying to fetch the current state of charge. "
-                    f"Waiting for {charging_progress_check_interval} to try again...",
-                    exc_info=True,
+                try:
+                    if self.inverter.get_operation_mode() != OperationMode.ECO_CHARGE:
+                        self.log.warning(
+                            "The operation mode of the inverter was changed by the user "
+                            "--> Stopping the charging progress"
+                        )
+                        operation_mode_was_changed_by_the_user = True
+                        break
+
+                    current_state_of_charge = self.inverter.get_state_of_charge()
+
+                    error_counter = 0
+                except InverterError:
+                    self.log.warning(
+                        f"An exception occurred while trying to fetch the current state of charge. "
+                        f"Waiting for {charging_progress_check_interval} to try again...",
+                        exc_info=True,
+                    )
+                    error_counter += 1
+                    continue
+
+                if current_state_of_charge >= target_state_of_charge:
+                    self.log.info(f"Charging finished, the battery is at {current_state_of_charge}")
+                    break
+
+                if TimeHandler.get_time() > maximum_end_charging_time:
+                    self.log.info(
+                        f"The maximum end charging time of {maximum_end_charging_time} has been reached "
+                        f"--> Stopping the charging process. The battery is at {current_state_of_charge}"
+                    )
+                    break
+
+                self.log.debug(
+                    f"Charging is still ongoing (current: {current_state_of_charge}, "
+                    f"target: >= {target_state_of_charge}) "
+                    f"--> Waiting for another {charging_progress_check_interval}..."
                 )
-                error_counter += 1
-                continue
+        finally:
+            if operation_mode_was_changed_by_the_user:
+                self.log.info("Leaving the operation mode of the inverter as the user set it")
+            else:
+                self._set_operation_mode_back_to_general()
 
-            if current_state_of_charge >= target_state_of_charge:
-                self.log.info(
-                    f"Charging finished, the battery is at {current_state_of_charge} "
-                    "--> Setting the inverter back to normal mode"
-                )
-                self.inverter.set_operation_mode(OperationMode.GENERAL)
-                break
-
-            if TimeHandler.get_time() > maximum_end_charging_time:
-                self.log.info(
-                    f"The maximum end charging time of {maximum_end_charging_time} has been reached "
-                    f"--> Stopping the charging process. The battery is at {current_state_of_charge}"
-                )
-                self.inverter.set_operation_mode(OperationMode.GENERAL)
-                break
-
-            self.log.debug(
-                f"Charging is still ongoing (current: {current_state_of_charge}, target: >= {target_state_of_charge}) "
-                f"--> Waiting for another {charging_progress_check_interval}..."
+    def _set_operation_mode_back_to_general(self) -> None:
+        """
+        Sets the inverter back to its normal operation mode. Runs in the finally block of the charging process, so it
+        must never raise: doing so would replace whatever exception ended the charging process.
+        """
+        self.log.info("Setting the inverter back to normal mode")
+        try:
+            self.inverter.set_operation_mode(OperationMode.GENERAL)
+        except (InverterError, RuntimeError):
+            self.log.error(
+                "Failed to set the inverter back to normal mode. It may still be charging!",
+                exc_info=True,
             )
 
     @contextmanager

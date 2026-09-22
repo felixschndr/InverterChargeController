@@ -1,7 +1,10 @@
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 import pytest
+from goodwe import InverterError, OperationMode
 
+from source.energy_classes import StateOfCharge
 from source.inverter_charge_controller import InverterChargeController
 
 
@@ -69,3 +72,60 @@ def test_start_reraises_unexpected_exceptions_instead_of_calling_sys_exit(contro
         InverterChargeController.start(controller_stub)
 
     controller_stub.log.critical.assert_called_once()
+
+
+@pytest.fixture
+def charging_controller_stub(controller_stub) -> Mock:
+    controller_stub.current_energy_rate.maximum_charging_duration = timedelta(hours=1)
+    controller_stub.inverter.get_operation_mode.return_value = OperationMode.ECO_CHARGE
+    controller_stub.inverter.get_state_of_charge.return_value = StateOfCharge.from_percentage(50)
+    return controller_stub
+
+
+def test_charge_inverter_sets_the_inverter_back_to_normal_mode_once_the_target_is_reached(charging_controller_stub):
+    charging_controller_stub.inverter.get_state_of_charge.return_value = StateOfCharge.from_percentage(90)
+
+    InverterChargeController._charge_inverter(charging_controller_stub, StateOfCharge.from_percentage(80))
+
+    charging_controller_stub._set_operation_mode_back_to_general.assert_called_once()
+
+
+def test_charge_inverter_sets_the_inverter_back_to_normal_mode_when_an_unexpected_exception_occurs(
+    charging_controller_stub,
+):
+    charging_controller_stub.inverter.get_state_of_charge.side_effect = ValueError("the inverter returned garbage")
+
+    with pytest.raises(ValueError):
+        InverterChargeController._charge_inverter(charging_controller_stub, StateOfCharge.from_percentage(80))
+
+    charging_controller_stub._set_operation_mode_back_to_general.assert_called_once()
+
+
+def test_charge_inverter_sets_the_inverter_back_to_normal_mode_after_too_many_communication_errors(
+    charging_controller_stub,
+):
+    charging_controller_stub.inverter.get_operation_mode.side_effect = InverterError
+
+    InverterChargeController._charge_inverter(charging_controller_stub, StateOfCharge.from_percentage(80))
+
+    assert charging_controller_stub.inverter.get_operation_mode.call_count == 3
+    charging_controller_stub._set_operation_mode_back_to_general.assert_called_once()
+
+
+def test_charge_inverter_leaves_the_operation_mode_alone_when_the_user_changed_it(charging_controller_stub):
+    charging_controller_stub.inverter.get_operation_mode.return_value = OperationMode.GENERAL
+
+    InverterChargeController._charge_inverter(charging_controller_stub, StateOfCharge.from_percentage(80))
+
+    charging_controller_stub._set_operation_mode_back_to_general.assert_not_called()
+
+
+@pytest.mark.parametrize("raised_exception", [InverterError, RuntimeError])
+def test_set_operation_mode_back_to_general_swallows_a_failure_of_an_unresponsive_inverter(
+    controller_stub, raised_exception
+):
+    controller_stub.inverter.set_operation_mode.side_effect = raised_exception
+
+    InverterChargeController._set_operation_mode_back_to_general(controller_stub)
+
+    controller_stub.log.error.assert_called_once()

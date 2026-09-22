@@ -115,6 +115,7 @@ def test_get_next_price_minimum_from_logged_energy_rates(
     assert str(result.timestamp) == expected_time_of_minimum
 
 
+@pytest.mark.skip(reason="Debugging helper: paste a logged list of energy rates into 'log' to run it.")
 @pytest.mark.parametrize("first_iteration", [True, False])
 def test_debug_get_next_price_minimum_from_logged_energy_rates(tibber_api_handler, first_iteration):
     log = "INSERT_LOG_HERE"

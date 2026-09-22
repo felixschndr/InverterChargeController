@@ -328,11 +328,11 @@ def test_calculate_energy_usage_in_timeframe(average_power_consumption_per_time_
     )
 
 
-def test_make_debug_api_request():
+@pytest.mark.skip(reason="Debugging helper: Calls the real Solcast API and eats into the free tier quota")
+def test_retrieving_solar_data_from_the_api_returns_data_and_its_period_duration():
     sun_forecast_handler = SunForecastHandler()
 
-    data = sun_forecast_handler.retrieve_solar_data_from_api(retrieve_future_data=True)
-    print(data)
+    print(sun_forecast_handler.retrieve_solar_data_from_api(retrieve_future_data=True))
 
 
 @pytest.fixture

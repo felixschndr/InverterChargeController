@@ -1,5 +1,6 @@
 import datetime
 from datetime import time
+from unittest.mock import Mock
 
 import pytest
 
@@ -332,3 +333,37 @@ def test_make_debug_api_request():
 
     data = sun_forecast_handler.retrieve_solar_data_from_api(retrieve_future_data=True)
     print(data)
+
+
+@pytest.fixture
+def read_charge_and_discharge_efficiency(isolated_environment_variables: pytest.MonkeyPatch):
+    def read_efficiency(configured_percentage: str | None) -> float:
+        if configured_percentage is None:
+            isolated_environment_variables.delenv("INVERTER_CHARGE_DISCHARGE_EFFICIENCY", raising=False)
+        else:
+            isolated_environment_variables.setenv("INVERTER_CHARGE_DISCHARGE_EFFICIENCY", configured_percentage)
+        return SunForecastHandler._get_charge_and_discharge_efficiency(Mock())
+
+    return read_efficiency
+
+
+@pytest.mark.parametrize(
+    "configured_percentage, expected_factor",
+    [("90", 0.9), ("100", 1.0), ("50.5", 0.505), ("1", 0.01)],
+)
+def test_charge_and_discharge_efficiency_is_converted_from_percent_to_a_factor(
+    read_charge_and_discharge_efficiency, configured_percentage, expected_factor
+):
+    assert read_charge_and_discharge_efficiency(configured_percentage) == pytest.approx(expected_factor)
+
+
+def test_charge_and_discharge_efficiency_falls_back_to_ninety_percent(read_charge_and_discharge_efficiency):
+    assert read_charge_and_discharge_efficiency(None) == pytest.approx(0.9)
+
+
+@pytest.mark.parametrize("configured_percentage", ["101", "5000", "0", "-1"])
+def test_charge_and_discharge_efficiency_rejects_a_percentage_outside_of_the_valid_range(
+    read_charge_and_discharge_efficiency, configured_percentage
+):
+    with pytest.raises(ValueError):
+        read_charge_and_discharge_efficiency(configured_percentage)

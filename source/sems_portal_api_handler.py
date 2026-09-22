@@ -32,7 +32,7 @@ class SemsPortalApiHandler(LoggerMixin):
         url = "https://www.semsportal.com/api/v1/Common/CrossLogin"
         headers = {
             "Content-Type": "application/json",
-            "Token": '{"version":"v2.1.0","client":"ios","language":"en"}',
+            "Token": '{"version":"v2.1.0","client":"ios","language":"en"}',  # nosec B105
         }
         payload = {
             "account": EnvironmentVariableGetter.get("SEMSPORTAL_USERNAME"),

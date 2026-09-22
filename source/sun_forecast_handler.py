@@ -271,8 +271,8 @@ class SunForecastHandler(LoggerMixin):
             rooftop_ids.append(rooftop_id_2)
         return rooftop_ids
 
-    @staticmethod
     def _calculate_energy_usage_in_timeframe(
+        self,
         timeframe_start: datetime,
         timeframe_duration: timedelta,
         average_power_consumption_per_time_of_day: dict[time, Power],
@@ -293,17 +293,37 @@ class SunForecastHandler(LoggerMixin):
 
         Returns:
             EnergyAmount: The total energy amount used during the given timeframe.
+
+        Raises:
+            ValueError: If there is no average power consumption data at all.
         """
+        if not average_power_consumption_per_time_of_day:
+            raise ValueError("There is no average power consumption data to calculate the energy usage with")
+
+        fallback_power_consumption = sum(average_power_consumption_per_time_of_day.values()) / len(
+            average_power_consumption_per_time_of_day
+        )
+
         relevant_power_consumptions = []
+        times_of_day_without_data = []
 
         rounded_starting_minutes = (timeframe_start.minute // 5) * 5
         current_timeframe_start = timeframe_start.replace(minute=rounded_starting_minutes, second=0, microsecond=0)
 
         while current_timeframe_start < timeframe_start + timeframe_duration:
+            time_of_day = current_timeframe_start.time()
+            if time_of_day not in average_power_consumption_per_time_of_day:
+                times_of_day_without_data.append(time_of_day)
             relevant_power_consumptions.append(
-                average_power_consumption_per_time_of_day[current_timeframe_start.time()]
+                average_power_consumption_per_time_of_day.get(time_of_day, fallback_power_consumption)
             )
             current_timeframe_start += timedelta(minutes=5)
+
+        if times_of_day_without_data:
+            self.log.warning(
+                f"There is no average power consumption for {times_of_day_without_data} "
+                f"--> Using the overall average of {fallback_power_consumption} for those"
+            )
 
         average_power_consumption = sum(relevant_power_consumptions) / len(relevant_power_consumptions)
 

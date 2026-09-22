@@ -88,6 +88,11 @@ class TibberAPIHandler(LoggerMixin):
         self.log.debug(f"The upcoming quarter hourly energy rates are {upcoming_quarter_hourly_energy_rates}")
         upcoming_hourly_energy_rates = self._aggregate_to_hourly_rates(upcoming_quarter_hourly_energy_rates)
         self.log.debug(f"The aggregated hourly energy rates are {upcoming_hourly_energy_rates}")
+        if not upcoming_hourly_energy_rates:
+            raise ValueError(
+                f"The Tibber API returned {len(all_quarter_hourly_energy_rates)} energy rate(s), but none of them is "
+                "in the future"
+            )
         return upcoming_hourly_energy_rates
 
     def _fetch_upcoming_prices_from_api(self) -> dict:
@@ -289,6 +294,10 @@ class TibberAPIHandler(LoggerMixin):
         upcoming_energy_rates_until_ending_timestamp = [
             energy_rate for energy_rate in upcoming_energy_rates if energy_rate.timestamp <= ending_timestamp
         ]
+        if not upcoming_energy_rates_until_ending_timestamp:
+            raise ValueError(
+                f"None of the {len(upcoming_energy_rates)} upcoming energy rates is before {ending_timestamp}"
+            )
 
         self.log.trace("Determining the last energy rate before the price is higher than the average price...")
         energy_rate_before_the_price_is_higher_than_the_average = upcoming_energy_rates_until_ending_timestamp[0]

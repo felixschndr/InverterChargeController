@@ -324,7 +324,7 @@ def test_calculate_energy_usage_in_timeframe(average_power_consumption_per_time_
     )
 
     assert expected_energy_usage == SunForecastHandler._calculate_energy_usage_in_timeframe(
-        timeframe_start, timeframe_duration, average_power_consumption_per_time_of_day
+        Mock(), timeframe_start, timeframe_duration, average_power_consumption_per_time_of_day
     )
 
 
@@ -367,3 +367,40 @@ def test_charge_and_discharge_efficiency_rejects_a_percentage_outside_of_the_val
 ):
     with pytest.raises(ValueError):
         read_charge_and_discharge_efficiency(configured_percentage)
+
+
+def test_calculate_energy_usage_in_timeframe_rejects_consumption_data_without_any_entry():
+    with pytest.raises(ValueError):
+        SunForecastHandler._calculate_energy_usage_in_timeframe(
+            Mock(), datetime.datetime(2020, 1, 1, 0, 0), datetime.timedelta(minutes=30), {}
+        )
+
+
+def test_calculate_energy_usage_in_timeframe_substitutes_the_overall_average_for_missing_times_of_day(
+    average_power_consumption_per_time_of_day,
+):
+    timeframe_start = datetime.datetime(2020, 1, 1, 0, 0)
+    timeframe_duration = datetime.timedelta(minutes=30)
+    consumption_data_with_a_gap = {
+        time_of_day: power
+        for time_of_day, power in average_power_consumption_per_time_of_day.items()
+        if time_of_day != time(hour=0, minute=15)
+    }
+    overall_average = sum(consumption_data_with_a_gap.values()) / len(consumption_data_with_a_gap)
+    handler_stub = Mock()
+
+    expected_average = (
+        sum(
+            [average_power_consumption_per_time_of_day[time(hour=0, minute=minute)] for minute in [0, 5, 10, 20, 25]],
+            overall_average,
+        )
+        / 6
+    )
+    expected_energy_usage = EnergyAmount.from_watt_seconds(expected_average.watts * timeframe_duration.total_seconds())
+
+    energy_usage = SunForecastHandler._calculate_energy_usage_in_timeframe(
+        handler_stub, timeframe_start, timeframe_duration, consumption_data_with_a_gap
+    )
+
+    assert energy_usage.watt_hours == pytest.approx(expected_energy_usage.watt_hours)
+    handler_stub.log.warning.assert_called_once()

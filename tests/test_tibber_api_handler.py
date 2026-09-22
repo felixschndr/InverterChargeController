@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -135,3 +136,40 @@ def test_aggregate_to_hourly_rates(tibber_api_handler):
     expected_hourly_rates = construct_energy_rates([17.5, 10.24, 15.0], timedelta(hours=1))
 
     assert tibber_api_handler._aggregate_to_hourly_rates(quarter_hourly_rates) == expected_hourly_rates
+
+
+def test_get_upcoming_energy_rates_rejects_a_response_that_contains_no_future_rate(tibber_api_handler):
+    api_response_with_only_past_rates = {
+        "viewer": {
+            "homes": [
+                {
+                    "currentSubscription": {
+                        "priceInfo": {
+                            "today": [{"total": 0.2962, "startsAt": "2020-01-01T00:00:00.000+01:00"}],
+                            "tomorrow": [],
+                        }
+                    }
+                }
+            ]
+        }
+    }
+
+    with (
+        patch.object(
+            tibber_api_handler, "_fetch_upcoming_prices_from_api", return_value=api_response_with_only_past_rates
+        ),
+        patch.object(tibber_api_handler, "write_energy_rates_to_database"),
+    ):
+        with pytest.raises(ValueError, match="none of them is in the future"):
+            tibber_api_handler.get_upcoming_energy_rates()
+
+
+def test_get_energy_rates_around_the_price_spike_rejects_an_ending_timestamp_before_all_rates(
+    tibber_api_handler, upcoming_energy_rates
+):
+    ending_timestamp_before_all_rates = upcoming_energy_rates[0].timestamp - timedelta(hours=1)
+
+    with pytest.raises(ValueError, match="None of the"):
+        tibber_api_handler.get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
+            upcoming_energy_rates, ending_timestamp_before_all_rates
+        )

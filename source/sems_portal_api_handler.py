@@ -180,7 +180,7 @@ class SemsPortalApiHandler(LoggerMixin):
         self.log.trace(f"Newest value saved in the database is from {newest_value_saved_timestamp}")
         newest_value_saved_date = newest_value_saved_timestamp.date()
 
-        today = date.today()
+        today = TimeHandler.get_date()
         days_since_newest_value = (today - newest_value_saved_date).days
         maximum_fetch_days = 31
         if days_since_newest_value > maximum_fetch_days:

@@ -265,7 +265,7 @@ class TibberAPIHandler(LoggerMixin):
             f"The price minimum {price_minimum.timestamp} is at the end of the day: {price_minimum_is_near_end_of_day}"
         )
 
-        today = datetime.now().date()
+        today = TimeHandler.get_date()
         are_tomorrows_rates_unavailable = all(rate.timestamp.date() == today for rate in upcoming_energy_rates)
         self.log.trace(f"The price rates for tomorrow are unavailable: {are_tomorrows_rates_unavailable}")
 

@@ -361,7 +361,7 @@ class SunForecastHandler(LoggerMixin):
             power_during_timeslot = solar_data[timeframe_end.isoformat()]
             return EnergyAmount.from_watt_seconds(power_during_timeslot.watts * timeframe_duration.total_seconds())
         except KeyError as e:
-            now = datetime.now(TimeHandler.get_timezone())
+            now = TimeHandler.get_time()
             yesterday = now - timedelta(days=1)
             tomorrow = now + timedelta(days=1)
 

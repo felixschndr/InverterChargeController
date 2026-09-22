@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -173,3 +173,30 @@ def test_get_energy_rates_around_the_price_spike_rejects_an_ending_timestamp_bef
         tibber_api_handler.get_energy_rate_before_and_after_the_price_is_higher_than_the_average_until_timestamp(
             upcoming_energy_rates, ending_timestamp_before_all_rates
         )
+
+
+FIRST_DAY = datetime(2026, 4, 18, tzinfo=timezone(timedelta(hours=2)))
+
+
+def construct_rates_for_days(amount_of_days: int) -> list[EnergyRate]:
+    return [EnergyRate(30.0, FIRST_DAY + timedelta(hours=hour)) for hour in range(24 * amount_of_days)]
+
+
+@pytest.mark.parametrize(
+    "hour_of_the_minimum, amount_of_days_with_rates, expected_to_need_a_recheck",
+    [(23, 1, True), (23, 2, False), (14, 1, False), (0, 1, False)],
+)
+def test_a_minimum_needs_a_recheck_only_at_the_end_of_a_day_without_rates_for_tomorrow(
+    tibber_api_handler, hour_of_the_minimum, amount_of_days_with_rates, expected_to_need_a_recheck
+):
+    upcoming_energy_rates = construct_rates_for_days(amount_of_days_with_rates)
+    price_minimum = EnergyRate(29.0, FIRST_DAY + timedelta(hours=hour_of_the_minimum))
+
+    with patch("source.tibber_api_handler.TimeHandler.get_date", return_value=FIRST_DAY.date()):
+        needs_a_recheck = (
+            tibber_api_handler._check_if_minimum_is_at_end_of_day_and_energy_rates_of_tomorrow_are_unavailable(
+                price_minimum, upcoming_energy_rates
+            )
+        )
+
+    assert needs_a_recheck is expected_to_need_a_recheck

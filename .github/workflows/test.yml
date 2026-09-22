@@ -1,0 +1,91 @@
+name: Pipeline that validates and tests the source code
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Set up Python and Poetry
+        uses: ./.github/actions/setup-poetry
+
+      - name: Run tests
+        run: poetry run pytest
+
+  validate-docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Docker image
+        run: docker build -t inverter-charge-controller:test .
+
+      - name: Run Docker container and validate successful startup
+        run: |
+          readonly TIMEOUT=30
+
+          CONTAINER_ID=$(docker run \
+            -e TZ=Europe/Berlin \
+            -e INVERTER_BATTERY_CAPACITY=10000 \
+            -e INVERTER_HOSTNAME=192.0.2.1 \
+            -e TIBBER_API_TOKEN=dummy \
+            -e SEMSPORTAL_USERNAME=dummy \
+            -e SEMSPORTAL_PASSWORD=dummy \
+            -e SEMSPORTAL_POWERSTATION_ID=dummy \
+            -e SOLCAST_API_KEY=dummy \
+            -e ROOFTOP_ID_1=dummy \
+            -e LATITUDE=48.1 \
+            -e LONGITUDE=11.5 \
+            -e INFLUXDB_TOKEN=dummy \
+            -d inverter-charge-controller:test)
+
+          echo "Started container: ${CONTAINER_ID}"
+          echo "Waiting up to ${TIMEOUT} seconds for expected output ..."
+
+          FOUND=0
+          for i in $(seq 1 ${TIMEOUT}); do
+            LOGS=$(docker logs "${CONTAINER_ID}" 2>&1 || true)
+
+            if echo "${LOGS}" | grep -q "Starting application"; then
+              echo "✅ Expected output found!"
+              FOUND=1
+              break
+            fi
+
+            sleep 1
+          done
+
+          docker stop "${CONTAINER_ID}" >/dev/null
+
+          echo "---- Container logs ----"
+          echo "${LOGS}"
+
+          if [ "${FOUND}" -ne 1 ]; then
+            echo "❌ Expected output not found!"
+            exit 1
+          fi

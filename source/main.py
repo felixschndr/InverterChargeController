@@ -120,8 +120,6 @@ if __name__ == "__main__":
         pause.seconds(2)
 
         inverter_charge_controller = InverterChargeController()
-        inverter_charge_controller_thread = threading.Thread(target=inverter_charge_controller.start)
-        inverter_charge_controller_thread.start()
-        inverter_charge_controller_thread.join()
+        inverter_charge_controller.start()
     finally:
         unlock()

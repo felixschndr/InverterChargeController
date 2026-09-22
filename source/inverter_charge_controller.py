@@ -66,7 +66,8 @@ class InverterChargeController(LoggerMixin):
         On subsequent iterations, it performs a standard operation to determine the next scheduled execution time.
 
         Raises:
-            SystemExit: If an unexpected error occurs, the program will exit with a status code of 1.
+            Exception: Any unexpected error is logged and re-raised, so that it reaches the main thread and the
+                process terminates with a non-zero exit code.
         """
         first_iteration = True
         while True:
@@ -117,7 +118,7 @@ class InverterChargeController(LoggerMixin):
 
             except Exception:
                 self.log.critical("An unexpected error occurred. Exiting now...", exc_info=True)
-                sys.exit(1)
+                raise
 
     def _do_iteration(self) -> None:
         """
@@ -806,7 +807,7 @@ class InverterChargeController(LoggerMixin):
             except exceptions:
                 if attempt == retries - 1:
                     self.log.critical(f"A call errored {retries} times in a row. Giving up...")
-                    sys.exit(1)
+                    raise
 
                 self.log.warning(
                     f"An exception occurred while trying to fetch data from a different system. "
@@ -814,4 +815,3 @@ class InverterChargeController(LoggerMixin):
                     exc_info=True,
                 )
                 pause.seconds(InverterChargeController.DURATION_TO_WAIT_IN_CASE_OF_ERROR.total_seconds())
-        return None

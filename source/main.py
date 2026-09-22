@@ -1,9 +1,11 @@
+import fcntl
 import os
 import signal
 import sys
 import threading
 from datetime import datetime, time, timedelta
 from types import FrameType
+from typing import IO, Optional
 
 import pause
 import requests
@@ -24,18 +26,24 @@ SOLAR_FORECAST_Check_OFFSET = timedelta(minutes=8)
 logger = LoggerMixin("Main")
 
 
-def lock() -> None:
-    with open(LOCK_FILE_PATH, "w") as lock_file:
-        lock_file.write(str(os.getpid()))
-    logger.log.trace("Lock file created")
+def acquire_lock() -> Optional[IO]:
+    """
+    Takes an exclusive lock on the lock file to ensure only one instance runs at a time.
 
+    Returns:
+        Optional[IO]: The locked file, or None if another instance already holds the lock.
+    """
+    lock_file = open(LOCK_FILE_PATH, "w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        lock_file.close()
+        return None
 
-def unlock() -> None:
-    if not os.path.exists(LOCK_FILE_PATH):
-        return
-
-    os.remove(LOCK_FILE_PATH)
-    logger.log.trace("Lock file removed")
+    lock_file.write(str(os.getpid()))
+    lock_file.flush()
+    logger.log.trace("Lock acquired")
+    return lock_file
 
 
 def write_solar_forecast_and_history_to_db() -> None:
@@ -91,7 +99,6 @@ def _get_next_wakeup_time(morning_time: time, evening_time: time) -> datetime:
 def handle_stop_signal(signal_number: int, _frame: FrameType) -> None:
     logger.write_newlines_to_log_file()
     logger.log.info(f"Received {signal.Signals(signal_number).name}. Exiting now...")
-    unlock()
     sys.exit(0)
 
 
@@ -101,25 +108,22 @@ for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
 
 if __name__ == "__main__":
     started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
-    if os.path.exists(LOCK_FILE_PATH):
+    lock_file = acquire_lock()
+    if lock_file is None:
         logger.write_newlines_to_log_file()
         logger.log.warning(
             f"Attempted to start the inverter charge controller{started_by_systemd}, but it is already running."
         )
         sys.exit(1)
 
-    try:
-        logger.write_newlines_to_log_file()
-        logger.log.info(f"Starting application{started_by_systemd}")
-        lock()
+    logger.write_newlines_to_log_file()
+    logger.log.info(f"Starting application{started_by_systemd}")
 
-        solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
-        solar_protocol_thread.start()
+    solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
+    solar_protocol_thread.start()
 
-        # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
-        pause.seconds(2)
+    # Let the thread calculate and log its next wakeup time before logging all the info of the InverterChargeController
+    pause.seconds(2)
 
-        inverter_charge_controller = InverterChargeController()
-        inverter_charge_controller.start()
-    finally:
-        unlock()
+    inverter_charge_controller = InverterChargeController()
+    inverter_charge_controller.start()

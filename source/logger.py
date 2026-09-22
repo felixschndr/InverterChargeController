@@ -33,6 +33,8 @@ class LoggerMixin:
     """
 
     def __init__(self, logger_name: str = None):
+        self._add_trace_loglevel()
+
         root_logger = logging.getLogger()
         if len(root_logger.handlers) == 0:
             self._set_logger(root_logger)
@@ -50,7 +52,6 @@ class LoggerMixin:
         It determines the directory paths for logs, ensures the logging directory exists,
         and configures a rotating file handler with a specific log level and format.
         """
-        self._add_trace_loglevel()
         self._set_log_levels_of_libraries()
 
         directory_of_repository = pathlib.Path(__file__).parent.parent.resolve()

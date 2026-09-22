@@ -28,10 +28,11 @@ class AbsenceHandler(LoggerMixin):
             return False
         return self.absence_start < TimeHandler.get_time() < self.absence_end
 
-    def _parse_absence_input(self, absence_input: str) -> Optional[tuple[datetime, datetime]]:
+    def _parse_absence_input(self, absence_input: str) -> tuple[Optional[datetime], Optional[datetime]]:
+        absence_input = absence_input.strip()
         if not absence_input:
             self.log.debug("Absence input is empty")
-            return None
+            return None, None
         if absence_input.count(self.DELIMITER) != 1:
             raise ValueError(f'The amount of "{self.DELIMITER}" in the input MUST be 1')
 

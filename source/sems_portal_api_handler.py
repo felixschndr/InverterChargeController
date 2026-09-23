@@ -194,11 +194,11 @@ class SemsPortalApiHandler(LoggerMixin):
             data = self._retrieve_power_data(date_to_crawl)
             try:
                 lines = data["data"]["lines"]
-            except TypeError:
+                time_keys = [line["x"] for line in lines[0]["xy"]]
+            except (TypeError, IndexError, KeyError):
                 self.log.warning(f"Error retrieving power data for {date_to_crawl}: {data}")
                 continue
 
-            time_keys = [line["x"] for line in lines[0]["xy"]]
             for time_key in time_keys:
                 timestamp = datetime.combine(date_to_crawl, datetime.strptime(time_key, "%H:%M").time())
                 timestamp = timestamp.replace(tzinfo=TimeHandler.get_timezone())

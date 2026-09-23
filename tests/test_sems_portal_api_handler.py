@@ -57,3 +57,23 @@ def test_the_amount_of_crawled_days_is_capped_at_a_month(handler_stub):
 
     assert len(crawled_dates(handler_stub)) == 32
     assert crawled_dates(handler_stub)[0] == TODAY
+
+
+@pytest.mark.parametrize(
+    "unusable_response",
+    [
+        {"data": {"lines": [{"xy": None}]}},  # the response that crashed the controller on 2026-09-23
+        {"data": {"lines": [{}]}},
+        {"data": {"lines": []}},
+        {"data": {"lines": None}},
+        {"data": None},
+    ],
+)
+def test_a_day_the_api_holds_no_power_data_for_is_skipped(handler_stub, unusable_response):
+    handler_stub._retrieve_power_data.return_value = unusable_response
+
+    write_values_with_newest_saved_value_from(handler_stub, datetime(2026, 4, 16, 9, 0, tzinfo=TIMEZONE))
+
+    # Every day is still crawled, the unusable ones are skipped instead of ending the iteration
+    assert crawled_dates(handler_stub) == [TODAY, date(2026, 4, 17), date(2026, 4, 16)]
+    handler_stub.database_handler.write_to_database.assert_not_called()

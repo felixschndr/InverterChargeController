@@ -5,8 +5,6 @@ services:
 
     environment:
       TZ: Europe/Berlin
-      # Do NOT put this into the .env: the controller re-reads that file on every lookup and it takes precedence
-      # over the environment, which would point the container at its own localhost.
       INFLUXDB_URL: http://influxdb:8086
 
     volumes:

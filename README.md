@@ -93,6 +93,33 @@ Once done, you can control the program like any other systemd service:
 - Restarting: `sudo systemctl restart inverter-charge-controller.service`
 - Enabling to run at boot: `sudo systemctl enable inverter-charge-controller.service`
 
+#### Docker
+
+or you can run the program in a container. The [compose.yaml](./compose.yaml) starts the controller together with an
+InfluxDB.
+
+Put the `compose.yaml` and your `.env` into a directory and start everything:
+```bash
+docker compose up --pull always -d --force-recreate
+```
+This pulls the current image, recreates the containers and starts them in the background. Running it again is also how
+you update to a newer image.
+
+Once running, you can control it like any other compose project:
+- Status: `docker compose ps`
+- Logs: `docker compose logs -f app`
+- Stopping: `docker compose stop`
+- Stopping and removing the containers: `docker compose down`
+- Restarting: `docker compose restart app`
+
+Two things worth knowing:
+- The logs only show up in `docker compose logs` if `PRINT_TO_STDOUT` is set to `True`. Independently of that they are
+  written to `DIRECTORY_OF_LOGS`, which should point into the mounted `/app/logs` to survive a recreation of the
+  container.
+- The InfluxDB keeps its data in `./data/influxdb-data` and publishes port `8086` on **all** interfaces. On a host that
+  is reachable from the internet, bind it to `127.0.0.1:8086:8086` instead and use an SSH tunnel to reach the web
+  interface.
+
 
 ## Extra script
 

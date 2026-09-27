@@ -12,7 +12,6 @@ import requests
 from requests.exceptions import ReadTimeout
 from urllib3.exceptions import ReadTimeoutError
 
-from source.environment_variable_getter import EnvironmentVariableGetter
 from source.inverter_charge_controller import InverterChargeController
 from source.logger import LoggerMixin
 from source.sun_forecast_handler import SunForecastHandler
@@ -107,17 +106,14 @@ for signal_to_catch in [signal.SIGINT, signal.SIGTERM]:
 
 
 if __name__ == "__main__":
-    started_by_systemd = " by systemd" if EnvironmentVariableGetter.get("INVOCATION_ID", "") else ""
     lock_file = acquire_lock()
     if lock_file is None:
         logger.write_newlines_to_log_file()
-        logger.log.warning(
-            f"Attempted to start the inverter charge controller{started_by_systemd}, but it is already running."
-        )
+        logger.log.warning("Attempted to start the inverter charge controller, but it is already running.")
         sys.exit(1)
 
     logger.write_newlines_to_log_file()
-    logger.log.info(f"Starting application{started_by_systemd}")
+    logger.log.info("Starting application")
 
     solar_protocol_thread = threading.Thread(target=write_solar_forecast_and_history_to_db, daemon=True)
     solar_protocol_thread.start()

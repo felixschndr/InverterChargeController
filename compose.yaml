@@ -30,9 +30,11 @@ services:
       DOCKER_INFLUXDB_INIT_ORG: default
       DOCKER_INFLUXDB_INIT_BUCKET: default
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUX_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUX_ORG: default
 
     ports:
-      # Only needed to reach the database from the host, e.g. for the influx commands in the README.
+      # Only needed to reach the database (e.g. its web interface) from outside the compose network.
       - "8086:8086"
 
     volumes:

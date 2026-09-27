@@ -11,7 +11,7 @@ services:
       # Mounted as a file, not passed via "environment" or "env_file": the controller re-reads it on
       # every lookup, so editing it takes effect without recreating the container.
       - ./.env:/app/.env:ro
-      - ./logs:/app/logs
+      - ./logs:/app/logs # Optional
 
     depends_on:
       influxdb:

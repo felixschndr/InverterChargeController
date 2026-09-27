@@ -17,8 +17,6 @@ Put the [compose.yaml](./compose.yaml) into a directory and create an `.env` nex
    |----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------|------------------------------------------------------------------------------------------------------------------------------|
    | `USE_DEBUG_SOLAR_OUTPUT`               | Use a debug value for the expected solar output (can be used while debugging since the solar forecast API offers a very limited amount of API calls per day). Should be set to `False` in normal production mode.                                                                                                             | `False`                      | [`True`, `False`]                                                                                                            |
    | `LOGLEVEL`                             | The level to log at.                                                                                                                                                                                                                                                                                                          | `INFO`                       | [`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`]                                                                   |
-   | `DIRECTORY_OF_LOGS`                    | The directory where the logs of the application shall be stored. Ensure the user running the application has permissions to write in this directory.                                                                                                                                                                          | `/app/logs/`                 | A string containing an absolute path, example: `/var/log/inverterchargecontroller/`                                          |
-   | `PRINT_TO_STDOUT`                      | Whether to print to stdout in addition to the logfile.                                                                                                                                                                                                                                                                        | `True`                       | [`True`, `False`]                                                                                                            |
    | `TIBBER_API_TOKEN`                     | The token to crawl the Tibber API. See https://developer.tibber.com/docs/guides/calling-api for more information.                                                                                                                                                                                                             | -                            | A string, example: `my-secret-token`                                                                                         |
    | `INVERTER_HOSTNAME`                    | The hostname or IP of the inverter.                                                                                                                                                                                                                                                                                           | -                            | [`inverter.mydomain.com`, `192.168.5.10`, ...]                                                                               |
    | `INVERTER_BATTERY_CAPACITY`            | The capacity of the battery in watt hours without any separators.                                                                                                                                                                                                                                                             | -                            | A number, typically between `3000` and `15000`                                                                               |
@@ -60,9 +58,8 @@ Once running, you can control it like any other compose project:
 - Restarting: `docker compose restart app`
 
 Two things worth knowing:
-- The logs only show up in `docker compose logs` if `PRINT_TO_STDOUT` is set to `True`. Independently of that they are
-  written to `DIRECTORY_OF_LOGS`, which should stay inside the mounted `/app/logs` to survive a recreation of the
-  container.
+- The logs show up in `docker compose logs` and are additionally written to `/app/logs` in the container. The bind mount
+  of `./logs` in the `compose.yaml` keeps them across a recreation of the container, it can be removed if not needed.
 - The InfluxDB keeps its data in `./data/influxdb-data` and publishes port `8086` on **all** interfaces. On a host that
   is reachable from the internet, bind it to `127.0.0.1:8086:8086` instead and use an SSH tunnel to reach the web
   interface.
@@ -77,8 +74,8 @@ The script only works inside the container, e.g. `docker compose exec app invert
 
 ### Logs
 
-The logs of the application are stored in `./logs/` next to the `compose.yaml`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved.
-See also the environment variables `DIRECTORY_OF_LOGS` and `LOGLEVEL`.
+The logs of the application are stored in `/app/logs/` in the container (`./logs/` next to the `compose.yaml` with the bind mount). They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved.
+See also the environment variable `LOGLEVEL`.
 
 ## Charging algorithm
 

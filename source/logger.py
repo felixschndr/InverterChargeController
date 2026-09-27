@@ -54,14 +54,8 @@ class LoggerMixin:
         """
         self._set_log_levels_of_libraries()
 
-        directory_of_repository = pathlib.Path(__file__).parent.parent.resolve()
-        directory_of_logs_default_value = os.path.join(directory_of_repository, "logs")
-
-        self._directory_of_logs = EnvironmentVariableGetter.get(
-            name_of_variable="DIRECTORY_OF_LOGS",
-            default_value=directory_of_logs_default_value,
-        )
-        self._create_logging_directory_if_necessary(self._directory_of_logs)
+        directory_of_logs = pathlib.Path(__file__).parent.parent.resolve() / "logs"
+        directory_of_logs.mkdir(exist_ok=True)
 
         log_level = EnvironmentVariableGetter.get(name_of_variable="LOGLEVEL", default_value="INFO").upper()
 
@@ -72,15 +66,12 @@ class LoggerMixin:
         )
 
         file_handler = RotatingFileHandlerWithPermissions(
-            os.path.join(self._directory_of_logs, "app.log"),
+            directory_of_logs / "app.log",
             maxBytes=1024 * 1024,
             backupCount=7,
         )
 
-        handlers = [file_handler]
-        if EnvironmentVariableGetter.get("PRINT_TO_STDOUT", True):
-            handlers.append(logging.StreamHandler())
-        for handler in handlers:
+        for handler in [file_handler, logging.StreamHandler()]:
             handler.setFormatter(formatter)
             handler.setLevel(log_level)
             root_logger.addHandler(handler)
@@ -114,18 +105,6 @@ class LoggerMixin:
         logging.getLogger("goodwe.protocol").setLevel(logging.INFO)
         logging.getLogger("tzlocal").setLevel(logging.INFO)
 
-    @staticmethod
-    def _create_logging_directory_if_necessary(directory_of_logs: str) -> None:
-        """
-        Args:
-            directory_of_logs: The path to the directory where log files will be stored. If the directory does not already exist, it will be created.
-        """
-        if os.path.exists(directory_of_logs):
-            return
-
-        print(f"Creating directory for logs {directory_of_logs}")
-        os.mkdir(directory_of_logs)
-
     def write_newlines_to_log_file(self, amount_of_newlines: int = 2) -> None:
         """
         Writes the specified number of newline characters to the log file without a timestamp or loglevel.
@@ -134,7 +113,3 @@ class LoggerMixin:
             amount_of_newlines: Number of newline characters to write. Default is 2.
         """
         self.log.parent.handlers[0].stream.write("".join("\n" for _ in range(amount_of_newlines)))
-
-    @property
-    def directory_of_logs(self) -> str:
-        return self._directory_of_logs

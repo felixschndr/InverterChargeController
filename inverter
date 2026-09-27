@@ -21,38 +21,33 @@ def print_help_and_exit() -> None:
     sys.exit(1)
 
 
-if len(sys.argv) < 2 or sys.argv[1] not in ["--status", "--mode", "--tibber"]:
-    print_help_and_exit()
-if sys.argv[1] == "--mode" and (len(sys.argv) != 3 or sys.argv[2] not in ["GENERAL", "ECO_CHARGE"]):
-    print('Unsupported mode, valid modes are "GENERAL" and "ECO_CHARGE"\n')
-    print_help_and_exit()
-
-
 logger = LoggerMixin("Manual Script")
 logger.write_newlines_to_log_file()
 logger.log.info(f"Inverter is manually controlled by the user: {sys.argv}")
 
 try:
-    match sys.argv[1]:
-        case "--status":
+    match sys.argv[1:]:
+        case ["--status"]:
             inverter = Inverter()
             inverter.log.name += " User"
             soc = inverter.get_state_of_charge(True)
             mode = inverter.get_operation_mode(True).name
             print(f"SoC: {soc}\nmode: {mode}")
-        case "--mode":
-            new_mode = OperationMode[sys.argv[2]]
+        case ["--mode", "GENERAL" | "ECO_CHARGE" as mode_name]:
+            new_mode = OperationMode[mode_name]
             inverter = Inverter()
             inverter.log.name += " User"
             last_mode = inverter.get_operation_mode(log_new_mode=True).name
             inverter.set_operation_mode(new_mode)
             print(f"last mode: {last_mode}\nnew mode: {new_mode.name}")
-        case "--tibber":
+        case ["--tibber"]:
             tibber_api_handler = TibberAPIHandler()
             api_result = tibber_api_handler._fetch_upcoming_prices_from_api()
             all_quarter_hourly_energy_rates = tibber_api_handler._extract_energy_rates_from_api_response(api_result)
             tibber_api_handler._remove_energy_rates_from_the_past(all_quarter_hourly_energy_rates)
             tibber_api_handler.write_energy_rates_to_database(all_quarter_hourly_energy_rates)
+        case _:
+            print_help_and_exit()
 except Exception as e:
     logger.log.exception(e)
     sys.exit(1)

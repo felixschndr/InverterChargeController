@@ -125,6 +125,8 @@ Two things worth knowing:
 
 You can use the [inverter script](./inverter) to control the inverter manually over the command line. It supports getting the current state of charge and operation mode, setting the operation mode and fetching the tibber rates.
 
+The script only works inside the container, e.g. `docker exec <container name> inverter --status`.
+
 ### Logs
 
 The logs of the application are stored in `<path to repository>/logs/`. They are rolled over once a logfile reaches `1 MB` in size. The current log and a maximum of `7` rolled over logfiles are saved.

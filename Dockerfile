@@ -21,5 +21,7 @@ WORKDIR /app
 COPY --from=builder /app/.venv/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 COPY source/ source/
 COPY sample_solar_forecast.json ./
+COPY inverter ./
+RUN ln -s /app/inverter /usr/local/bin/inverter
 
 CMD ["python", "-m", "source.main"]

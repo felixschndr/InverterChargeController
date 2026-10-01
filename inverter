@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import sys
 
 from goodwe.et import OperationMode
@@ -22,6 +23,8 @@ def print_help_and_exit() -> None:
 
 
 logger = LoggerMixin("Manual Script")
+root_logger = logging.getLogger()
+root_logger.handlers = [h for h in root_logger.handlers if type(h) is not logging.StreamHandler]  # log to file only
 logger.write_newlines_to_log_file()
 logger.log.info(f"Inverter is manually controlled by the user: {sys.argv}")
 
@@ -50,4 +53,5 @@ try:
             print_help_and_exit()
 except Exception as e:
     logger.log.exception(e)
+    print(f"Error: {e}", file=sys.stderr)
     sys.exit(1)

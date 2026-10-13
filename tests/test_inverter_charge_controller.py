@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from goodwe import InverterError, OperationMode
+from requests.exceptions import RequestException
 
 from source.energy_classes import StateOfCharge
 from source.inverter_charge_controller import InverterChargeController
@@ -129,3 +130,13 @@ def test_set_operation_mode_back_to_general_swallows_a_failure_of_an_unresponsiv
     InverterChargeController._set_operation_mode_back_to_general(controller_stub)
 
     controller_stub.log.error.assert_called_once()
+
+
+def test_protocol_amount_of_energy_bought_does_not_raise_when_the_statistics_cannot_be_fetched(controller_stub):
+    controller_stub.retry.side_effect = RequestException("the sems portal is unreachable")
+
+    with InverterChargeController._protocol_amount_of_energy_bought(controller_stub):
+        pass
+
+    controller_stub.log.warning.assert_called_once()
+    controller_stub._write_energy_buy_statistics_to_database.assert_not_called()

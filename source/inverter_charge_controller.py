@@ -78,6 +78,7 @@ class InverterChargeController(LoggerMixin):
                     )
                     first_iteration = False
                 else:
+                    self.current_energy_rate = self.next_price_minimum
                     self.retry(self._do_iteration)
                     self.iteration_cache = {}
 
@@ -135,13 +136,11 @@ class InverterChargeController(LoggerMixin):
         """
         self.write_newlines_to_log_file()
         self.log.info(
-            f"Waiting is over, now is a price minimum ({self.next_price_minimum.rate} ct/kWh). Checking what has to be "
+            f"Waiting is over, now is a price minimum ({self.current_energy_rate.rate} ct/kWh). Checking what has to be "
             f"done to reach the next minimum..."
         )
 
         self.sems_portal_api_handler.write_values_to_database()
-
-        self.current_energy_rate = self.next_price_minimum
 
         self.next_price_minimum = self._get_next_price_minimum()
         self.log.info(f"The next price minimum is {self.next_price_minimum}")
@@ -628,11 +627,16 @@ class InverterChargeController(LoggerMixin):
         )
         pause.seconds(duration_to_wait_for_semsportal_update.total_seconds())
 
-        energy_bought = self._calculate_amount_of_energy_bought(
-            energy_bought_before_charging,
-            timestamp_starting_to_charge,
-            timestamp_ending_to_charge + duration_to_wait_for_semsportal_update,
-        )
+        try:
+            energy_bought = self.retry(
+                self._calculate_amount_of_energy_bought,
+                energy_bought_before_charging,
+                timestamp_starting_to_charge,
+                timestamp_ending_to_charge + duration_to_wait_for_semsportal_update,
+            )
+        except InverterChargeController.EXCEPTIONS_TO_CATCH:
+            self.log.warning("Could not determine the amount of energy bought, skipping the statistics", exc_info=True)
+            return
         self.log.info(f"Bought {energy_bought} to charge the battery")
 
         self._write_energy_buy_statistics_to_database(

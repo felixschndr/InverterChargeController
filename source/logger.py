@@ -59,9 +59,8 @@ class LoggerMixin:
 
         log_level = EnvironmentVariableGetter.get(name_of_variable="LOGLEVEL", default_value="INFO").upper()
 
-        instance_id = os.getpid()
         formatter = logging.Formatter(
-            f"[%(asctime)s] [{instance_id}] [%(name)s] [%(levelname)s] %(message)s",
+            "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
 
